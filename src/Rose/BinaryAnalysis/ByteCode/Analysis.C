@@ -30,22 +30,32 @@ namespace ByteCode {
 // Field
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Field::Field() {}
-Field::~Field() {}
+Field::Field() = default;
+Field::~Field() = default;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Code
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Code::Code() {}
-Code::~Code() {}
+Code::Code() = default;
+Code::~Code() = default;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Method
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Method::Method(Address va) : classAddr_{va} {}
-Method::~Method() {}
+Method::Method(std::string name, Address va) : name_{std::move(name)}, address_{va} {}
+Method::~Method() = default;
+
+const std::string&
+Method::name() const {
+    return name_;
+}
+
+Address
+Method::address() const {
+    return address_;
+}
 
 Class::Ptr
 Method::analysisClass() {
@@ -86,21 +96,26 @@ Method::targets() const {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Interface::Interface() {}
-Interface::~Interface() {}
+Interface::~Interface() = default;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Attribute
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Attribute::Attribute() {}
-Attribute::~Attribute() {}
+Attribute::~Attribute() = default;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Class
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Class::Class(NamespacePtr ns, Address va) : address_{va}, namespace_{ns} {}
+Class::Class(std::string name, Address va, NamespacePtr ns) : name_{std::move(name)}, address_{va}, namespace_{ns} {}
 Class::~Class() {}
+
+const std::string&
+Class::name() const {
+    return name_;
+}
 
 Address
 Class::address() const {
@@ -163,12 +178,12 @@ Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address
         method->annotate();
 
         auto instructions = method->instructions()->get_instructions();
-        if (instructions.size() > 0) {
+        if (!instructions.empty()) {
             // The address of the Partitioner2::Function is the address of the first basic block
-            va = instructions[0]->get_address();
+            va = instructions.front()->get_address();
         } else {
             // A Java interface has no instructions, use the class address instead
-            va = address();
+            ASSERT_require2(false, "Need unique method address");
         }
 
         // Determine if this method/function has been seen before (e.g., ".ctor" of parent class)

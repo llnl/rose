@@ -25,50 +25,48 @@ namespace IS = Rose::BinaryAnalysis::InstructionSemantics;
 //FIX_ME by using value from the class (may not be easy to get)
 #define MAX_LOCALS 256
 
-FrameState::~FrameState() {}
+FrameState::~FrameState() = default;
 
 FrameState::FrameState() : MemoryState() {
     purpose(AddressSpace::Purpose::FRAMES);
     name("frame");
 }
 
-FrameState::FrameState(const SValue::Ptr &valProtoval, const Sawyer::Optional<Address> &addr, SgAsmJvmConstantPool *pool)
+FrameState::FrameState(const SValue::Ptr &valProtoval, const Sawyer::Optional<Address> &addr, const ByteCode::Method::Ptr &m)
     : MemoryState(valProtoval, valProtoval), frameId_{newFrameId()}, returnAddress_{addr},
-      stack_{}, locals_{}, method_{nullptr}
+      stack_{}, locals_{}, method_{m}
 {
-    jvmConstantPool(pool);
-
     purpose(AddressSpace::Purpose::FRAMES);
     name("frame");
+
+    // Initialize arguments and stack based on the descriptor for the method
+    initializeForRootFrame();
 }
 
 FrameState::FrameState(const FrameState &other)
     : MemoryState{other}, frameId_{other.frameId_}, returnAddress_{other.returnAddress_},
       stack_{other.stack_}, locals_{other.locals_}, method_{other.method_}
 {
-    ASSERT_not_null(jvmConstantPool());
     purpose(AddressSpace::Purpose::FRAMES);
 }
 
 FrameState::Ptr
-FrameState::instance(const SValuePtr &valProtoval, const Sawyer::Optional<Address> &addr, SgAsmJvmConstantPool* pool) {
-    return Ptr(new FrameState(valProtoval, addr, pool));
+FrameState::instance(const SValuePtr &valProtoval, const Sawyer::Optional<Address> &addr, const ByteCode::Method::Ptr &m) {
+    return Ptr(new FrameState(valProtoval, addr, m));
 }
 
 MemoryState::Ptr
 FrameState::create(const SValuePtr &addrProtoval, const SValuePtr &valProtoval) const {
     (void) addrProtoval;
-    SgAsmJvmConstantPool* pool{nullptr};
-    ASSERT_require2(pool != nullptr, "don't use, no constant pool");
-    return instance(valProtoval, 0, pool);
+    (void) valProtoval;
+    ASSERT_require2(false, "Do not use, no access to ByteCode::Method");
 }
 
 AddressSpace::Ptr
 FrameState::clone() const {
-    Ptr retval = instance(get_val_protoval(), 0, jvmConstantPool());
+    Ptr retval = instance(get_val_protoval(), returnAddress_, method_);
 
     retval->frameId_ = frameId_;
-    retval->returnAddress_ = returnAddress_;
     retval->locals_ = locals_;
     retval->stack_ = stack_;
 
@@ -91,6 +89,11 @@ FrameState::clear() {
 void
 FrameState::clearFrame() {
     clear();
+}
+
+const ByteCode::Method::Ptr&
+FrameState::method() const {
+    return method_;
 }
 
 ByteCode::Method::Ptr
@@ -181,48 +184,44 @@ FrameState::createArgument(const std::string &descriptor, size_t argIdx) {
 }
 
 void
-FrameState::initializeRootFrame(RiscOperatorsPtr& ops, size_t index) {
-#if 0
-//TODO
-    const std::string descriptor = MethodDescriptor(ops, index);
-#else
-    (void) ops;
-    (void) index;
-#endif
-}
+FrameState::initializeForRootFrame() {
+    // Allow a null method_ for bat-debug-semantics
+    if (method_ == nullptr) return;
 
-void
-FrameState::initializeRootFrame(const ByteCode::Method::Ptr &method) {
-    ASSERT_not_null(method);
-
-    method_ = method;
-    std::string descriptor = method->descriptor();
+    std::string descriptor = method_->descriptor();
 
     size_t local = 0;
     auto protoval = get_val_protoval();
-    auto jvmMethod = Rose::BinaryAnalysis::ByteCode::JvmMethod::promote(method);
-
-    // Make the constant pool available to the frame
-    jvmConstantPool(jvmMethod->constant_pool());
 
     // Synthesize the receiver.
-    if (!jvmMethod->isStatic()) {
+    if (!method_->isStatic()) {
         BaseSemantics::SValuePtr receiver = protoval->undefined_(protoval->nBits());
 
         receiver->kind(BaseSemantics::ValueKind::ObjectReference);
-        receiver->typeDescriptor("L" + method->analysisClass()->name() + ";");
-        receiver->symbolName(method->analysisClass()->name() + "::this");
+        receiver->typeDescriptor("L" + method_->analysisClass()->name() + ";");
+        receiver->symbolName(method_->analysisClass()->name() + "::this");
 
         writeLocal(local++, receiver);
     }
 
     auto md = IS::DescriptorParser::parseMethodDescriptor(descriptor);
 
-    // Synthesize explicit arguments from the method descriptor.
+    // Synthesize (concrete for integers) explicit arguments from the method descriptor
     for (const IS::DescriptorType &argumentType: md.arguments) {
         auto kind = argumentType.kind;
+        auto nBits = IS::DispatcherJvm::nBitsForKind(kind);
 
-        auto argument = protoval->undefined_(IS::DispatcherJvm::nBitsForKind(kind));
+        SValue::Ptr argument;
+
+        // Initalize integers to zero for the root frame (TODO:command_line_argument)
+        if (kind == BaseSemantics::ValueKind::Integer32 || kind == BaseSemantics::ValueKind::Integer64) {
+            argument = protoval->number_(nBits, 0);
+        }
+        else {
+            argument = protoval->undefined_(nBits);
+        }
+        ASSERT_not_null(argument);
+
         argument->kind(kind);
 
         if (kind == BaseSemantics::ValueKind::ArrayReference) {
@@ -412,16 +411,6 @@ FrameState::frameLabel() const {
 std::string
 FrameState::label() const {
     return "frame #" + std::to_string(frameId_);
-}
-
-SgAsmJvmConstantPool*
-FrameState::jvmConstantPool() const {
-    return pool_;
-}
-
-void
-FrameState::jvmConstantPool(SgAsmJvmConstantPool *pool) {
-    pool_ = pool;
 }
 
 void

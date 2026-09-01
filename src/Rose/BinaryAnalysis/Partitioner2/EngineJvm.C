@@ -750,7 +750,7 @@ EngineJvm::loadJarFile(const std::string &filename) {
 Address
 EngineJvm::loadClass(uint16_t classIndex, SgAsmJvmConstantPool* pool, SgAsmGenericFileList* fileList, Address baseVa) {
     std::string superName{};
-    std::string className{ByteCode::JvmClass::name(classIndex, pool)};
+    std::string className{ByteCode::constantPoolEntryName(classIndex, pool)};
 
     // Don't load classes twice
     if (classes_.find(className) != classes_.end()) {
@@ -854,6 +854,8 @@ NOTES:
     }
 
     auto jfh = new SgAsmJvmFileHeader(gf);
+
+    // Save the address for constructing the ByteCode::Class
     jfh->set_baseVa(baseVa);
 
     // Check AST
@@ -865,7 +867,7 @@ NOTES:
     auto pool = jfh->get_constant_pool();
 
     // Check the class name now that the path has been loaded
-    std::string parsedClassName = ByteCode::JvmClass::name(jfh->get_this_class(), pool);
+    std::string parsedClassName = ByteCode::constantPoolEntryName(jfh->get_this_class(), pool);
     if (className != parsedClassName)
         className = parsedClassName;
 
@@ -887,7 +889,7 @@ NOTES:
     std::set<std::string> discoveredClasses{};
     auto disassembler = Architecture::findByName("jvm").orThrow()->newInstructionDecoder();
     for (auto sgMethod: jfh->get_method_table()->get_methods()) {
-        ByteCode::JvmMethod method{jfh, sgMethod, jfh->get_baseVa()};
+        ByteCode::JvmMethod method{className, jfh->get_baseVa(), jfh, sgMethod};
         method.decode(disassembler);
         discoverFunctionCalls(sgMethod, jfh->get_constant_pool(), functions_, discoveredClasses);
     }
@@ -959,7 +961,7 @@ EngineJvm::loadSuperClasses(const std::string &className, SgAsmGenericFileList* 
 
     // Load interfaces
     for (auto interface: jfh->get_interfaces()) {
-        std::string interfaceName = ByteCode::JvmClass::name(interface, pool);
+        std::string interfaceName = ByteCode::constantPoolEntryName(interface, pool);
         if (ByteCode::JvmContainer::isJvmSystemReserved(interfaceName)) continue; // ignore Java system files
 
         auto interfacePath = pathToClass(interfaceName);
@@ -973,7 +975,7 @@ EngineJvm::loadSuperClasses(const std::string &className, SgAsmGenericFileList* 
     // There may not be a super class (e.g., module-info.class)
     if (jfh->get_super_class() < 1) return baseVa;
 
-    std::string superName = ByteCode::JvmClass::name(jfh->get_super_class(), pool);
+    std::string superName = ByteCode::constantPoolEntryName(jfh->get_super_class(), pool);
     if (ByteCode::JvmContainer::isJvmSystemReserved(superName)) return baseVa; // ignore Java system files
 
     return loadClassFile(pathToClass(superName), fileList, baseVa);
@@ -990,7 +992,7 @@ EngineJvm::discoverFunctionCalls(SgAsmJvmMethod* sgMethod, SgAsmJvmConstantPool*
           case opcode::invokestatic:
           case opcode::invokevirtual:
             if (auto expr = isSgAsmIntegerValueExpression(insn->get_operandList()->get_operands()[0])) {
-              std::string functionName = ByteCode::JvmClass::name(expr->get_value(), pool);
+              std::string functionName = ByteCode::constantPoolEntryName(expr->get_value(), pool);
               if (fnm.find(functionName) == fnm.end()) {
                 fnm[functionName] = nextFunctionVa_;
                 nextFunctionVa_ -= 1024;
@@ -1279,8 +1281,17 @@ EngineJvm::runPartitionerRecursive(const Partitioner::Ptr &partitioner) {
         for (auto rit = interpHeaders->get_headers().rbegin(); rit != interpHeaders->get_headers().rend(); rit++) {
             auto header = *rit;
 
+            auto jfh = isSgAsmJvmFileHeader(header);
+            ASSERT_not_null(jfh);
+
+            auto pool = jfh->get_constant_pool();
+            ASSERT_not_null(pool);
+
             ByteCode::Namespace::Ptr ns = ByteCode::Namespace::instance();
-            ByteCode::JvmClass::Ptr jvmClass = ByteCode::JvmClass::instance(ns, isSgAsmJvmFileHeader(header));
+
+            auto classIndex = jfh->get_this_class();
+            std::string className = ByteCode::constantPoolEntryName(classIndex, pool);
+            ByteCode::JvmClass::Ptr jvmClass = ByteCode::JvmClass::instance(className, ns, jfh);
 
             // Make the ByteCode analysis class available
             analysisClass_ = jvmClass;

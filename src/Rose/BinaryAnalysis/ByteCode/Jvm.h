@@ -66,11 +66,11 @@ class JvmMethod final : public Method {
     using Ptr = Sawyer::SharedPointer<JvmMethod>;
 
     /** Allocating constructor. */
-    static Ptr instance(SgAsmJvmFileHeader*, SgAsmJvmMethod*, Address);
+    static Ptr instance(std::string name, Address va, SgAsmJvmFileHeader* jfh, SgAsmJvmMethod* method);
 
     static JvmMethod::Ptr promote(const Sawyer::SharedPointer<Method>& from);
 
-    std::string name() const override;
+    bool isStatic() const override;
     bool isSystemReserved(const std::string &name) const override;
 
     const Code & code() const override;
@@ -79,13 +79,12 @@ class JvmMethod final : public Method {
 
     void annotate() override;
 
-    bool isStatic() const;
     std::string descriptor() const override;
 
     SgAsmJvmConstantPool* constant_pool();
 
     JvmMethod() = delete;
-    JvmMethod(SgAsmJvmFileHeader*, SgAsmJvmMethod*, Address);
+    JvmMethod(std::string name, Address va, SgAsmJvmFileHeader* jfh, SgAsmJvmMethod* method);
 
   private:
     SgAsmJvmFileHeader* jfh_;
@@ -94,7 +93,7 @@ class JvmMethod final : public Method {
 };
 
 class JvmInterface final : public Interface {
-public:
+  public:
     /** Shared ownership pointers. */
     using Ptr = Sawyer::SharedPointer<JvmInterface>;
 
@@ -137,14 +136,10 @@ class JvmClass final : public Class {
     using Ptr = Sawyer::SharedPointer<JvmClass>;
 
     /** Allocating constructor. */
-    static Ptr instance(NamespacePtr& ns, SgAsmJvmFileHeader* jfh);
+    static Ptr instance(std::string name, NamespacePtr ns, SgAsmJvmFileHeader* jfh);
 
     static JvmClass::Ptr promote(const Sawyer::SharedPointer<Class>& from);
 
-    /** The string found at the given index into the constant pool. */
-    static std::string name(uint16_t index, const SgAsmJvmConstantPool*);
-
-    std::string name() const override;
     std::string super_name() const override;
     std::string typeSeparator() const override;
     void dump() override;
@@ -153,7 +148,7 @@ class JvmClass final : public Class {
     SgAsmJvmConstantPool* constant_pool();
 
     JvmClass() = delete;
-    JvmClass(NamespacePtr& ns, SgAsmJvmFileHeader* jfh);
+    JvmClass(std::string name, NamespacePtr ns, SgAsmJvmFileHeader* jfh);
 
   private:
     SgAsmJvmFileHeader* jfh_;
@@ -165,6 +160,9 @@ class JvmContainer final : public Container {
     bool isSystemReserved(const std::string &name) const override;
     static bool isJvmSystemReserved(const std::string &name);
 };
+
+/** The string found at the given index into the constant pool. */
+std::string constantPoolEntryName(uint16_t index, const SgAsmJvmConstantPool *pool);
 
 } // namespace
 } // namespace

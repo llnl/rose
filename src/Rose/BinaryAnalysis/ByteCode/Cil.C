@@ -40,6 +40,93 @@ struct InstrAddr {
 };
 
 std::string
+cilTypeDescriptor(const uint8_t *blob, size_t blobSize, size_t &offset) {
+    ASSERT_not_null(blob);
+    ASSERT_require(offset < blobSize);
+
+    const uint8_t elementType = blob[offset++];
+
+    switch (elementType) {
+        case 0x01:                              // ELEMENT_TYPE_VOID
+            return "V";
+        case 0x02:                              // ELEMENT_TYPE_BOOLEAN
+            return "Z";
+        case 0x03:                              // ELEMENT_TYPE_CHAR
+            return "C";
+        case 0x04:                              // ELEMENT_TYPE_I1
+            return "B";
+        case 0x05:                              // ELEMENT_TYPE_U1
+            return "B";                         // nearest JVM representation
+        case 0x06:                              // ELEMENT_TYPE_I2
+            return "S";
+        case 0x07:                              // ELEMENT_TYPE_U2
+            return "C";                         // nearest JVM representation
+        case 0x08:                              // ELEMENT_TYPE_I4
+        case 0x09:                              // ELEMENT_TYPE_U4
+            return "I";
+        case 0x0a:                              // ELEMENT_TYPE_I8
+        case 0x0b:                              // ELEMENT_TYPE_U8
+            return "J";
+        case 0x0c:                              // ELEMENT_TYPE_R4
+            return "F";
+        case 0x0d:                              // ELEMENT_TYPE_R8
+            return "D";
+        case 0x0e:                              // ELEMENT_TYPE_STRING
+            return "LSystem/String;";
+        case 0x18:                              // ELEMENT_TYPE_I
+        case 0x19:                              // ELEMENT_TYPE_U
+            return "J";                         // assuming a 64-bit target
+        case 0x1c:                              // ELEMENT_TYPE_OBJECT
+            return "LSystem/Object;";
+        default:
+            ASSERT_not_reachable("unsupported CIL signature element type");
+    }
+}
+
+std::string
+cilMethodSignature(const uint8_t *blob) {
+    ASSERT_not_null(blob);
+
+    size_t offset = 0;
+
+    const uint32_t payloadSize = blob[offset++];
+    const size_t payloadEnd = offset + payloadSize;
+
+    const uint8_t callingConvention = blob[offset++];
+
+    static constexpr uint8_t GENERIC_FLAG = 0x10;
+    static constexpr uint8_t HAS_THIS_FLAG = 0x20;
+
+    const bool isGeneric = 0 != (callingConvention & GENERIC_FLAG);
+    const bool hasThis = 0 != (callingConvention & HAS_THIS_FLAG);
+
+    if (isGeneric) {
+        const uint32_t nGenericParameters = blob[offset++];
+        (void) nGenericParameters;
+    }
+
+    const uint32_t nParameters = blob[offset++];
+
+    const std::string returnType = cilTypeDescriptor(blob, payloadEnd, offset);
+
+    std::ostringstream out;
+    out << "(";
+
+    for (uint32_t i = 0; i < nParameters; ++i) {
+        out << cilTypeDescriptor(blob, payloadEnd, offset);
+    }
+
+    out << ")" << returnType;
+
+    ASSERT_require(offset == payloadEnd);
+
+    // Staticness is retained separately by CilMethod::isStatic().
+    (void)hasThis;
+
+    return out.str();
+}
+
+std::string
 utf8ToString(const uint8_t* bytes) {
     std::string str{};
     while (*bytes) {
@@ -221,12 +308,12 @@ CilField::name() const {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CilMethod::Ptr
-CilMethod::instance(SgAsmCilMetadataRoot* mdr, SgAsmCilMethodDef* sgMethod, Address va) {
-    return Ptr(new CilMethod(mdr, sgMethod, va));
+CilMethod::instance(std::string name, Address va, SgAsmCilMetadataRoot* mdr, SgAsmCilMethodDef* sgMethod) {
+    return Ptr(new CilMethod(std::move(name), va, mdr, sgMethod));
 }
 
-CilMethod::CilMethod(SgAsmCilMetadataRoot* mdr, SgAsmCilMethodDef* sgMethod, Address va)
-  : Method{va}, mdr_{mdr}, sgMethod_{sgMethod}, insns_{nullptr}, code_{nullptr, 0, 0}
+CilMethod::CilMethod(std::string name, Address va, SgAsmCilMetadataRoot* mdr, SgAsmCilMethodDef* sgMethod)
+    : Method(std::move(name), va), mdr_{mdr}, sgMethod_{sgMethod}, insns_{nullptr}, code_{nullptr, 0, 0}
 {
     insns_ = new SgAsmInstructionList;
 
@@ -239,13 +326,9 @@ CilMethod::CilMethod(SgAsmCilMetadataRoot* mdr, SgAsmCilMethodDef* sgMethod, Add
 }
 
 std::string
-CilMethod::name() const {
-    return utf8ToString(sgMethod_->get_Name_string());
-}
-
-std::string
 CilMethod::descriptor() const {
-    return "CilMethod::descriptor(): Not Implemented";
+    auto blob = sgMethod_->get_Signature_blob();
+    return cilMethodSignature(blob);
 }
 
 bool
@@ -319,11 +402,6 @@ CilAttribute::name() const {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::string
-CilClass::name() const {
-    return name_;
-}
-
-std::string
 CilClass::super_name() const {
     return "CilClass::super_name():UNIMPLEMENTED";
 }
@@ -334,12 +412,12 @@ CilClass::typeSeparator() const {
 }
 
 CilClass::Ptr
-CilClass::instance(NamespacePtr& ns, SgAsmCilMetadataRoot* root, const std::string &name, size_t methodBegin, size_t methodLimit) {
-    return Ptr(new CilClass(ns, root, name, methodBegin, methodLimit));
+CilClass::instance(std::string name, NamespacePtr ns, SgAsmCilMetadataRoot* root, size_t methodBegin, size_t methodLimit) {
+    return Ptr(new CilClass(std::move(name), ns, root, methodBegin, methodLimit));
 }
 
-CilClass::CilClass(NamespacePtr& ns, SgAsmCilMetadataRoot* root, const std::string &name, size_t methodBegin, size_t methodLimit)
-  : Class{ns,0}, name_{name}, mdr_{root}
+CilClass::CilClass(std::string name, NamespacePtr ns, SgAsmCilMetadataRoot* root, size_t methodBegin, size_t methodLimit)
+  : Class{std::move(name),0,ns}, mdr_{root}
 {
     SgAsmCilMetadataHeap* metadataHeap = mdr_->get_MetadataHeap();
     ASSERT_not_null(metadataHeap);
@@ -354,13 +432,23 @@ CilClass::CilClass(NamespacePtr& ns, SgAsmCilMetadataRoot* root, const std::stri
         SgAsmCilMethodDef* methodDef = methods.at(i);
         ASSERT_not_null(methodDef);
 
+//TODO::FIXME:I think there is a test case for this to fix
         if (methodDef->get_RVA() == 0) {
             // TODO: double check test file to see if this is an interface (a nop!)
-            // std::cerr << "methodDef rva == 0 // abstract\n";
+            std::cerr << "methodDef rva == 0 // abstract\n";
             continue;
         }
 
-        CilMethod::Ptr method = CilMethod::instance(mdr_, methodDef, address());
+        // The method address is the address of the first instruction
+        auto stmtList = methodDef->get_body()->get_statementList();
+        Address methodVa = stmtList.empty() ? 0 : stmtList.front()->get_address();
+
+        // Need to create a unique va if methodVa is zero
+        ASSERT_require2(methodVa != 0, "Need unique method address");
+
+        std::string methodName = utf8ToString(methodDef->get_Name_string());
+
+        CilMethod::Ptr method = CilMethod::instance(std::move(methodName), methodVa, mdr_, methodDef);
         methods_.push_back(method);
 
         if (TRACE_CONSTRUCTION) {
@@ -522,9 +610,9 @@ CilContainer::CilContainer(SgAsmCilMetadataRoot* root) : mdr_{root} {
         size_t methodLimit = (i+1 < typeDefElements.size() ? typeDefElements.at(i+1)->get_MethodList()-1 : numMethods);
 
         // Construct class
-        std::string typeName = namespaces().back()->name() + ".";
-        typeName += utf8ToString(sgTypeDef->get_TypeName_string());
-        auto cilClass = CilClass::instance(namespaces_.back(), mdr_, typeName, methodBegin, methodLimit);
+        std::string className = utf8ToString(sgTypeDef->get_TypeName_string());
+
+        auto cilClass = CilClass::instance(className, namespaces_.back(), mdr_, methodBegin, methodLimit);
         namespaces_.back()->append(cilClass);
     }
 }
@@ -532,6 +620,14 @@ CilContainer::CilContainer(SgAsmCilMetadataRoot* root) : mdr_{root} {
 std::string
 CilContainer::name() const {
     return "CilContainer::name():UNIMPLEMENTED";
+}
+
+bool
+CilMethod::isStatic() const {
+    ASSERT_not_null(sgMethod_);
+
+    static constexpr uint16_t STATIC_FLAG = 0x0010;
+    return 0 != (sgMethod_->get_Flags() & STATIC_FLAG);
 }
 
 bool

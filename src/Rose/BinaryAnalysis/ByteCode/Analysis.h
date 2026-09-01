@@ -3,12 +3,9 @@
 #include <featureTests.h>
 #ifdef ROSE_ENABLE_BINARY_ANALYSIS
 
-//erasmus
-#if 1
 #include <Rose/BinaryAnalysis/Disassembler/BasicTypes.h>
 #include <Rose/BinaryAnalysis/Partitioner2/BasicTypes.h>
 #include <Rose/Progress.h>
-#endif
 
 class SgAsmInstructionList;
 
@@ -81,8 +78,11 @@ class Method: public Sawyer::SharedObject,
 
     virtual ~Method();
 
-public:
-    virtual std::string name() const = 0;
+  public:
+    const std::string& name() const;
+    Address address() const;
+
+    virtual bool isStatic() const = 0;
     virtual bool isSystemReserved(const std::string &name) const = 0;
 
     virtual const Code & code() const = 0;
@@ -108,9 +108,16 @@ public:
 
     Method() = delete;
 
-protected:
-    Method(Address);
-    Address classAddr_;
+  protected:
+    Method(std::string name, Address va);
+
+  private:
+    std::string name_;
+
+  protected:
+    Address address_ = 0;
+  private:
+
     ClassPtr class_; // Class containing this method
     P2::FunctionPtr function_;
     std::vector<BasicBlockPtr> blocks_;
@@ -169,7 +176,9 @@ class Class: public Sawyer::SharedObject,
     // Dynamic pointer cast. No-op since this is the base class
     //  static Class promote(const Class&);
 
-    virtual std::string name() const = 0;
+    const std::string& name() const;
+    Address address() const;
+
     virtual std::string super_name() const = 0;
     virtual std::string typeSeparator() const = 0;
 
@@ -185,14 +194,16 @@ class Class: public Sawyer::SharedObject,
     virtual void digraph() const;
     virtual void dump() = 0;
 
-    Address address() const;
-
     Class() = delete;
 
-  protected:
-    Address address_;
+  private:
+    std::string name_;
+    /** Base virtual address assigned to this loaded class file. */
+    Address address_ = 0;
     NamespacePtr namespace_;
-    Class(NamespacePtr ns, Address va);
+
+  protected:
+    Class(std::string name, Address va, NamespacePtr ns);
 
     std::vector<Field::Ptr> fields_;
     std::vector<Method::Ptr> methods_;

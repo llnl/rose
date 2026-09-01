@@ -285,7 +285,13 @@ namespace JvmSemantics {
         auto frame = state->currentFrame();
         ASSERT_not_null(frame);
 
-        return frame->jvmConstantPool();
+        auto jvmMethod = ByteCode::JvmMethod::promote(frame->method());
+        ASSERT_not_null(jvmMethod);
+
+        auto pool = jvmMethod->constant_pool();
+        ASSERT_not_null(pool);
+
+        return pool;
     }
 
     SgAsmJvmConstantPoolEntry* constantPoolEntry(Ops ops, size_t index) {
@@ -524,15 +530,20 @@ namespace JvmSemantics {
         auto callerFrame = state->currentFrame();
         ASSERT_not_null(callerFrame);
 
-        auto pool = callerFrame->jvmConstantPool();
+        auto method = callerFrame->method();
+        ASSERT_not_null(method);
+
+        auto jvmMethod = ByteCode::JvmMethod::promote(method);
+        ASSERT_not_null(jvmMethod);
+        auto pool = jvmMethod->constant_pool();
         ASSERT_not_null(pool);
 
         const std::string descriptor = DispatcherJvm::methodDescriptor(pool, index);
         const MethodDescriptor methodDesc = DescriptorParser::parseMethodDescriptor(descriptor);
         const bool hasReceiver = invocationKind != InvocationKind::Static;
 
-        auto calleeFrame = FrameState::instance(state->protoval(), Sawyer::Nothing(), pool);
-
+        // Need way to find ByteCode::Method for callee
+        auto calleeFrame = FrameState::instance(state->protoval(), Sawyer::Nothing(), ByteCode::Method::Ptr());
         ASSERT_not_null(calleeFrame);
 
         // Pops arguments and, for instance methods, the receiver from the
@@ -888,7 +899,7 @@ namespace JvmSemantics {
 
      // 2. Retrieve the concrete address value (if available)
         auto va = accessAddr->toUnsigned();
-        if (!va) return; // Cannot check bounds for purely symbolic addresses without a solver
+        if (!va) return; // Cannot check bounds for purely symolic addresses without a solver
 #if 0
      // DQ (5/19/2026): Not clear how to implement this part (discuss with Craig and Robb).
      // 3. Get the intended region from the array reference
@@ -4621,7 +4632,7 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0x93,  new Jvm::IP_i2s);
 
 //  iprocSet(0x94,  new Jvm::IP_lcmp);
-//  iprocSet(0x95,  new Jvm::IP_fcmp);
+//  iprocSet(0x95,  new Jvm::IP_fcml);
 //  iprocSet(0x96,  new Jvm::IP_fcmpg);
 //  iprocSet(0x97,  new Jvm::IP_dcmpl);
 //  iprocSet(0x98,  new Jvm::IP_dcmpg);
@@ -4631,14 +4642,15 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0x9c,  new Jvm::IP_ifge);
     iprocSet(0x9d,  new Jvm::IP_ifgt);
     iprocSet(0x9e,  new Jvm::IP_ifle);
-//  iprocSet(0x9f,  new Jvm::IP_icmpeq);
-//  iprocSet(0xa0,  new Jvm::IP_icmpne);
-//  iprocSet(0xa1,  new Jvm::IP_icmplt);
-//  iprocSet(0xa2,  new Jvm::IP_icmpge);
-//  iprocSet(0xa3,  new Jvm::IP_icmpgt);
-//  iprocSet(0xa4,  new Jvm::IP_icmple);
-//  iprocSet(0xa5,  new Jvm::IP_icmpeq);
-//  iprocSet(0xa6,  new Jvm::IP_icmpne);
+
+//  iprocSet(0x9f,  new Jvm::IP_if_icmpeq); // if_icmpeq (159 (0x9f))
+//  iprocSet(0xa0,  new Jvm::IP_if_icmpne); // if_icmpne (160 (0xa0))
+//  iprocSet(0xa1,  new Jvm::IP_if_icmplt); // if_icmplt (161 (0xa1))
+//  iprocSet(0xa2,  new Jvm::IP_if_icmpge); // if_icmpge (162 (0xa2))
+//  iprocSet(0xa3,  new Jvm::IP_if_icmpgt); // if_icmpgt (163 (0xa3))
+//  iprocSet(0xa4,  new Jvm::IP_if_icmple); // if_icmple (164 (0xa4))
+//  iprocSet(0xa5,  new Jvm::IP_if_acmpeq); // if_acmpeq (165 (0xa5))
+//  iprocSet(0xa6,  new Jvm::IP_if_acmpne); // if_acmpne (166 (0xa6))
 
     iprocSet(0xa7,  new Jvm::IP_goto_);
 //  iprocSet(0xa8,  new Jvm::IP_jsr);
@@ -4737,7 +4749,12 @@ DispatcherJvm::constantPool(BaseSemantics::RiscOperators *ops) {
     auto frame = state->currentFrame();
     ASSERT_not_null(frame);
 
-    return frame->jvmConstantPool();
+    auto jvmMethod = ByteCode::JvmMethod::promote(frame->method());
+    ASSERT_not_null(jvmMethod);
+    auto pool = jvmMethod->constant_pool();
+    ASSERT_not_null(pool);
+
+    return pool;
 }
 
 size_t

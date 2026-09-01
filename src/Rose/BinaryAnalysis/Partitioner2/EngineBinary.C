@@ -1584,18 +1584,14 @@ EngineBinary::runPartitionerRecursive(const Partitioner::Ptr &partitioner) {
 
     BaseSemantics::MemoryState::Ptr mstate = InstructionSemantics::SymbolicSemantics::MemoryListState::instance(protoval, protoval);
 
-    BaseSemantics::FrameState::Ptr fstate = BaseSemantics::FrameState::instance(protoval, Sawyer::Nothing(), /*pool*/nullptr);
-    fstate->purpose(BaseSemantics::AddressSpace::Purpose::FRAMES);
-
-    auto state = BaseSemantics::State::instance(rstate, mstate, istate, fstate);
+    auto state = BaseSemantics::State::instance(rstate, mstate, istate);
     ASSERT_require(state);
-    ASSERT_require(state->hasFrameState());
-
-    auto ops = InstructionSemantics::SymbolicSemantics::RiscOperators::instanceFromState(state, solver);
-    InstructionSemantics::BaseSemantics::RiscOperatorsPtr baseOps = ops;
 
     // Make the semantics machine state available
     state_ = state;
+
+    auto ops = InstructionSemantics::SymbolicSemantics::RiscOperators::instanceFromState(state, solver);
+    InstructionSemantics::BaseSemantics::RiscOperatorsPtr baseOps = ops;
 
     // Decode and partition any CIL byte code (sections with name "CLR Runtime Header")
     SAWYER_MESG(where) <<"decoding and partitioning CIL byte code\n";

@@ -49,10 +49,10 @@ class CilMethod final : public Method {
     using Ptr = Sawyer::SharedPointer<CilMethod>;
 
     /** Allocating constructor. */
-    static Ptr instance(SgAsmCilMetadataRoot*, SgAsmCilMethodDef*, Address);
+    static Ptr instance(std::string name, Address, SgAsmCilMetadataRoot*, SgAsmCilMethodDef*);
 
   public:
-    std::string name() const override;
+    bool isStatic() const override;
     bool isSystemReserved(const std::string &name) const override;
 
     const Code & code() const override;
@@ -64,7 +64,7 @@ class CilMethod final : public Method {
     void annotate() override;
 
     CilMethod() = delete;
-    CilMethod(SgAsmCilMetadataRoot*, SgAsmCilMethodDef*, Address);
+    CilMethod(std::string name, Address, SgAsmCilMetadataRoot*, SgAsmCilMethodDef*);
 
   private:
     SgAsmCilMetadataRoot* mdr_;
@@ -91,21 +91,19 @@ class CilClass final : public Class {
     using Ptr = Sawyer::SharedPointer<CilClass>;
 
     /** Allocating constructor. */
-    static Ptr instance(NamespacePtr& ns, SgAsmCilMetadataRoot*, const std::string &, size_t, size_t);
+    static Ptr instance(std::string name, NamespacePtr ns, SgAsmCilMetadataRoot*, size_t, size_t);
 
     static Class::Ptr promote(const Sawyer::SharedPointer<Class>& from);
     static std::string objectName(const SgAsmCilMetadata*, SgAsmCilMetadataRoot*);
 
-    std::string name() const override;
     std::string super_name() const override;
     std::string typeSeparator() const override;
     void dump() override;
 
     CilClass() = delete;
-    CilClass(NamespacePtr& ns, SgAsmCilMetadataRoot*, const std::string &, size_t, size_t);
+    CilClass(std::string name, NamespacePtr ns, SgAsmCilMetadataRoot*, size_t, size_t);
 
 private:
-    std::string name_;
     SgAsmCilMetadataRoot* mdr_;
     //WARNING: not used yet!
     //SgAsmCilTypeDef* sgCilTypeDef_;

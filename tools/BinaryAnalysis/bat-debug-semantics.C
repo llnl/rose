@@ -385,10 +385,8 @@ main(int argc, char *argv[]) {
 
     auto state = innerOps->currentState();
 
-    SgAsmJvmConstantPool* pool = nullptr; // No class (perhaps create a special class)
-
     // Push a new method frame
-    auto frame = IS::BaseSemantics::FrameState::instance(state->protoval(), Sawyer::Nothing(), pool);
+    auto frame = IS::BaseSemantics::FrameState::instance(state->protoval(), Sawyer::Nothing(), ByteCode::Method::Ptr());
     state->pushFrame(frame);
 
     // Decode and process the instruction

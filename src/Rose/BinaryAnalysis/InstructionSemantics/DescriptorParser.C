@@ -38,8 +38,9 @@ DescriptorParser::parseMethodDescriptor(const std::string &descriptor) {
 
     MethodDescriptor result;
 
-    while (pos < descriptor.size() && descriptor[pos] != ')')
+    while (pos < descriptor.size() && descriptor[pos] != ')') {
         result.arguments.push_back(parseType(descriptor, pos, false));
+    }
 
     ASSERT_require(pos < descriptor.size());
     ASSERT_require(descriptor[pos++] == ')');
@@ -58,76 +59,62 @@ DescriptorParser::parseType(const std::string &descriptor, size_t &pos, bool all
     ValueKind kind = ValueKind::Invalid;
 
     switch (descriptor[pos++]) {
-        case 'B':
-        case 'C':
-        case 'I':
-        case 'S':
-        case 'Z':
-            kind = ValueKind::Integer32;
-            break;
+      case 'B':
+      case 'C':
+      case 'I':
+      case 'S':
+      case 'Z':
+          kind = ValueKind::Integer32;
+          break;
+      case 'J':
+          kind = ValueKind::Integer64;
+          break;
+      case 'F':
+          kind = ValueKind::Float32;
+          break;
+      case 'D':
+          kind = ValueKind::Float64;
+          break;
+      case 'L':
+          while (pos < descriptor.size() && descriptor[pos] != ';') ++pos;
 
-        case 'J':
-            kind = ValueKind::Integer64;
-            break;
+          ASSERT_require(pos < descriptor.size());
+          ++pos; // consume ';'
+          kind = ValueKind::ObjectReference;
+          break;
+      case '[':
+          while (pos < descriptor.size() && descriptor[pos] == '[') ++pos;
 
-        case 'F':
-            kind = ValueKind::Float32;
-            break;
+          ASSERT_require(pos < descriptor.size());
 
-        case 'D':
-            kind = ValueKind::Float64;
-            break;
+          if (descriptor[pos] == 'L') {
+              ++pos;
+              while (pos < descriptor.size() && descriptor[pos] != ';') ++pos;
 
-        case 'L':
-            while (pos < descriptor.size() && descriptor[pos] != ';')
-                ++pos;
-
-            ASSERT_require(pos < descriptor.size());
-            ++pos;                              // consume ';'
-            kind = ValueKind::ObjectReference;
-            break;
-
-        case '[':
-            while (pos < descriptor.size() && descriptor[pos] == '[')
-                ++pos;
-
-            ASSERT_require(pos < descriptor.size());
-
-            if (descriptor[pos] == 'L') {
-                ++pos;
-
-                while (pos < descriptor.size() && descriptor[pos] != ';')
-                    ++pos;
-
-                ASSERT_require(pos < descriptor.size());
-                ++pos;                          // consume ';'
-            } else {
-                switch (descriptor[pos++]) {
-                    case 'B':
-                    case 'C':
-                    case 'D':
-                    case 'F':
-                    case 'I':
-                    case 'J':
-                    case 'S':
-                    case 'Z':
-                        break;
-
-                    default:
-                        ASSERT_not_reachable("invalid JVM array component descriptor");
-                }
-            }
-
-            kind = ValueKind::ArrayReference;
-            break;
-
-        case 'V':
-            ASSERT_require(allowVoid);
-            kind = ValueKind::Invalid;
-            break;
-
-        default:
-            ASSERT_not_reachable("invalid JVM descriptor");
+              ASSERT_require(pos < descriptor.size());
+              ++pos;                          // consume ';'
+          }
+          else {
+              switch (descriptor[pos++]) {
+                case 'B':
+                case 'C':
+                case 'D':
+                case 'F':
+                case 'I':
+                case 'J':
+                case 'S':
+                case 'Z':
+                    break;
+                default: ASSERT_not_reachable("invalid array component descriptor");
+              }
+          }
+          kind = ValueKind::ArrayReference;
+          break;
+      case 'V':
+          ASSERT_require(allowVoid);
+          kind = ValueKind::Invalid;
+          break;
+      default: ASSERT_not_reachable("invalid descriptor");
     }
 
     DescriptorType result;

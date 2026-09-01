@@ -188,36 +188,36 @@ main(int argc, char *argv[]) {
     IS::BaseSemantics::Dispatcher::Ptr cpu = partitioner->newDispatcher(tops);
     ASSERT_not_null(cpu);
 
+    IS::BaseSemantics::StatePtr initialState = state->clone();
+    ASSERT_not_null(initialState);
+
     // Process ByteCode methods and their instructions
     if (bcClass) {
         for (auto bcMethod : bcClass->methods()) {
             auto jvmMethod = BC::JvmMethod::promote(bcMethod);
 
-#if 0
-            std::cerr << "... need to initialize frame for method " << bcClass->name() << "::" << bcMethod->name() << "\n";
-            std::cerr << ".... METHOD::descriptor: " << bcMethod->descriptor() << "\n";
-#endif
+            // Start this method with an independent machine state.
+            auto methodState = initialState->clone();
+            ASSERT_not_null(methodState);
 
-            // Create, initialize and push a new method frame
-            SgAsmJvmConstantPool* pool = jvmMethod->constant_pool();
-            auto frame = IS::BaseSemantics::FrameState::instance(state->protoval(), Sawyer::Nothing(), pool);
+            // Create, initialize and push a new frame for the method
+            auto frame = IS::BaseSemantics::FrameState::instance(state->protoval(), Sawyer::Nothing(), bcMethod);
+            ASSERT_not_null(frame->method());
+            ASSERT_require(frame->method() == bcMethod);
 
-            frame->initializeRootFrame(bcMethod);
+            methodState->pushFrame(frame);
+            ops->currentState(methodState);
 
-            state->pushFrame(frame);
+            ASSERT_require(ops->currentState() == methodState);
+            ASSERT_require(methodState->currentFrame() == frame);
 
             for (auto insn : bcMethod->instructions()->get_instructions()) {
                 auto currentState = ops->currentState();
-                ASSERT_require(currentState == state);
-
-                auto currentFrame = state->currentFrame();
-                ASSERT_require(currentFrame == frame);
+                ASSERT_require(currentState == methodState);
 
                 std::cerr << partitioner->unparse(insn) << "\n";
                 printAst(std::cout, insn, "");
-#if 0
-                std::cerr << "..... will execute::insn(comment): " << insn->get_comment() << "\n";
-#endif
+
                 cpu->processInstruction(insn);
 
                 std::cerr << *currentState;
