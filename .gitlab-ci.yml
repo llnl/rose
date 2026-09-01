@@ -148,8 +148,7 @@ AI-Review:
     tags:
         - workpool:mac
     variables:
-        AI_REVIEW_MODEL: "gpt-5.4-mini"
-        AI_REVIEW_REASONING_EFFORT: "medium"
+        AI_REVIEW_REASONING_EFFORT: "xhigh"
         AI_REVIEW_MAX_REVIEW_TOKENS: "25000"
         AI_REVIEW_GITLAB_HTTP_CLIENT: "curl"
     before_script:
