@@ -499,6 +499,17 @@ bool isPointerToNonConstType(SgType* type)
       case V_SgTypeChar16:
       case V_SgTypeChar32:
 
+   // PL (9/29/2026): Adding support for new float types
+      case V_SgTypeFloat80:
+      case V_SgTypeFloat128:
+      case V_SgTypeFloat16:
+      case V_SgTypeFp16:
+      case V_SgTypeBFloat16:
+      case V_SgTypeFloat32x:
+      case V_SgTypeFloat64x:
+      case V_SgTypeFloat32:
+      case V_SgTypeFloat64:
+
         return true;
         break;
 
@@ -656,6 +667,17 @@ bool isCopyConstructible(SgType* type)
         case V_SgTypeChar16:
         case V_SgTypeChar32:
 
+     // PL (9/29/2026): Adding support for new float types
+        case V_SgTypeFloat80:
+        case V_SgTypeFloat128:
+        case V_SgTypeFloat16:
+        case V_SgTypeFp16:
+        case V_SgTypeBFloat16:
+        case V_SgTypeFloat32x:
+        case V_SgTypeFloat64x:
+        case V_SgTypeFloat32:
+        case V_SgTypeFloat64:
+
             return true;
             break;
 
@@ -780,6 +802,17 @@ bool isCopyConstructible(SgType* type)
       case V_SgTypeChar16:
       case V_SgTypeChar32:
 
+   // PL (9/29/2026): Adding support for new float types
+      case V_SgTypeFloat80:
+      case V_SgTypeFloat128:
+      case V_SgTypeFloat16:
+      case V_SgTypeFp16:
+      case V_SgTypeBFloat16:
+      case V_SgTypeFloat32x:
+      case V_SgTypeFloat64x:
+      case V_SgTypeFloat32:
+      case V_SgTypeFloat64:
+
         return true;
         break;
 
@@ -829,6 +862,17 @@ bool isCopyConstructible(SgType* type)
    // DQ (2/16/2018): Adding support for char16_t and char32_t (C99 and C++11 specific types).
       case V_SgTypeChar16:
       case V_SgTypeChar32:
+
+  // PL (9/29/2026): Adding support for new float types
+      case V_SgTypeFloat80:
+      case V_SgTypeFloat128:
+      case V_SgTypeFloat16:
+      case V_SgTypeFp16:
+      case V_SgTypeBFloat16:
+      case V_SgTypeFloat32x:
+      case V_SgTypeFloat64x:
+      case V_SgTypeFloat32:
+      case V_SgTypeFloat64:
 
       case V_SgFunctionType:
       case V_SgTypeString:

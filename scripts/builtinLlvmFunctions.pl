@@ -58,7 +58,7 @@ my $status = 0;                 # exit status
 #     |Types may be prefixed with the following modifiers:                           |
 #     | L   -> long (e.g. Li for 'long int')                                         |
 #     | LL  -> long long                                                             |
-#     | LLL -> __int128_t (e.g. LLLi)                                                |
+#     | LLL -> 128-bit (e.g. LLLi for '__int128_t' or LLLd for '_Float128'           |
 #     | S   -> signed                                                                |
 #     | U   -> unsigned                                                              |
 #     | I   -> Required to constant fold to an integer constant expression.          |
@@ -96,6 +96,7 @@ sub parseTypes {
     # Expand the letters into type names
     $_ = join " ", map { exists $translation{$_} ? $translation{$_} : "ERROR('$_')" } split //;
     s/long long long int/__int128_t/g;
+    s/long long long double/_Float128/g;
     s/signed jmp_buf/sigjmp_buf/g;
     s/(_Complex)\s*,\s*([^,]*)/$1 $2/g;
     return grep {$_} split /,/;

@@ -224,18 +224,19 @@
 #ifdef __BFLT16_DIG__
 #  undef __BFLT16_DIG__
 #endif
-// PL (8/26/2026): This is also defined in GCC 14 and is used to enable float128 support. We need
-// to disable this as well because it also causes problems, this time with intrinsics.
-#ifdef __FLT128_DIG__
-#  undef __FLT128_DIG__
-#endif
 
 /* PL (9/10/2025): _Float16 is a type used in some GNU 13 intrinsics, but not all compilers support _Float16 */
-/* Therefore we should do our best to detect if we expect _Float16 to be defined, and if not, define it ourselves */
-/* _Float16 is not defined in GNU C++ until GNU 13, but is defined in GNU C at least as far back as GNU 8.5 */
+/*   Therefore we should do our best to detect if we expect _Float16 to be defined, and if not, define it ourselves */
+/*   _Float16 is not defined in GNU C++ until GNU 13, but is defined in GNU C at least as far back as GNU 8.5 */
+/* PL (9/2/2026): Expanded this to handle _Float128 as well. */
 #if __cplusplus
-#  if defined(__GNUC__) && !defined(__FLT16_MAX__)
-#    define ROSE_DECLARE_FLOAT16
+#  if defined(__GNUC__)
+#    if !defined(__FLT16_MAX__)
+#      define ROSE_DECLARE_FLOAT16
+#    endif
+#    if !defined(__FLT128_MAX__) || __GNUC__ < 13
+#      define ROSE_DECLARE_FLOAT128
+#    endif
 #  endif
 #endif
 /* Next we can check if __is_identifier is available. This is available in Clang versions I've looked at */
@@ -254,10 +255,23 @@
 #if !defined(ROSE_DECLARE_FLOAT16) && defined(_MSC_VER)
 #  define ROSE_DECLARE_FLOAT16
 #endif
+#if !defined(ROSE_DECLARE_FLOAT128) && defined(_MSC_VER)
+#  define ROSE_DECLARE_FLOAT128
+#endif
 /* If we've decided we need to declare _Float16 from the above checks, typedef it to a float */
 #if defined(ROSE_DECLARE_FLOAT16)
 typedef float _Float16;
 #  undef ROSE_DECLARE_FLOAT16
+#endif
+#if defined(ROSE_DECLARE_FLOAT128)
+#  if !defined(_MSC_VER)
+/* GCC requires _Float128 to be equal to __float128 per the <bits/floatn.h> header */
+typedef __float128 _Float128;
+#  else
+/* MSVC does not have __float128 so we instead define it as `long double` */
+typedef long double _Float128;
+#  endif
+#  undef ROSE_DECLARE_FLOAT128
 #endif
 
 /* DQ (4/23/2017): This is now added on the EDG command line to support handling of Microsoft options.
