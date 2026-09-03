@@ -17,6 +17,7 @@ namespace P2 = Partitioner2;
 
 using BasicBlockPtr = P2::BasicBlockPtr;
 using PartitionerPtr = P2::PartitionerPtr;
+using InstructionMap = std::map<Address, SgAsmInstruction*>;
 
 // Forward references
 class Class;
@@ -24,27 +25,6 @@ class Namespace;
 
 using ClassPtr = Sawyer::SharedPointer<Class>;
 using NamespacePtr = Sawyer::SharedPointer<Namespace>;
-
-/** Base class for ByteCode Code.
- *
- *  A Code object stores raw instructions for a Method.
- */
-class Code: public Sawyer::SharedObject,
-            public Sawyer::SharedFromThis<Code> {
-  public:
-    /** Shared ownership pointer. */
-    using Ptr = Sawyer::SharedPointer<Code>;
-
-    virtual ~Code();
-
-public:
-    virtual const uint8_t* bytes() const = 0;
-    virtual size_t size() const = 0;
-    virtual Address offset() const = 0;
-
-protected:
-    Code();
-};
 
 /** Base class for ByteCode Fields.
  *
@@ -82,10 +62,12 @@ class Method: public Sawyer::SharedObject,
     const std::string& name() const;
     Address address() const;
 
+    /** Complete initialization of the method once decoding is done. */
+    void finalize();
+
     virtual bool isStatic() const = 0;
     virtual bool isSystemReserved(const std::string &name) const = 0;
 
-    virtual const Code & code() const = 0;
     virtual const SgAsmInstructionList* instructions() const = 0;
     virtual void decode(const Disassembler::BasePtr&) const = 0;
 
@@ -97,9 +79,12 @@ class Method: public Sawyer::SharedObject,
     /* Set of instruction branch targets */
     std::set<Address> targets() const;
 
-    // Accessors to ByteCode::Class containing this method
-    ClassPtr analysisClass();
-    void analysisClass(ClassPtr);
+    /* Accessors to the declaring class for this method */
+    Class* declaringClass() const;
+    void declaringClass(Class *declaringClass);
+
+    /* Retrieve the instruction at the given address */
+    SgAsmInstruction* instructionAt(Address va) const;
 
     // Methods associated with basic blocks (Rose::BinaryAnalysis::Partitioner2)
     //
@@ -116,11 +101,12 @@ class Method: public Sawyer::SharedObject,
 
   protected:
     Address address_ = 0;
-  private:
 
-    ClassPtr class_; // Class containing this method
+  private:
+    Class* class_ = nullptr; // non-owning pointer to the declaring class
     P2::FunctionPtr function_;
     std::vector<BasicBlockPtr> blocks_;
+    InstructionMap instructionMap_;
 };
 
 /** Base class for ByteCode Interface.
@@ -188,6 +174,9 @@ class Class: public Sawyer::SharedObject,
     const std::vector<Method::Ptr>& methods() const;
     const std::vector<Attribute::Ptr>& attributes() const;
     const std::vector<Interface::Ptr>& interfaces() const;
+
+    /** Complete initialization of the class once partitioning is done. */
+    void finalize();
 
     virtual void partition(const PartitionerPtr &partitioner, std::map<std::string,Address> &discoveredFunctions,
                            const Progress::Ptr &progress = Progress::Ptr());

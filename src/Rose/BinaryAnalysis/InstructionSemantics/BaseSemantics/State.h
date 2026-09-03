@@ -55,7 +55,8 @@ private:
     RegisterStatePtr registers_;                        // All machine register values for this semantic state.
     MemoryStatePtr memory_;                             // All memory for this semantic state.
     RegisterStatePtr interrupts_;                       // Whether interrupts occurred.
-
+    SValuePtr returnValue_;                             // Result returned by the root method, if any.
+    bool terminated_ = false;                           // No further instructions execute on this path.
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Serialization.
@@ -72,6 +73,8 @@ private:
         s & BOOST_SERIALIZATION_NVP(registers_);
         s & BOOST_SERIALIZATION_NVP(memory_);
         s & BOOST_SERIALIZATION_NVP(interrupts_);
+        s & BOOST_SERIALIZATION_NVP(returnValue_);
+        s & BOOST_SERIALIZATION_NVP(terminated_);
     }
 #endif
 
@@ -318,6 +321,20 @@ public:
      *
      *  See also @ref frameState, which returns a null pointer if the frame state is not present. */
     bool hasFrameState() const;
+
+    /** Property: terminated.
+     *
+     *  The state is terminated when the root method returns. */
+    void terminate();
+    void terminate(SValuePtr returnValue);
+
+    /** Tests whether a state is terminated. */
+    bool isTerminated() const;
+
+    /** Property: returnValue.
+     *
+     *  The value returned when the root method returns. */
+    SValuePtr returnValue() const;
 
     virtual SValuePtr readLocal(size_t index);
     virtual void writeLocal(size_t index, const SValuePtr &value);

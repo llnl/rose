@@ -4938,7 +4938,7 @@ DispatcherJvm::initializeMemoryState() {
 }
 
 void
-DispatcherJvm::completeReturn(BaseSemantics::RiscOperators *ops, const BaseSemantics::SValuePtr &result) {
+DispatcherJvm::completeReturn(BaseSemantics::RiscOperators *ops, BaseSemantics::SValuePtr result) {
     ASSERT_not_null(ops);
 
     auto state = ops->currentState();
@@ -4956,16 +4956,21 @@ DispatcherJvm::completeReturn(BaseSemantics::RiscOperators *ops, const BaseSeman
     if (returnAddress) {
         // The caller frame is now current.
         if (result) {
-            ops->pushOperand(result);
+            ops->pushOperand(std::move(result));
         }
         const RegisterDescriptor pcReg = instructionPointerRegister();
         ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), *returnAddress));
     }
     else {
-        // The root analysis frame returned.
-        //
-        // If desired, store result as the final analysis result here.
-        // For a void return, result is null.
+        // No caller: this was the root analysis frame.
+        if (result) {
+            // Preserve the return value produced by a value-returning root method.
+            state->terminate(std::move(result));
+        }
+        else {
+            // The root method returned void.
+            state->terminate();
+        }
     }
 }
 

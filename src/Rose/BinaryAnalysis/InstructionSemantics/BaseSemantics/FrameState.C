@@ -91,19 +91,9 @@ FrameState::clearFrame() {
     clear();
 }
 
-const ByteCode::Method::Ptr&
+ByteCode::Method::Ptr
 FrameState::method() const {
     return method_;
-}
-
-ByteCode::Method::Ptr
-FrameState::analysisMethod() {
-    return method_;
-}
-
-void
-FrameState::analysisMethod(ByteCode::Method::Ptr &m) {
-    method_ = m;
 }
 
 SValuePtr
@@ -198,8 +188,8 @@ FrameState::initializeForRootFrame() {
         BaseSemantics::SValuePtr receiver = protoval->undefined_(protoval->nBits());
 
         receiver->kind(BaseSemantics::ValueKind::ObjectReference);
-        receiver->typeDescriptor("L" + method_->analysisClass()->name() + ";");
-        receiver->symbolName(method_->analysisClass()->name() + "::this");
+        receiver->typeDescriptor("L" + method_->declaringClass()->name() + ";");
+        receiver->symbolName(method_->declaringClass()->name() + "::this");
 
         writeLocal(local++, receiver);
     }
@@ -400,7 +390,7 @@ FrameState::newFrameId() {
 std::string
 FrameState::frameName() const {
     if (!method_) return "<root>";
-    return method_->analysisClass()->name() + "::" + method_->name() + method_->descriptor();
+    return method_->declaringClass()->name() + "::" + method_->name() + method_->descriptor();
 }
 
 std::string

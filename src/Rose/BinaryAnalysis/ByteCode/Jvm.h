@@ -16,30 +16,28 @@ namespace Rose {
 namespace BinaryAnalysis {
 namespace ByteCode {
 
-class JvmCode final : public Code {
+
+/** ByteCode Code class.
+ *
+ *  A Code object stores raw instructions for a JvmMethod.
+ */
+class Code {
   public:
-    /** Shared ownership pointer. */
-    using Ptr = Sawyer::SharedPointer<JvmCode>;
+    void bytes(const uint8_t *bytes);
+    const uint8_t* bytes() const;
 
-    /** Allocating constructor. */
-    static Ptr instance(uint8_t* bytes, size_t size, Address offset);
+    void size(size_t size);
+    size_t size() const;
 
-  public:
-    const uint8_t* bytes() const override;
-    size_t size() const override;
-    Address offset() const override;
-
-    void bytes(const uint8_t* buf);
-    void size(size_t sz);
-    void offset(Address off);
-
-    JvmCode(uint8_t* bytes, size_t size, Address offset);
+    void offset(Address offset);
+    Address offset() const;
 
   private:
-    const uint8_t* bytes_;
-    size_t size_;
-    Address offset_;
+    const uint8_t *bytes_ = nullptr; // non-owning pointer to bytes
+    size_t size_ = 0;
+    Address offset_ = 0;
 };
+
 
 class JvmField final : public Field {
   public:
@@ -73,7 +71,6 @@ class JvmMethod final : public Method {
     bool isStatic() const override;
     bool isSystemReserved(const std::string &name) const override;
 
-    const Code & code() const override;
     const SgAsmInstructionList* instructions() const override;
     void decode(const Disassembler::BasePtr &disassembler) const override;
 
@@ -84,12 +81,12 @@ class JvmMethod final : public Method {
     SgAsmJvmConstantPool* constant_pool();
 
     JvmMethod() = delete;
-    JvmMethod(std::string name, Address va, SgAsmJvmFileHeader* jfh, SgAsmJvmMethod* method);
+    JvmMethod(std::string name, Address va, SgAsmJvmFileHeader* jfh, SgAsmJvmMethod* m);
 
   private:
-    SgAsmJvmFileHeader* jfh_;
-    SgAsmJvmMethod* sgMethod_;
-    JvmCode code_;
+    SgAsmJvmFileHeader* jfh_ = nullptr;
+    SgAsmJvmMethod* sgMethod_ = nullptr;
+    Code code_; // contains raw bytes from the JVM class file for disassembly and partitioning
 };
 
 class JvmInterface final : public Interface {

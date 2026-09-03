@@ -94,7 +94,7 @@ public:
      *  without a return address is treated as the root analysis frame.
      */
     void completeReturn(BaseSemantics::RiscOperators*,
-                        const BaseSemantics::SValuePtr &result = BaseSemantics::SValuePtr());
+                        const BaseSemantics::SValuePtr result = BaseSemantics::SValuePtr());
 
     /** Records an error in the semantic analysis */
     void recordSemanticError(const std::string &msg);

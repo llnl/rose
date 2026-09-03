@@ -21,7 +21,6 @@ static const char *description =
 #include <Rose/BinaryAnalysis/Partitioner2/Partitioner.h>
 #include <Rose/CommandLine.h>
 
-//TODO: Probably also create and use an EngineCil
 #include <Rose/BinaryAnalysis/Partitioner2/EngineJvm.h>
 
 using namespace Rose;
@@ -193,12 +192,16 @@ main(int argc, char *argv[]) {
 
     // Process ByteCode methods and their instructions
     if (bcClass) {
+        // Prepare the class and its methods for analysis
+        bcClass->finalize();
+
         for (auto bcMethod : bcClass->methods()) {
             auto jvmMethod = BC::JvmMethod::promote(bcMethod);
 
             // Start this method with an independent machine state.
             auto methodState = initialState->clone();
             ASSERT_not_null(methodState);
+            ASSERT_require(!methodState->isTerminated());
 
             // Create, initialize and push a new frame for the method
             auto frame = IS::BaseSemantics::FrameState::instance(state->protoval(), Sawyer::Nothing(), bcMethod);
@@ -211,16 +214,61 @@ main(int argc, char *argv[]) {
             ASSERT_require(ops->currentState() == methodState);
             ASSERT_require(methodState->currentFrame() == frame);
 
-            for (auto insn : bcMethod->instructions()->get_instructions()) {
-                auto currentState = ops->currentState();
-                ASSERT_require(currentState == methodState);
+            const auto &instructions = bcMethod->instructions()->get_instructions();
 
-                std::cerr << partitioner->unparse(insn) << "\n";
-                printAst(std::cout, insn, "");
+            if (instructions.empty()) {
+                auto remainingFrame = methodState->popFrame();
+                ASSERT_require(remainingFrame == frame);
+                methodState->terminate();
+            }
+            else {
+                const RegisterDescriptor pcReg = cpu->instructionPointerRegister();
 
-                cpu->processInstruction(insn);
+                // Begin execution at the method's first instruction.
+                ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), instructions.front()->get_address()));
 
-                std::cerr << *currentState;
+                size_t nSteps = 0;
+                const size_t maxSteps = 100000;
+
+                while (!methodState->isTerminated() && methodState->currentFrame() == frame) {
+                    ASSERT_require2(++nSteps <= maxSteps, "method exceeded instruction step limit");
+
+                    auto pcValue = ops->readRegister(pcReg);
+                    ASSERT_not_null(pcValue);
+
+                    auto concretePc = pcValue->toUnsigned();
+                    ASSERT_require2(concretePc, "PC requires path splitting");
+
+                    const Address pc = static_cast<Address>(*concretePc);
+                    SgAsmInstruction *insn = bcMethod->instructionAt(pc);
+
+                    ASSERT_not_null2(insn, "PC does not identify an instruction in the current method");
+                    ASSERT_require(pc == insn->get_address());
+
+                    std::cerr << partitioner->unparse(insn) << "\n";
+                    printAst(std::cout, insn, "");
+
+                    cpu->processInstruction(insn);
+
+                    std::cerr << *methodState;
+                }
+            }
+
+            ASSERT_not_null(methodState);
+
+            if (!methodState->isTerminated()) {
+                // Execution stopped without a root return. This might occur
+                // when a different frame became current or control left the
+                // method unexpectedly.
+                if (methodState->currentFrame() == frame) {
+                    auto remainingFrame = methodState->popFrame();
+                    ASSERT_require(remainingFrame == frame);
+                }
+                methodState->terminate();
+            }
+
+            if (methodState->returnValue()) {
+                std::cerr << "frame #" << frame->frameId() << " return: " << *methodState->returnValue() << "\n";
             }
         }
     }

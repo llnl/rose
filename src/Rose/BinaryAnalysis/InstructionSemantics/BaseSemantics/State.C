@@ -320,6 +320,29 @@ State::hasFrameState() const {
     return frameState() != nullptr;
 }
 
+void
+State::terminate() {
+    terminated_ = true;
+}
+
+void
+State::terminate(SValuePtr returnValue) {
+    ASSERT_not_null(returnValue);
+
+    returnValue_ = std::move(returnValue);
+    terminated_ = true;
+}
+
+bool
+State::isTerminated() const {
+    return terminated_;
+}
+
+SValuePtr
+State::returnValue() const {
+    return returnValue_;
+}
+
 SValuePtr
 State::readLocal(size_t index) {
     ASSERT_not_null(currentFrame());

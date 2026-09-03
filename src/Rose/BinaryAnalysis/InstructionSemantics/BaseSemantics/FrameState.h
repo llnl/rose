@@ -142,10 +142,7 @@ public:
     void hash(Combinatorics::Hasher&, RiscOperators* addrOps, RiscOperators* valOps) const override;
     void print(std::ostream&, Formatter&) const override;
 
-    const ByteCode::Method::Ptr& method() const;
-
-    void analysisMethod(ByteCode::Method::Ptr&);
-    ByteCode::Method::Ptr analysisMethod();
+    ByteCode::Method::Ptr method() const;
 
     SValuePtr createArgument(const std::string &descriptor, size_t argIdx);
     static std::string argumentDescriptor(const std::string &descriptor, size_t argIdx);

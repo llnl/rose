@@ -272,29 +272,6 @@ metadataToken(const SgAsmCilMetadataHeap* heap, const SgAsmExpression* expr) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// CilCode
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-CilCode::CilCode(uint8_t* bytes, size_t size, Address offset)
-  : bytes_{bytes}, size_{size}, offset_{offset} {
-}
-
-const uint8_t*
-CilCode::bytes() const {
-    return bytes_;
-}
-
-size_t
-CilCode::size() const {
-    return size_;
-}
-
-Address
-CilCode::offset() const {
-    return offset_;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CilField
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -313,7 +290,7 @@ CilMethod::instance(std::string name, Address va, SgAsmCilMetadataRoot* mdr, SgA
 }
 
 CilMethod::CilMethod(std::string name, Address va, SgAsmCilMetadataRoot* mdr, SgAsmCilMethodDef* sgMethod)
-    : Method(std::move(name), va), mdr_{mdr}, sgMethod_{sgMethod}, insns_{nullptr}, code_{nullptr, 0, 0}
+    : Method(std::move(name), va), mdr_{mdr}, sgMethod_{sgMethod}, insns_{nullptr}
 {
     insns_ = new SgAsmInstructionList;
 
@@ -339,11 +316,6 @@ CilMethod::isSystemReserved(const std::string &name) const {
 const SgAsmInstructionList*
 CilMethod::instructions() const {
     return insns_;
-}
-
-const Code &
-CilMethod::code() const {
-    return code_;
 }
 
 void

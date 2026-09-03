@@ -889,7 +889,9 @@ NOTES:
     std::set<std::string> discoveredClasses{};
     auto disassembler = Architecture::findByName("jvm").orThrow()->newInstructionDecoder();
     for (auto sgMethod: jfh->get_method_table()->get_methods()) {
-        ByteCode::JvmMethod method{className, jfh->get_baseVa(), jfh, sgMethod};
+        std::string methodName = pool->get_utf8_string(sgMethod->get_name_index());
+        ByteCode::JvmMethod method{methodName, jfh->get_baseVa(), jfh, sgMethod};
+
         method.decode(disassembler);
         discoverFunctionCalls(sgMethod, jfh->get_constant_pool(), functions_, discoveredClasses);
     }
@@ -1407,34 +1409,6 @@ EngineJvm::partition(const std::vector<std::string> &fileNames) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Partitioner mid-level operations
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void
-EngineJvm::discoverBasicBlocks(const PartitionerPtr& partitioner, const ByteCode::Method* m) {
-    //TODO: Fix this mess please.
-
-    const ByteCode::JvmMethod* method{dynamic_cast<const ByteCode::JvmMethod*>(m)};
-    const SgAsmInstructionList* instructions{method->instructions()};
-    Address startVa{method->code().offset()};
-    Address va{startVa};
-
-    // Not sure where this goes (I suppose this discovers basic blocks), at least part of it, as it disassembles
-    method->decode(architecture()->newInstructionDecoder());
-
-    //TODO:
-    // 1. create basic block
-    // 2. add vertices
-    BasicBlockPtr bb = BasicBlock::instance(va, partitioner);
-    //TODO: bb should be attached after instructions are added
-    partitioner->attachBasicBlock(bb);
-
-    for (auto insn: instructions->get_instructions()) {
-        bb->append(partitioner, insn);
-        va += insn->get_size();
-
-        //TODO: void insertSuccessor(Address va, size_t nBits, EdgeType type=E_NORMAL, Confidence confidence=ASSUMED);
-
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Partitioner low-level stuff

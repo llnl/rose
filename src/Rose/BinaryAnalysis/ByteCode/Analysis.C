@@ -34,13 +34,6 @@ Field::Field() = default;
 Field::~Field() = default;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Code
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-Code::Code() = default;
-Code::~Code() = default;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Method
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -57,14 +50,35 @@ Method::address() const {
     return address_;
 }
 
-Class::Ptr
-Method::analysisClass() {
+Class*
+Method::declaringClass() const {
     return class_;
 }
 
 void
-Method::analysisClass(Class::Ptr c) {
-    class_ = c;
+Method::declaringClass(Class *declaringClass) {
+    ASSERT_not_null(declaringClass);
+    class_ = declaringClass;
+}
+
+void
+Method::finalize() {
+    instructionMap_.clear();
+
+    for (SgAsmInstruction* insn : instructions()->get_instructions()) {
+        ASSERT_not_null(insn);
+
+        const bool inserted = instructionMap_.emplace(insn->get_address(), insn).second;
+        ASSERT_require2(inserted, "duplicate instruction address in method");
+    }
+}
+
+SgAsmInstruction*
+Method::instructionAt(Address va) const {
+    const auto found = instructionMap_.find(va);
+    return found == instructionMap_.end()
+        ? nullptr
+        : found->second;
 }
 
 const std::vector<BasicBlock::Ptr>&
@@ -148,6 +162,12 @@ Class::strings() {
 }
 
 void
+Class::finalize() {
+    for (const Method::Ptr &method: methods_)
+        method->finalize();
+}
+
+void
 Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address> &discoveredFunctions,
                  const Progress::Ptr &progress) {
     const size_t nBits = 64;
@@ -171,8 +191,8 @@ Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address
         bool insertFallthroughSuccessors{true};
         Address seenVa{0};
 
-        // Provide the ByteCode::Method with access to its containing ByteCode::Class
-        method->analysisClass(Class::Ptr(this));
+        // Provide the ByteCode::Method with access to its declaring ByteCode::Class
+        method->declaringClass(this);
 
         // Annotate the instructions
         method->annotate();

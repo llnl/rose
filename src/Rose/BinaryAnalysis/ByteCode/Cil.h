@@ -15,24 +15,6 @@ namespace Rose {
 namespace BinaryAnalysis {
 namespace ByteCode {
 
-class CilCode final : public Code {
-  public:
-    /** Shared ownership pointer. */
-    using Ptr = Sawyer::SharedPointer<CilCode>;
-
-  public:
-    const uint8_t* bytes() const override;
-    size_t size() const override;
-    Address offset() const override;
-
-    CilCode(uint8_t* bytes, size_t size, Address offset);
-
-  private:
-    const uint8_t* bytes_;
-    size_t size_;
-    Address offset_;
-};
-
 class CilField final : public Field {
   public:
     /** Shared ownership pointer. */
@@ -55,7 +37,6 @@ class CilMethod final : public Method {
     bool isStatic() const override;
     bool isSystemReserved(const std::string &name) const override;
 
-    const Code & code() const override;
     const SgAsmInstructionList* instructions() const override;
     void decode(const Disassembler::BasePtr &disassembler) const override;
 
@@ -64,13 +45,12 @@ class CilMethod final : public Method {
     void annotate() override;
 
     CilMethod() = delete;
-    CilMethod(std::string name, Address, SgAsmCilMetadataRoot*, SgAsmCilMethodDef*);
+    CilMethod(std::string name, Address va, SgAsmCilMetadataRoot*, SgAsmCilMethodDef*);
 
   private:
-    SgAsmCilMetadataRoot* mdr_;
-    SgAsmCilMethodDef* sgMethod_;
-    SgAsmInstructionList* insns_;
-    CilCode code_;
+    SgAsmCilMetadataRoot* mdr_ = nullptr;
+    SgAsmCilMethodDef* sgMethod_ = nullptr;
+    SgAsmInstructionList* insns_ = nullptr;
 };
 
 class CilInterface final : public Interface {

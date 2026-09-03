@@ -35,41 +35,37 @@ namespace ByteCode {
 constexpr uint16_t ACC_STATIC = 0x0008;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// JvmCode
+// Code
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t*
-JvmCode::bytes() const {
+Code::bytes() const {
     return bytes_;
 }
 
+void
+Code::bytes(const uint8_t *bytes) {
+    bytes_ = bytes;
+}
+
 size_t
-JvmCode::size() const {
+Code::size() const {
     return size_;
 }
 
+void
+Code::size(size_t size) {
+    size_ = size;
+}
+
 Address
-JvmCode::offset() const {
+Code::offset() const {
     return offset_;
 }
 
 void
-JvmCode::bytes(const uint8_t* buf) {
-    bytes_ = buf;
-}
-
-void
-JvmCode::size(size_t sz) {
-    size_ = sz;
-}
-
-void
-JvmCode::offset(Address off) {
-    offset_ = off;
-}
-
-JvmCode::JvmCode(uint8_t* bytes, size_t size, Address offset)
-  : bytes_{bytes}, size_{size}, offset_{offset} {
+Code::offset(Address offset) {
+    offset_ = offset;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,16 +99,15 @@ JvmMethod::instance(std::string name, Address va, SgAsmJvmFileHeader* jfh, SgAsm
     return Ptr(new JvmMethod(std::move(name), va, jfh, sgMethod));
 }
 
-JvmMethod::JvmMethod(std::string name, Address va, SgAsmJvmFileHeader* jfh, SgAsmJvmMethod* method)
-  : Method{std::move(name),va}, jfh_{jfh}, sgMethod_{method}, code_{nullptr,0,0} {
-    ASSERT_not_null(jfh);
-    ASSERT_not_null(method);
+JvmMethod::JvmMethod(std::string name, Address va, SgAsmJvmFileHeader* jfh, SgAsmJvmMethod* sgMethod)
+  : Method{std::move(name),va}, jfh_{jfh}, sgMethod_{sgMethod} {
+    ASSERT_not_null(jfh_);
+    ASSERT_not_null(sgMethod_);
 
     auto attribute_table = sgMethod_->get_attribute_table();
     for (auto attribute : attribute_table->get_attributes()) {
         if (auto codeAttr{isSgAsmJvmCodeAttribute(attribute)}) {
             const uint8_t* code{reinterpret_cast<const uint8_t*>(codeAttr->get_code())};
-
             // Set JvmCode object fields
             code_.bytes(code);
             code_.size(codeAttr->get_code_length());
@@ -149,11 +144,6 @@ std::string JvmMethod::descriptor() const {
 SgAsmJvmConstantPool*
 JvmMethod::constant_pool() {
     return jfh_->get_constant_pool();
-}
-
-const Code &
-JvmMethod::code() const {
-    return code_;
 }
 
 const SgAsmInstructionList*
@@ -321,9 +311,15 @@ JvmClass::JvmClass(std::string name, NamespacePtr ns, SgAsmJvmFileHeader* jfh)
         Address methodVa = insns.empty() ? 0 : insns.front()->get_address();
 
         // Need to create a unique va if methodVa is zero
+#if 0
         ASSERT_require2(methodVa != 0, "Need unique method address");
-
         methods_.push_back(JvmMethod::instance(std::move(methodName), methodVa, jfh, sgMethod));
+#else
+        if (methodVa == 0) {
+            // likely abstract and/or has no instructions, ignore for now
+            // Address nextSyntheticVa = classBaseAddress; // assign to ++tail last instruction in the class.
+        }
+#endif
     }
     for (uint16_t index  : interfaces) {
         interfaces_.push_back(JvmInterface::instance(jfh, index));

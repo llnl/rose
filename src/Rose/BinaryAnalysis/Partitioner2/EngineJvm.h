@@ -356,14 +356,6 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 public:
 
-    /** Discover as many basic blocks as possible.
-     *
-     *  Processes the "undiscovered" work list until the list becomes empty.  This list is the list of basic block placeholders
-     *  for which no attempt has been made to discover instructions.  This method implements a recursive descent disassembler,
-     *  although it does not process the control flow edges in any particular order. Subclasses are expected to override this
-     *  to implement a more directed approach to discovering basic blocks. */
-    virtual void discoverBasicBlocks(const PartitionerPtr&, const ByteCode::Method*);
-
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Partitioner low-level functions
     //
