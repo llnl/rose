@@ -1232,6 +1232,29 @@ Engine::specimen(const std::vector<std::string> &specimen) {
     specimen_ = specimen;
 }
 
+InstructionSemantics::BaseSemantics::StatePtr
+Engine::state() {
+    return state_;
+}
+
+ByteCode::Class::Ptr
+Engine::analysisClass() {
+    ASSERT_not_null(analysisClass_);
+    return analysisClass_;
+}
+
+Engine::ClassRepository
+Engine::classes() const {
+    return classes_;
+}
+
+ByteCode::Class::Ptr
+Engine::classByName(const std::string &name) const {
+    auto found = classes_.find(name);
+    ASSERT_require2(found != classes_.end(), "class not found in repository");
+    return found->second;
+}
+
 } // namespace
 } // namespace
 } // namespace

@@ -137,7 +137,6 @@ class JvmClass final : public Class {
 
     static JvmClass::Ptr promote(const Sawyer::SharedPointer<Class>& from);
 
-    std::string super_name() const override;
     std::string typeSeparator() const override;
     void dump() override;
 

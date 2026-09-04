@@ -291,6 +291,9 @@ JvmClass::JvmClass(std::string name, NamespacePtr ns, SgAsmJvmFileHeader* jfh)
     ASSERT_not_null(jfh->get_method_table());
     ASSERT_not_null(jfh->get_attribute_table());
 
+    auto pool = jfh->get_constant_pool();
+    ASSERT_not_null(pool);
+
     auto fields = jfh->get_field_table()->get_fields();
     auto methods = jfh->get_method_table()->get_methods();
     auto attributes = jfh->get_attribute_table()->get_attributes();
@@ -299,33 +302,38 @@ JvmClass::JvmClass(std::string name, NamespacePtr ns, SgAsmJvmFileHeader* jfh)
     for (auto sgField : fields) {
         fields_.push_back(JvmField::instance(jfh, sgField));
     }
-    for (auto sgMethod : methods) {
-        auto pool = jfh->get_constant_pool();
-        ASSERT_not_null(pool);
-
-        std::string methodName = constantPoolEntryName(sgMethod->get_name_index(), pool);
-
-        // The method address is the address of the first instruction
-        auto insns = sgMethod->get_instruction_list()->get_instructions();
-
-        Address methodVa = insns.empty() ? 0 : insns.front()->get_address();
-
-        // Need to create a unique va if methodVa is zero
-#if 0
-        ASSERT_require2(methodVa != 0, "Need unique method address");
-        methods_.push_back(JvmMethod::instance(std::move(methodName), methodVa, jfh, sgMethod));
-#else
-        if (methodVa == 0) {
-            // likely abstract and/or has no instructions, ignore for now
-            // Address nextSyntheticVa = classBaseAddress; // assign to ++tail last instruction in the class.
-        }
-#endif
-    }
     for (uint16_t index  : interfaces) {
         interfaces_.push_back(JvmInterface::instance(jfh, index));
     }
     for (auto sgAttribute : attributes) {
         attributes_.push_back(JvmAttribute::instance(jfh, sgAttribute->get_attribute_name_index()));
+    }
+
+    // The va for the method increases linearly from its class va (thus limited number)
+    ASSERT_require2(methods.size() < 1024, "va wrong, too many methods for this class");
+    Address methodVa = 1 + jfh->get_baseVa();
+
+    for (auto sgMethod : methods) {
+        auto insns = sgMethod->get_instruction_list()->get_instructions();
+        ASSERT_require(insns.empty());
+
+        if (methodVa == 0) {
+            // likely abstract and/or has no instructions, ignore for now
+            // Address nextSyntheticVa = classBaseAddress; // assign to ++tail last instruction in the class.
+            // Note: nextFunctionVa_ exists in EngineJvm, it probably should be used
+        }
+        std::string methodName = constantPoolEntryName(sgMethod->get_name_index(), pool);
+
+        // Create and save a JvmMethod instance in its declaring class
+        auto jvmMethod = JvmMethod::instance(std::move(methodName), methodVa, jfh, sgMethod);
+
+        methods_.push_back(jvmMethod);
+        methodVa += 1;
+    }
+
+    auto superIndex = jfh->get_super_class();
+    if (superIndex > 0) {
+        baseClassName_ = ByteCode::constantPoolEntryName(superIndex, pool);
     }
 }
 
@@ -387,17 +395,6 @@ constantPoolEntryName(uint16_t index, const SgAsmJvmConstantPool* pool) {
 }
 
 std::string
-JvmClass::super_name() const {
-    auto pool = jfh_->get_constant_pool();
-    auto super_index = jfh_->get_super_class();
-    auto class_info = pool->get_entry(super_index);
-    if (class_info->get_name_index() != 0) {
-        return pool->get_utf8_string(class_info->get_name_index());
-    }
-    return std::string{""};
-}
-
-std::string
 JvmClass::typeSeparator() const {
     return "::";
 }
@@ -428,7 +425,7 @@ JvmClass::dump() {
     cout << "----------------\n";
     cout << "class '" << name() << "'" << std::endl;
     cout << "----------------\n";
-    cout << "   super: " << super_name() << "\n\n";
+    cout << "   super: " << baseClassName() << "\n\n";
 
     cout << "constant pool\n";
     cout << "-----------\n";

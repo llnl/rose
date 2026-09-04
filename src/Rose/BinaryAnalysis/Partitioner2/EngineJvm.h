@@ -51,9 +51,6 @@ private:
         std::unique_ptr<Sawyer::ProgressBar<size_t>> jarProgressBar;
     };
 
-    // Mapping of class names to virtual address
-    std::map<std::string, SgAsmGenericFile*> classes_;
-
     // Mapping of function names to virtual address
     std::map<std::string, Address> functions_;
 
@@ -250,7 +247,7 @@ public:
      *  Returns the address of the last preloaded class.
      *
      * @{ */
-    Address loadSuperClasses(const std::string &, SgAsmGenericFileList*, Address);
+    Address loadBaseClassAndInterfaces(const std::string &, SgAsmGenericFileList*, Address);
 
     /** Load classes discoverable from the file list starting at the given address.
      *

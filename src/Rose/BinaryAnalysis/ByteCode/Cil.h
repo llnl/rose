@@ -76,7 +76,6 @@ class CilClass final : public Class {
     static Class::Ptr promote(const Sawyer::SharedPointer<Class>& from);
     static std::string objectName(const SgAsmCilMetadata*, SgAsmCilMetadataRoot*);
 
-    std::string super_name() const override;
     std::string typeSeparator() const override;
     void dump() override;
 

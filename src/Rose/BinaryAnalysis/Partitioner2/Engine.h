@@ -353,6 +353,8 @@ protected:
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                  Data members
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+using ClassRepository = std::map<std::string, ByteCode::Class::Ptr>;
+
 private:
     std::string name_;                                  // factory name
     Settings settings_;                                 // Settings for the partitioner.
@@ -362,10 +364,12 @@ private:
     CodeConstants::Ptr codeFunctionPointers_;           // generates constants that are found in instruction ASTs
     ProgressPtr progress_;                              // optional progress reporting
     std::vector<std::string> specimen_;                 // list of additional command line arguments (often file names)
+
 protected:
-    ByteCode::Class::Ptr analysisClass_;               // the ByteCode analysis class used for partitioning
+    ByteCode::Class::Ptr analysisClass_;                // the ByteCode analysis class used for partitioning
     Architecture::BaseConstPtr architecture_;           // architecture-specific information
     InstructionSemantics::BaseSemantics::StatePtr state_; // the semantics machine state
+    ClassRepository classes_;                           // Repository of ByteCode Classes
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                  Construction and destruction
@@ -1027,9 +1031,7 @@ public:
      *  The semantic machine state.
      *
      * @{ */
-    InstructionSemantics::BaseSemantics::StatePtr state() {
-        return state_;
-    }
+    InstructionSemantics::BaseSemantics::StatePtr state();
     /** @} */
 
     /** Property: ByteCode class used for partitioning.
@@ -1037,11 +1039,18 @@ public:
      *  After partitioning this class makes the partitioning results available for analysis.
      *
      * @{ */
-    ByteCode::Class::Ptr analysisClass() {
-        ASSERT_not_null(analysisClass_);
-        return analysisClass_;
-    }
+    ByteCode::Class::Ptr analysisClass();
     /** @} */
+
+    /** Property: classes.
+     *
+     *  Repository of ByteCode Classes.
+     *
+     * @{ */
+    ClassRepository classes() const;
+
+    /** Retrieve a ByteCode class from the repository by name */
+    ByteCode::Class::Ptr classByName(const std::string &name) const;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                  Internal stuff

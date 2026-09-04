@@ -131,6 +131,11 @@ Class::name() const {
     return name_;
 }
 
+const std::string&
+Class::baseClassName() const {
+    return baseClassName_;
+}
+
 Address
 Class::address() const {
     return address_;

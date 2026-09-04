@@ -2811,9 +2811,18 @@ struct IP_if_acmpne: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_if_icmpeq: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        assert_args(insn, args, 2);
-        JvmSemantics::branch_if_icmpeq(ops, insn, args);
+    void p(D d, Ops ops, I insn, Args args) {
+        assert_args(insn, args, 1);
+
+        auto sval2 = ops->popOperand();
+        auto sval1 = ops->popOperand();
+
+        ASSERT_require(sval1->kind() == ValueKind::Integer32);
+        ASSERT_require(sval2->kind() == ValueKind::Integer32);
+
+        auto condition = ops->isEqual(sval1, sval2);
+
+        JvmSemantics::execute_condition(d, ops, insn, d->asS2(args[0]), condition);
     }
 };
 
@@ -4643,7 +4652,7 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0x9d,  new Jvm::IP_ifgt);
     iprocSet(0x9e,  new Jvm::IP_ifle);
 
-//  iprocSet(0x9f,  new Jvm::IP_if_icmpeq); // if_icmpeq (159 (0x9f))
+    iprocSet(0x9f,  new Jvm::IP_if_icmpeq);
 //  iprocSet(0xa0,  new Jvm::IP_if_icmpne); // if_icmpne (160 (0xa0))
 //  iprocSet(0xa1,  new Jvm::IP_if_icmplt); // if_icmplt (161 (0xa1))
 //  iprocSet(0xa2,  new Jvm::IP_if_icmpge); // if_icmpge (162 (0xa2))

@@ -374,11 +374,6 @@ CilAttribute::name() const {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::string
-CilClass::super_name() const {
-    return "CilClass::super_name():UNIMPLEMENTED";
-}
-
-std::string
 CilClass::typeSeparator() const {
     return ".";
 }

@@ -163,11 +163,10 @@ class Class: public Sawyer::SharedObject,
     //  static Class promote(const Class&);
 
     const std::string& name() const;
+    const std::string& baseClassName() const;
     Address address() const;
 
-    virtual std::string super_name() const = 0;
     virtual std::string typeSeparator() const = 0;
-
     virtual const std::vector<std::string>& strings();
 
     const std::vector<Field::Ptr>& fields() const;
@@ -187,12 +186,13 @@ class Class: public Sawyer::SharedObject,
 
   private:
     std::string name_;
-    /** Base virtual address assigned to this loaded class file. */
-    Address address_ = 0;
+    Address address_ = 0; // Base virtual address assigned to this loaded class file
     NamespacePtr namespace_;
 
   protected:
     Class(std::string name, Address va, NamespacePtr ns);
+
+    std::string baseClassName_;
 
     std::vector<Field::Ptr> fields_;
     std::vector<Method::Ptr> methods_;

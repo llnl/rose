@@ -1722,8 +1722,6 @@ EngineBinary::partitionCilSections(const Partitioner::Ptr &partitioner) {
       ByteCode::CilContainer cilContainer{mdr};
       cilContainer.partition(partitioner);
 
-      // Make the ByteCode analysis class available
-
       auto nss = cilContainer.namespaces();
       ASSERT_require(nss.size() > 0);
 
@@ -1731,6 +1729,7 @@ EngineBinary::partitionCilSections(const Partitioner::Ptr &partitioner) {
       auto cls = ns->classes();
       ASSERT_require(cls.size() > 0);
 
+      // Make the ByteCode analysis class available
       analysisClass_ = cls[0];
 
       return true;

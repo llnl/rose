@@ -866,38 +866,46 @@ NOTES:
 
     auto pool = jfh->get_constant_pool();
 
-    // Check the class name now that the path has been loaded
+    // Normalize the class name now that the path has been loaded
     std::string parsedClassName = ByteCode::constantPoolEntryName(jfh->get_this_class(), pool);
-    if (className != parsedClassName)
+    if (className != parsedClassName) {
         className = parsedClassName;
+    }
 
     if (classes_.find(className) != classes_.end()) {
         SageInterface::deleteAST(gf);
         return baseVa;
     }
 
-    classes_[className] = gf;
-
     fileList->get_files().push_back(gf);
     gf->set_parent(fileList);
+
+    // Create a JvmClass
+    ByteCode::Namespace::Ptr ns = ByteCode::Namespace::instance();
+    ByteCode::JvmClass::Ptr jvmClass = ByteCode::JvmClass::instance(className, ns, jfh);
+
+    // Insert the JvmClass into the class repository
+    bool inserted = classes_.emplace(jvmClass->name(), jvmClass).second;
+    ASSERT_require2(inserted, "duplicate class in repository");
 
     // Increase base virtual address for the next class
     baseVa += gf->get_originalSize() + vaDefaultIncrement;
     baseVa -= baseVa % vaDefaultIncrement;
 
-    // Decode instructions for usage downstream
+    // Decode instructions for each method
     std::set<std::string> discoveredClasses{};
     auto disassembler = Architecture::findByName("jvm").orThrow()->newInstructionDecoder();
-    for (auto sgMethod: jfh->get_method_table()->get_methods()) {
-        std::string methodName = pool->get_utf8_string(sgMethod->get_name_index());
-        ByteCode::JvmMethod method{methodName, jfh->get_baseVa(), jfh, sgMethod};
 
-        method.decode(disassembler);
+    for (auto method: jvmClass->methods()) {
+        method->decode(disassembler);
+//TODO: Change interface to take a ByteCode::Method
+#if 0
         discoverFunctionCalls(sgMethod, jfh->get_constant_pool(), functions_, discoveredClasses);
+#endif
     }
 
     // Find and load super classes
-    baseVa = loadSuperClasses(className, fileList, baseVa);
+    baseVa = loadBaseClassAndInterfaces(className, fileList, baseVa);
 
     // Load classes discovered during function call search
     for (auto discovered: discoveredClasses) {
@@ -951,34 +959,27 @@ EngineJvm::loadDiscoverableClasses(SgAsmGenericFileList* fileList, Address baseV
 }
 
 Address
-EngineJvm::loadSuperClasses(const std::string &className, SgAsmGenericFileList* fileList, Address baseVa) {
-    // Make sure the class has been processed and the SgAsmGenericFile for it exists
-    if (classes_.find(className) == classes_.end()) {
-        return baseVa;
-    }
-    SgAsmGenericFile* file = classes_[className];
+EngineJvm::loadBaseClassAndInterfaces(const std::string &className, SgAsmGenericFileList *fileList, Address baseVa) {
+    auto jvmClass = ByteCode::JvmClass::promote(classByName(className));
+    const std::string &superName = jvmClass->baseClassName();
 
-    auto jfh = dynamic_cast<SgAsmJvmFileHeader*>(file->get_header(SgAsmGenericFile::FAMILY_JVM));
-    auto pool = jfh->get_constant_pool();
+    for (auto interface: jvmClass->interfaces()) {
+        auto interfaceName = interface->name();
 
-    // Load interfaces
-    for (auto interface: jfh->get_interfaces()) {
-        std::string interfaceName = ByteCode::constantPoolEntryName(interface, pool);
-        if (ByteCode::JvmContainer::isJvmSystemReserved(interfaceName)) continue; // ignore Java system files
+        if (ByteCode::JvmContainer::isJvmSystemReserved(interfaceName)) {
+            continue;
+        }
 
         auto interfacePath = pathToClass(interfaceName);
-        if (!fs::exists(interfacePath)) {
-            // Revert to interface name to check for class in a jar
-            interfacePath = interfaceName + ".class";
-        }
+        if (!fs::exists(interfacePath)) interfacePath = interfaceName + ".class";
+
         baseVa = loadClassFile(interfacePath, fileList, baseVa);
     }
 
-    // There may not be a super class (e.g., module-info.class)
-    if (jfh->get_super_class() < 1) return baseVa;
-
-    std::string superName = ByteCode::constantPoolEntryName(jfh->get_super_class(), pool);
-    if (ByteCode::JvmContainer::isJvmSystemReserved(superName)) return baseVa; // ignore Java system files
+    // Ignore Java system classes
+    if (superName.empty() || ByteCode::JvmContainer::isJvmSystemReserved(superName)) {
+        return baseVa;
+    }
 
     return loadClassFile(pathToClass(superName), fileList, baseVa);
 }
@@ -1293,10 +1294,14 @@ EngineJvm::runPartitionerRecursive(const Partitioner::Ptr &partitioner) {
 
             auto classIndex = jfh->get_this_class();
             std::string className = ByteCode::constantPoolEntryName(classIndex, pool);
-            ByteCode::JvmClass::Ptr jvmClass = ByteCode::JvmClass::instance(className, ns, jfh);
 
+            auto jvmClass = ByteCode::JvmClass::promote(classByName(className));
+
+//TODO: Rethink this (which class should be exported?)
+#if 1
             // Make the ByteCode analysis class available
             analysisClass_ = jvmClass;
+#endif
 
             // Start discovering instructions and forming them into basic blocks and functions
             SAWYER_MESG(where) <<"discovering and populating functions\n";
