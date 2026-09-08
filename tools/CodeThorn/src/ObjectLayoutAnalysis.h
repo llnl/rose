@@ -1,5 +1,5 @@
-#ifndef OBJECT_LAYOUT_ANALYSIS_H
-#define OBJECT_LAYOUT_ANALYSIS_H 1
+#ifndef CODETHORN_OBJECT_LAYOUT_ANALYSIS_H
+#define CODETHORN_OBJECT_LAYOUT_ANALYSIS_H 1
 
 #include <boost/variant.hpp>
 
@@ -96,7 +96,7 @@ class ObjectLayout : std::vector<ObjectLayoutEntry>
 
 using ObjectLayoutAnalysisBase = std::unordered_map<ClassKeyType, ObjectLayout>;
 
-class ObjectLayoutAnalysis : ObjectLayoutAnalysisBase
+class ROSE_DEPRECATED("use Rose::Source::Analysis::CppLayoutAnalysis") ObjectLayoutAnalysis : ObjectLayoutAnalysisBase
 {
   public:
     using base = ObjectLayoutAnalysisBase;
@@ -327,7 +327,7 @@ class VTableLayout : VTableLayoutBase
 using VTableLayoutAnalysisBase = std::unordered_map<ClassKeyType, VTableLayout>;
 
 /// A collection of vtables for classes that have one
-class VTableLayoutAnalysis : VTableLayoutAnalysisBase
+class ROSE_DEPRECATED("use Rose::Source::Analysis::VTableLayoutAnalysis") VTableLayoutAnalysis : VTableLayoutAnalysisBase
 {
   public:
     using base = VTableLayoutAnalysisBase;

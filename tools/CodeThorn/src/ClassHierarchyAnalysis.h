@@ -1,12 +1,14 @@
 // An example ROSE plugin
-#ifndef CLASS_HIERARCHY_ANALYSIS_H
-#define CLASS_HIERARCHY_ANALYSIS_H 1
+#ifndef CODETHORN_CLASS_HIERARCHY_ANALYSIS_H
+#define CODETHORN_CLASS_HIERARCHY_ANALYSIS_H 1
 
 #include <vector>
 #include <unordered_map>
 #include <tuple>
 #include <functional>
 #include <iostream>
+
+#include <ROSE_DEPRECATED.h>
 
 #include "RoseCompatibility.h"
 
@@ -20,8 +22,29 @@
 namespace CodeThorn
 {
   using CompatibilityBridge = RoseCompatibilityBridge;
-
   extern Sawyer::Message::Facility logger; // from "CodeThornLib.h"
+}
+
+namespace CodeThorn
+{
+  using CompatibilityBridge = RoseCompatibilityBridge;
+  using CodeThorn::ASTRootType;
+  using CodeThorn::CastKeyType;
+  using CodeThorn::ClassKeyType;
+  using CodeThorn::ClassNameFn;
+  using CodeThorn::DataMemberType;
+  using CodeThorn::FuncNameFn;
+  using CodeThorn::FunctionKeyType;
+  using CodeThorn::FunctionPredicate;
+  using CodeThorn::FunctionTypeKeyType;
+  using CodeThorn::IsNotNull;
+  using CodeThorn::RoseCompatibilityBridge;
+  using CodeThorn::STRIP_MODIFIER_ALIAS;
+  using CodeThorn::TypeKeyType;
+  using CodeThorn::VarNameFn;
+  using CodeThorn::VariableKeyType;
+  using CodeThorn::getClassCastInfo;
+  using CodeThorn::inheritanceEdges;
 }
 
 /*******
@@ -280,7 +303,7 @@ std::ostream& operator<<(std::ostream&, ClassAnalysisInfo);
 using ClassAnalysisBase = std::unordered_map<ClassKeyType, ClassData>;
 
 /// holds data about all classes in a program
-class ClassAnalysis : ClassAnalysisBase
+class ROSE_DEPRECATED("use Rose::Source::Analysis::CppHierarchyAnalysis") ClassAnalysis : ClassAnalysisBase
 {
   public:
     using base = ClassAnalysisBase;
@@ -399,7 +422,7 @@ namespace CodeThorn
 {
 
 /// collects casts and program locations where they occur
-class CastAnalysis : std::unordered_map<CastDesc, std::vector<CastKeyType> >
+class ROSE_DEPRECATED("use ROSE Source analysis APIs") CastAnalysis : std::unordered_map<CastDesc, std::vector<CastKeyType> >
 {
   public:
     using base = std::unordered_map<CastDesc, std::vector<CastKeyType> >;
@@ -420,7 +443,7 @@ class CastAnalysis : std::unordered_map<CastDesc, std::vector<CastKeyType> >
 
 
 /// stores the results of virtual function analysis by Id
-class VirtualFunctionAnalysis : private std::unordered_map<FunctionKeyType, VirtualFunctionDesc>
+class ROSE_DEPRECATED("use Rose::Common::Analysis::VirtualFunctionAnalysis") VirtualFunctionAnalysis : private std::unordered_map<FunctionKeyType, VirtualFunctionDesc>
 {
   public:
     using base = std::unordered_map<FunctionKeyType, VirtualFunctionDesc>;

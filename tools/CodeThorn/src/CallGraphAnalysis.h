@@ -103,9 +103,9 @@ Rose::FlowGraphInterface::AnalysisSupportOption::CodeThorn> {
   typedef FlowGraphAccessInterface<CodeThorn::CGVertex, CodeThorn::CGEdge> GraphAccess;
 
 // QY: This will be working only after making Sawyer::container::Graph inherits FlowGraphAccessInterface.
-// GraphAccess& getResultGraph() { return result_graph_; } 
+// GraphAccess& getResultGraph() { return result_graph_; }
  CodeThorn::FunctionCallDataSequence&  getSavedCallData() { return call_data_; }
- 
+
  bool performAnalysis(SgProject* ast) {
    std::tie(result_graph_, call_data_) = CodeThorn::generateCallGraphFromAST(ast);
    return true;

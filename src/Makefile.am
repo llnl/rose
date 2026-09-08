@@ -256,6 +256,11 @@ nobase_pkginclude_HEADERS=								\
 	Rose/BinaryAnalysis/ByteCode.h							\
 	Rose/BinaryAnalysis/ByteCode/Analysis.h						\
 	Rose/BinaryAnalysis/ByteCode/Cil.h						\
+	Rose/BinaryAnalysis/ByteCode/ClassHierarchy.h					\
+	Rose/BinaryAnalysis/ByteCode/ClassHierarchy/CilCompatibility.h		\
+	Rose/BinaryAnalysis/ByteCode/ClassHierarchy/CilHierarchyAnalysis.h		\
+	Rose/BinaryAnalysis/ByteCode/ClassHierarchy/JvmCompatibility.h		\
+	Rose/BinaryAnalysis/ByteCode/ClassHierarchy/JvmHierarchyAnalysis.h		\
 	Rose/BinaryAnalysis/ByteCode/Jvm.h						\
 	Rose/BinaryAnalysis/ByteOrder.h							\
 	Rose/BinaryAnalysis/CallingConvention.h						\
@@ -510,6 +515,13 @@ nobase_pkginclude_HEADERS=								\
 	Rose/BitFlags.h									\
 	Rose/BitOps.h									\
 	Rose/Color.h									\
+	Rose/Common.h									\
+	Rose/Common/Analysis.h								\
+	Rose/Common/Analysis/AbstractCompatibilityBridge.h			\
+	Rose/Common/Analysis/AnalysisTypes.h				\
+	Rose/Common/Analysis/ClassHierarchyAnalysis.h			\
+	Rose/Common/Analysis/ClassHierarchyExport.h			\
+	Rose/Common/Analysis/Utility.h					\
 	Rose/CommandLine.h								\
 	Rose/CommandLine/DurationParser.h						\
 	Rose/CommandLine/IntervalParser.h						\
@@ -537,6 +549,12 @@ nobase_pkginclude_HEADERS=								\
 	Rose/Sarif/Exception.h								\
 	Rose/Source/Analysis.h									\
 	Rose/Source/Analysis/Analyzer.h									\
+	Rose/Source/Analysis/CppClassLayoutExport.h				\
+	Rose/Source/Analysis/CppCompatibility.h					\
+	Rose/Source/Analysis/CppHierarchyAnalysis.h				\
+	Rose/Source/Analysis/CppLayoutAnalysis.h				\
+	Rose/Source/Analysis/CppSpecialMemberAnalysis.h			\
+	Rose/Source/Analysis/ExternalMangling.h					\
 	Rose/Source/Analysis/Visitor.h									\
 	Rose/Source/AST.h									\
 	Rose/Source/AST/Checker.h								\

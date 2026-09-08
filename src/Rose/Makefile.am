@@ -292,6 +292,9 @@ librose_partial_la_SOURCES =								\
 	CommandLine/Parser.C								\
 	CommandLine/SelfTest.C								\
 	CommandLine/Version.C								\
+	Common/Analysis/AnalysisTypes.C						\
+	Common/Analysis/ClassHierarchyAnalysis.C					\
+	Common/Analysis/ClassHierarchyExport.C					\
 	Diagnostics/Diagnostics.C							\
 	FileSystem/FileSystem.C								\
 	FormattedTable.C								\
@@ -310,6 +313,12 @@ librose_partial_la_SOURCES =								\
 	Sarif/ThreadFlow.C								\
 	Sarif/ThreadFlowLocation.C							\
 	Source/Analysis/Analyzer.C								\
+	Source/Analysis/CppClassLayoutExport.C					\
+	Source/Analysis/CppCompatibility.C						\
+	Source/Analysis/CppHierarchyAnalysis.C					\
+	Source/Analysis/CppLayoutAnalysis.C					\
+	Source/Analysis/CppSpecialMemberAnalysis.C				\
+	Source/Analysis/ExternalMangling.C						\
 	Source/Analysis/Visitor.C								\
 	Source/AST/checker/checker.C								\
 	Source/AST/checker/cmdline.C								\
@@ -337,5 +346,15 @@ librose_partial_la_SOURCES =								\
 	StringUtility/SplitJoin.C							\
 	StringUtility/StringToNumber.C							\
 	Yaml.C
+
+# The CIL and JVM hierarchy analyses operate on binary AST nodes, which are
+# generated only when binary analysis support is enabled.
+if ROSE_BUILD_BINARY_ANALYSIS_SUPPORT
+librose_partial_la_SOURCES +=							\
+	BinaryAnalysis/ByteCode/ClassHierarchy/CilCompatibility.C		\
+	BinaryAnalysis/ByteCode/ClassHierarchy/CilHierarchyAnalysis.C		\
+	BinaryAnalysis/ByteCode/ClassHierarchy/JvmCompatibility.C		\
+	BinaryAnalysis/ByteCode/ClassHierarchy/JvmHierarchyAnalysis.C
+endif
 
 # Public header files are installed from parent makefiles.

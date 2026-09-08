@@ -6,6 +6,7 @@
 # namespace.
 add_subdirectory(AST)
 add_subdirectory(BinaryAnalysis)
+add_subdirectory(Common)
 add_subdirectory(Color)
 add_subdirectory(CommandLine)
 add_subdirectory(Diagnostics)
@@ -40,6 +41,7 @@ install(FILES
   BitOps.h
   Color.h
   CommandLine.h
+  Common.h
   Constants.h
   Diagnostics.h
   Exception.h

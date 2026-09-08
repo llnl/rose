@@ -1,42 +1,40 @@
 #include <sage3basic.h>
+#include <Rose/Source/Analysis/ExternalMangling.h>
 
-#include "ExternalMangling.h"
-
-#include <unordered_map>
-#include <set>
-#include <sstream>
-#include <iostream>
 #include <cctype>
+#include <ostream>
+#include <sstream>
+#include <stdexcept>
+#include <unordered_map>
 #include <algorithm>
-
-#include <Rose/Diagnostics.h>
-#include <sageGeneric.h>
-#include <sageInterface.h>
-#include <Combinatorics.h>
+#include <set> // ?
+#include <iostream> // ?
 
 #include <boost/range/adaptors.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/functional/hash.hpp>
+//~ #include <boost/core/bit.hpp>
+//~ #include <boost/functional/hash.hpp>
 
-#include "CodeThornLib.h"
-#include "RoseCompatibility.h"
+#include <Combinatorics.h>
+#include <Rose/Diagnostics.h>
+#include <sageGeneric.h>
+#include <sageInterface.h>
+#include <Rose/Source/Analysis/CppCompatibility.h>
+
+// #include "CodeThornLib.h"
+// #include "RoseCompatibility.h"
+
 
 #define WITH_CUSTOM_LINKAGE_HANDLER 0 // the code is not yet ready
 
-
-// #include "stringcompress.hpp"
-
-//~ #include <boost/range/algorithm_ext/for_each.hpp>
-// #include <boost/range/join.hpp>
-
 namespace si = SageInterface;
 namespace adapt = boost::adaptors;
-namespace ct = CodeThorn;
+//~ namespace ct = CodeThorn;
+namespace rsa = Rose::Source::Analysis;
 
 namespace
 {
-
 inline
 auto roseTrace() -> decltype(Rose::Diagnostics::mlog[Sawyer::Message::TRACE])
 {
@@ -350,7 +348,7 @@ namespace
       return internalLinkageFromFile(SG_DEREF(isSgLocatedNode(n.get_parent())));
 
     if (linkageCandidate != "NULL_FILE") // \pp todo revise
-      return ct::mangleFilename(linkageCandidate);
+      return rsa::mangleFilename(linkageCandidate);
 
     msgWarn() << "mangling node with internal linkage w/o usable location info: " << n.class_name()
               << std::endl;
@@ -1191,10 +1189,10 @@ namespace
   }
 
   std::string
-  mangleLocation(ct::SourceLocation loc, const char* prefix)
+  mangleLocation(rsa::SourceLocation loc, const char* prefix)
   {
     return join( prefix
-               , ct::mangleFilename(loc.file())
+               , rsa::mangleFilename(loc.file())
                , mglSimpleSep
                , std::to_string(loc.startLine())
                , mglSimpleSep
@@ -1275,12 +1273,13 @@ namespace
 
     if (vla)
       return mglArrayVL;
-
+/*
+ *  \todo consider using SageInterface constant folding as fallback.
     // fallback code for when constants are not preserved by the frontend
     CodeThorn::AbstractValue aVal = CodeThorn::evaluateExpressionWithEmptyState(const_cast<SgExpression*>(idx));
-
     if (aVal.isConstInt())
       return std::to_string(aVal.getIntValue());
+*/
 
     roseError() << "UNABLE to mangle array index of type: " << idx->class_name()
                 << "  was ROSE's frontend called with SgProject::e_original_expressions_and_folded_values"
@@ -1334,6 +1333,42 @@ namespace
               );
   }
 
+  //
+  // alternative hash_combine: https://stackoverflow.com/a/50978188
+
+  inline
+  std::uint64_t rotl(std::uint64_t x, int s) noexcept
+  {
+    // consider using std::rotl (C++20) or boost::core::rotl (newer boost versions).
+    constexpr int N = std::numeric_limits<std::uint64_t>::digits;
+
+    const int r = s & (N - 1);
+
+    if (r == 0) return x;  // x >> N is UB before C++20
+
+    return (x << r) | (x >> (N - r));
+  }
+
+  inline
+  std::uint64_t xor_shift(std::uint64_t n, int i) { return n ^ (n >> i); }
+
+  // a hash function with another name as to not confuse with std::hash
+  inline
+  std::uint64_t stable_hash_distribute(std::uint64_t n) {
+    constexpr std::uint64_t p = 0x5555555555555555ull;    // pattern of alternating 0 and 1
+    constexpr std::uint64_t c = 17316035218449499591ull;  // random uneven integer constant;
+
+    return c * xor_shift(p * xor_shift(n, 32), 32);
+  }
+
+  inline
+  std::uint64_t stable_hash_combine(std::uint64_t seed, std::uint64_t comp) {
+    const std::uint64_t distr = stable_hash_distribute(comp);
+
+    //~ return std::rotl(seed, std::numeric_limits<std::uint64_t>::digits/3) ^ distr;
+    return rotl(seed, std::numeric_limits<std::uint64_t>::digits/3) ^ distr;
+  }
+
 
   /// Combines two hashes \p lhs and \p rhs
   /// \param  lhs one hash value
@@ -1345,8 +1380,9 @@ namespace
   std::uint64_t
   hashCombine(std::uint64_t lhs, std::uint64_t rhs)
   {
-    boost::hash_combine(lhs, rhs);
-    return lhs;
+    //~ boost::hash_combine(lhs, rhs);
+    //~ return lhs;
+    return stable_hash_combine(lhs, rhs);
   }
 
   /// Computes a hash value based on the elements of a declaration's \p n elements.
@@ -1532,9 +1568,9 @@ namespace
     }
     else if (name.size() == 0)
     {
-      ct::RoseCompatibilityBridge compat;
+      rsa::CppCompatibility compat;
 
-      name = mangleLocation(compat.location(&n, true/*resolve instantiations*/), mglVariableLoc);
+      name = mangleLocation(compat.location(compat.variableId(&n), true/*resolve instantiations*/), mglVariableLoc);
 
       msgWarn() << "mangling an unnamed parameter in: " << parent->unparseToString()
                 << " as '" << name << "'"
@@ -1587,13 +1623,10 @@ namespace
   }
 }
 
-
-
-
-namespace CodeThorn
+namespace Rose::Source::Analysis
 {
 std::string
-mangleFilename(const boost::string_view& filename)
+mangleFilename(boost::string_view filename)
   {
     std::string res;
 

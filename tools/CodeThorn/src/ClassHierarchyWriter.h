@@ -1,7 +1,7 @@
 // An example ROSE plugin
 
-#ifndef CLASS_HIERARCHY_WRITER_H
-#define CLASS_HIERARCHY_WRITER_H 1
+#ifndef CODETHORN_CLASS_HIERARCHY_WRITER_H
+#define CODETHORN_CLASS_HIERARCHY_WRITER_H 1
 
 #include <ostream>
 

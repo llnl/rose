@@ -646,6 +646,7 @@ set(rose_LIB_OBJS
   roseAstNodesBinaryAnalysis
   roseAstNodesExpression
   roseNamespace
+  roseCommonAnalysis
   roseAST
   roseBinaryAnalysis
   roseBinaryAnalysisArchitecture
@@ -686,6 +687,10 @@ set(rose_LIB_SRCS
 
 if(ENABLE_JAVA)
   list(APPEND rose_LIB_OBJS roseJava)
+endif()
+
+if(ENABLE_BINARY_ANALYSIS)
+  list(APPEND rose_LIB_OBJS roseBinaryAnalysisByteCodeClassHierarchy)
 endif()
 
 if(ENABLE_JOVIAL)

@@ -3,6 +3,7 @@
 
 #include <Rose/BinaryAnalysis/ByteCode/Analysis.h>
 #include <Rose/BinaryAnalysis/ByteCode/Cil.h>
+#include <Rose/BinaryAnalysis/ByteCode/ClassHierarchy.h>
 #include <Rose/BinaryAnalysis/ByteCode/Jvm.h>
 
 #endif

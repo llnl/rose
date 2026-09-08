@@ -13,6 +13,7 @@ set(CODETHORN_SOLO_HEADER_FILES
     EqualityMaintainer.h
     Evaluator.h
     ExecutionTrace.h
+    ExternalMangling.h
     HSetMaintainer.h
     Memoizer.h
     ReadWriteData.h
@@ -37,6 +38,7 @@ set(CODETHORN_HEADER_FILES
     CallString.h
     CFAnalysis.h
     ClassHierarchyAnalysis.h
+    ObjectLayoutAnalysis.h
     ClassHierarchyExport.h
     ClassHierarchyWriter.h
     CodeThornLib.h
@@ -67,7 +69,6 @@ set(CODETHORN_HEADER_FILES
     EStateTransferFunctions.h
     EStateWorkList.h
     EStatePriorityWorkList.h
-    ExternalMangling.h
     FIConstAnalysis.h
     Flow.h
     FunctionCallMapping.h
@@ -102,7 +103,6 @@ set(CODETHORN_HEADER_FILES
     LTLRersMapping.h
     DFSolver1.h
     DFSolver2.h
-    ObjectLayoutAnalysis.h
     MemoryViolationAnalysis.h
     PointerAnalysisInterface.h
     PragmaHandler.h
@@ -162,6 +162,7 @@ set(CODETHORN_SOURCE_FILES
     CallString.C
     CFAnalysis.C
     ClassHierarchyAnalysis.C
+    ObjectLayoutAnalysis.C
     ClassHierarchyExport.C
     ClassHierarchyWriter.C
     CodeThornLib.C
@@ -190,7 +191,6 @@ set(CODETHORN_SOURCE_FILES
     EStateTransferFunctions.C
     EStateWorkList.C
     EStatePriorityWorkList.C
-    ExternalMangling.C
     FIConstAnalysis.C
     Flow.C
     FunctionCallMapping.C
@@ -220,7 +220,6 @@ set(CODETHORN_SOURCE_FILES
     NumberIntervalLattice.C
     DFSolver1.C
     DFSolver2.C
-    ObjectLayoutAnalysis.C
     MemoryViolationAnalysis.C
     PointerAnalysisInterface.C
     PragmaHandler.C

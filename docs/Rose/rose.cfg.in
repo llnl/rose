@@ -692,6 +692,7 @@ INPUT                  = @top_srcdir@/docs/Rose/MainPage.dox \
 			 @top_srcdir@/src/Rose/BinaryAnalysis \
 			 @top_srcdir@/src/Rose/BinaryAnalysis/Architecture \
 			 @top_srcdir@/src/Rose/BinaryAnalysis/ByteCode \
+			 @top_srcdir@/src/Rose/BinaryAnalysis/ByteCode/ClassHierarchy \
 			 @top_srcdir@/src/Rose/BinaryAnalysis/CallingConvention \
 			 @top_srcdir@/src/Rose/BinaryAnalysis/Concolic \
 			 @top_srcdir@/src/Rose/BinaryAnalysis/Concolic/Callback \
@@ -708,6 +709,8 @@ INPUT                  = @top_srcdir@/docs/Rose/MainPage.dox \
 			 @top_srcdir@/src/Rose/BinaryAnalysis/Unparser \
 			 @top_srcdir@/src/Rose/BinaryAnalysis/Variables \
 			 @top_srcdir@/src/Rose/CommandLine \
+			 @top_srcdir@/src/Rose/Common \
+			 @top_srcdir@/src/Rose/Common/Analysis \
 			 @top_srcdir@/src/Rose/Sarif \
 			 @top_srcdir@/src/Rose/Source \
 			 @top_srcdir@/src/Rose/Source/AST \

@@ -44,6 +44,7 @@ CODETHORN_SOLO_HEADER_FILES=\
   EqualityMaintainer.h \
   Evaluator.h \
   ExecutionTrace.h \
+  ExternalMangling.h \
   HSetMaintainer.h \
   Memoizer.h \
   ReadWriteData.h \
@@ -67,6 +68,7 @@ CODETHORN_HEADER_FILES=\
   CallGraphExport.h \
   CFAnalysis.h \
   ClassHierarchyAnalysis.h \
+  ObjectLayoutAnalysis.h \
   ClassHierarchyExport.h \
   ClassHierarchyWriter.h \
   CodeThornLib.h \
@@ -97,7 +99,6 @@ CODETHORN_HEADER_FILES=\
   EStateTransferFunctions.h \
   EStateWorkList.h \
   EStatePriorityWorkList.h \
-  ExternalMangling.h \
   FIConstAnalysis.h \
   Flow.h \
   FunctionCallMapping.h \
@@ -132,7 +133,6 @@ CODETHORN_HEADER_FILES=\
   LTLRersMapping.h \
   DFSolver1.h \
   DFSolver2.h \
-  ObjectLayoutAnalysis.h \
   MemoryViolationAnalysis.h \
   PointerAnalysisInterface.h \
   PragmaHandler.h \
@@ -191,6 +191,7 @@ CODETHORN_SOURCE_FILES=\
   CallString.C \
   CFAnalysis.C \
   ClassHierarchyAnalysis.C \
+  ObjectLayoutAnalysis.C \
   ClassHierarchyExport.C \
   ClassHierarchyWriter.C \
   CodeThornLib.C \
@@ -219,7 +220,6 @@ CODETHORN_SOURCE_FILES=\
   EStateTransferFunctions.C \
   EStateWorkList.C \
   EStatePriorityWorkList.C \
-  ExternalMangling.C \
   FIConstAnalysis.C \
   Flow.C \
   FunctionCallMapping.C \
@@ -249,7 +249,6 @@ CODETHORN_SOURCE_FILES=\
   NumberIntervalLattice.C \
   DFSolver1.C \
   DFSolver2.C \
-  ObjectLayoutAnalysis.C \
   MemoryViolationAnalysis.C \
   PointerAnalysisInterface.C \
   PragmaHandler.C \
@@ -296,7 +295,7 @@ libcodethorn_la_CXXFLAGS = -fopenmp -Wall -O3
 
 # codethorn header files are installed in <installpath>/rose/codethorn
 codethornincludedir = $(pkgincludedir)/codethorn
-codethorninclude_HEADERS=\
+nobase_codethorninclude_HEADERS=\
   $(CODETHORN_SOLO_HEADER_FILES) \
   $(CODETHORN_HEADER_FILES)
 
