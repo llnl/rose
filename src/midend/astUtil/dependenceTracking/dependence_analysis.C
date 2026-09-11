@@ -133,7 +133,9 @@ void CollectDependences::CollectFromFile(std::istream& input_file, DependenceTab
                if (source == ";") {
                   Log.push("Createing Node with attribute for " + dest);
                   main_table.InsertNode(dest); 
-                  main_table.get_nodeInfo(dest) = dep_types;
+                  for (auto& e : dep_types) {
+                     main_table.get_nodeInfo(dest).push_back(e);
+                  }
                   next_string = ";"; source = "";
                   break; 
                } 

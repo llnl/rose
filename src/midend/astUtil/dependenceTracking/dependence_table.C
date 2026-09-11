@@ -1,10 +1,13 @@
 #include "dependence_table.h"
 #include "AstInterface_ROSE.h"
 
+// Max number of characters where line wrap is inserted by GUI display.
+#define MAX_WRAP_STRING 200
+
 namespace {
     std::string  wrap_string (const std::string& s) {
        std::string new_string;
-       unsigned wrap = 10, maxwrap = 20, index = 0;
+       unsigned wrap = 10, maxwrap = MAX_WRAP_STRING, index = 0;
        for (auto c : s) {
          ++index;
          if (index > maxwrap || (index > wrap && c == ':')) {
@@ -136,11 +139,12 @@ class ClusterDependences {
                        cluster_map[n] = cluster;
                        clusters[cluster].insert(n);
                     }
+                    clusters[con.first].clear(); // Clear the old cluster.
            } } } } // else
       } // while
     };
  public:
-    std::string edge_to_string (const std::string& s, std::ostream& /* output */) {
+    std::string edge_to_string (const std::string& s) {
        if (s != ""){
           return "[ label=\"" + s + "\" ]";
        }
@@ -180,7 +184,7 @@ class ClusterDependences {
        };
        for (auto m : out_edge_map) {
          for (auto& e : m.second) {
-            output << "\"" << wrap_string(e.first_entry()) << "\" -> \"" << wrap_string(e.second_entry()) << "\"" <<  edge_to_string(e.type_entry(), output) << " ;\n";
+            output << "\"" << wrap_string(e.first_entry()) << "\" -> \"" << wrap_string(e.second_entry()) << "\"" <<  edge_to_string(e.type_entry()) << " ;\n";
          }
        }
      output << "}";
