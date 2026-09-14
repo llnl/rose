@@ -4643,7 +4643,7 @@ struct IP_wide: P {
 void
 DispatcherJvm::initializeDispatchTable() {
     iprocSet(0x00,  new Jvm::IP_nop);
-//  iprocSet(0x01,  new Jvm::IP_aconst_null);
+    iprocSet(0x01,  new Jvm::IP_aconst_null);
 
     iprocSet(0xbb,  new Jvm::IP_new_);
     iprocSet(0xbc,  new Jvm::IP_newarray);
