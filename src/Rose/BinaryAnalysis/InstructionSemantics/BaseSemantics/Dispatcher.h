@@ -70,6 +70,7 @@ public:
     virtual uint8_t  asU1(const SgAsmExpression* expr);
     virtual int16_t  asS2(const SgAsmExpression* expr);
     virtual uint16_t asU2(const SgAsmExpression* expr);
+    virtual int32_t  asS4(const SgAsmExpression* expr);
 
     // Make a constant number_
     virtual SValuePtr makeConstant(ValueKind kind, int64_t value);

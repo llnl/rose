@@ -208,10 +208,6 @@ namespace JvmSemantics {
     void branch_goto_w(Ops ops, I insn, Args args);
     void branch_ifnonnull(Ops ops, I insn, Args args);
     void branch_ifnull(Ops ops, I insn, Args args);
-    void branch_jsr(Ops ops, I insn, Args args);
-    void branch_jsr_w(Ops ops, I insn, Args args);
-    void branch_lookupswitch(Ops ops, I insn, Args args);
-    void branch_tableswitch(Ops ops, I insn, Args args);
     void execute_anewarray(Ops ops, I insn, Args args);
     void execute_athrow(Ops ops, I insn, Args args);
     void execute_checkcast(Ops ops, I insn, Args args);
@@ -393,11 +389,6 @@ namespace JvmSemantics {
     void methodReturn(Ops /*ops*/, I /*insn*/) { jvmUnsupported("methodReturn(void)"); }
     void methodReturn(Ops /*ops*/, I /*insn*/, SValue::Ptr /*value*/) { jvmUnsupported("methodReturn(value)"); }
 
-    void branch_goto_w(Ops, I, Args) { jvmUnsupported("branch_goto_w"); }
-    void branch_jsr(Ops, I, Args) { jvmUnsupported("branch_jsr"); }
-    void branch_jsr_w(Ops, I, Args) { jvmUnsupported("branch_jsr_w"); }
-    void branch_lookupswitch(Ops, I, Args) { jvmUnsupported("branch_lookupswitch"); }
-    void branch_tableswitch(Ops, I, Args) { jvmUnsupported("branch_tableswitch"); }
     void execute_ret(Ops, I, Args) { jvmUnsupported("execute_ret"); }
 
     void execute_anewarray(Ops ops, I /*insn*/, Args args) {
@@ -2520,9 +2511,12 @@ struct IP_goto_: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_goto_w: P {
-    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
-        assert_args(insn, args, 4);
-        ASSERT_require2(false, "goto_w unimplemented");
+    void p(D d, Ops ops, I insn, Args args) {
+        assert_args(insn, args, 1);
+        auto targetAddr = JvmSemantics::branchTargetAddress(insn, d->asS4(args[0]));
+        const RegisterDescriptor pcReg = d->instructionPointerRegister();
+
+        ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), targetAddr));
     }
 };
 
@@ -3584,9 +3578,9 @@ struct IP_ixor: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_jsr: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
+    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
         assert_args(insn, args, 2);
-        JvmSemantics::branch_jsr(ops, insn, args);
+        ASSERT_require2(false, "unimplemented");
     }
 };
 
@@ -3598,9 +3592,9 @@ struct IP_jsr: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_jsr_w: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
+    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
         assert_args(insn, args, 4);
-        JvmSemantics::branch_jsr_w(ops, insn, args);
+        ASSERT_require2(false, "unimplemented");
     }
 };
 
@@ -3963,9 +3957,35 @@ struct IP_lneg: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_lookupswitch: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        /* Variable-length instruction: decoded operands are supplied by the front end. */
-        JvmSemantics::branch_lookupswitch(ops, insn, args);
+    void p(D d, Ops ops, I insn, Args args) {
+        ASSERT_require(args.size() >= 2);
+
+        auto key = ops->popOperand();
+        ASSERT_require(key->kind() == ValueKind::Integer32);
+
+        const int32_t defaultOffset = d->asS4(args[0]);
+        const int32_t npairs = d->asS4(args[1]);
+
+        ASSERT_require(npairs >= 0);
+        ASSERT_require(args.size() == 2 + 2 * static_cast<size_t>(npairs));
+
+        const Address insnVa = insn->get_address();
+        const RegisterDescriptor pcReg = d->instructionPointerRegister();
+
+        auto target = ops->number_(pcReg.nBits(), static_cast<Address>(insnVa + defaultOffset));
+
+        for (int32_t i = 0; i < npairs; ++i) {
+            const int32_t match = d->asS4(args[2 + 2*i]);
+            const int32_t offset = d->asS4(args[3 + 2*i]);
+
+            auto matchValue = ops->number_(32, static_cast<uint32_t>(match));
+            auto condition = ops->isEqual(key, matchValue);
+
+            auto pairTarget = ops->number_(pcReg.nBits(), static_cast<Address>(insnVa + offset));
+            target = ops->ite(condition, pairTarget, target);
+        }
+
+        ops->writeRegister(pcReg, target);
     }
 };
 
@@ -4511,9 +4531,38 @@ struct IP_swap: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_tableswitch: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        /* Variable-length instruction: decoded operands are supplied by the front end. */
-        JvmSemantics::branch_tableswitch(ops, insn, args);
+    void p(D d, Ops ops, I insn, Args args) {
+        ASSERT_require(args.size() >= 3);
+
+        auto key = ops->popOperand();
+        ASSERT_require(key->kind() == ValueKind::Integer32);
+
+        const int32_t defaultOffset = d->asS4(args[0]);
+        const int32_t low           = d->asS4(args[1]);
+        const int32_t high          = d->asS4(args[2]);
+
+        ASSERT_require(high >= low);
+
+        const size_t nCases = static_cast<size_t>(static_cast<int64_t>(high) - static_cast<int64_t>(low) + 1);
+        ASSERT_require(args.size() == 3 + nCases);
+
+        const Address insnVa = insn->get_address();
+        const RegisterDescriptor pcReg = d->instructionPointerRegister();
+
+        auto target = ops->number_(pcReg.nBits(), static_cast<Address>(insnVa + defaultOffset));
+
+        for (size_t i = 0; i < nCases; ++i) {
+            const int32_t caseValue = static_cast<int32_t>(static_cast<int64_t>(low) + static_cast<int64_t>(i));
+            const int32_t offset = d->asS4(args[3 + i]);
+
+            auto caseSValue = ops->number_(32, static_cast<uint32_t>(caseValue));
+            auto condition = ops->isEqual(key, caseSValue);
+
+            auto caseTarget = ops->number_(pcReg.nBits(), static_cast<Address>(insnVa + offset));
+            target = ops->ite(condition, caseTarget, target);
+        }
+
+        ops->writeRegister(pcReg, target);
     }
 };
 
@@ -4794,8 +4843,8 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0xa7,  new Jvm::IP_goto_);
 //  iprocSet(0xa8,  new Jvm::IP_jsr);
 //  iprocSet(0xa9,  new Jvm::IP_ret);
-//  iprocSet(0xaa,  new Jvm::IP_tableswitch);
-//  iprocSet(0xab,  new Jvm::IP_lookupswitch);
+    iprocSet(0xaa,  new Jvm::IP_tableswitch);
+    iprocSet(0xab,  new Jvm::IP_lookupswitch);
     iprocSet(0xac,  new Jvm::IP_ireturn);
     iprocSet(0xad,  new Jvm::IP_lreturn);
     iprocSet(0xae,  new Jvm::IP_freturn);
@@ -4822,7 +4871,7 @@ DispatcherJvm::initializeDispatchTable() {
 
     iprocSet(0xc6,  new Jvm::IP_ifnull);
     iprocSet(0xc7,  new Jvm::IP_ifnonnull);
-//  iprocSet(0xc8,  new Jvm::IP_goto_w);
+    iprocSet(0xc8,  new Jvm::IP_goto_w);
 //  iprocSet(0xc9,  new Jvm::IP_jsr_w);
 
 //  breakpoint = 202, // 0xca

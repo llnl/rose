@@ -152,6 +152,13 @@ Dispatcher::asU2(const SgAsmExpression *expr) {
     return static_cast<uint16_t>(ivExpr->get_signedValue());
 }
 
+int32_t
+Dispatcher::asS4(const SgAsmExpression *expr) {
+    auto ivExpr = isSgAsmIntegerValueExpression(expr);
+    ASSERT_not_null(ivExpr);
+    return static_cast<int32_t>(ivExpr->get_signedValue());
+}
+
 SValue::Ptr
 Dispatcher::makeConstant(ValueKind kind, int64_t value) {
     size_t nBits;
