@@ -13,6 +13,7 @@
 #include <SgAsmInstructionList.h>
 #include <Cxx_GrammarDowncast.h>
 
+#include <algorithm>
 #include <iostream>
 
 using namespace Rose::BinaryAnalysis::Partitioner2;
@@ -231,6 +232,13 @@ Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address
         }
     }
 
+    Address nextNoCodeMethodVa = address() + 1;
+    for (const Method::Ptr &method: methods()) {
+        for (SgAsmInstruction *insn: method->instructions()->get_instructions()) {
+            nextNoCodeMethodVa = std::max(nextNoCodeMethodVa, insn->get_address() + insn->get_size());
+        }
+    }
+
     for (auto method : methods()) {
         Address va{0};
         FunctionPtr function{};
@@ -249,9 +257,10 @@ Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address
             // The address of the Partitioner2::Function is the address of the first basic block
             va = instructions.front()->get_address();
         } else {
-            // If there are no instructions (e.g., Java interface), use the class address instead.
-            // Note: this is a synthetic address in the sense that it is a placeholder and not used.
-            va = method->declaringClass()->address();
+            // Abstract, interface, and native methods have no Code attribute. Assign them consecutive addresses
+            // after the class's decoded instructions so that their function entries are unique and don't overlap
+            // instructions.
+            va = nextNoCodeMethodVa++;
         }
 
         // Determine if this method/function has been seen before (e.g., ".ctor" of parent class)

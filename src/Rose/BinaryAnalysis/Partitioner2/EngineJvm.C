@@ -35,6 +35,8 @@
 #include <boost/filesystem.hpp>
 #include <ROSE_UNUSED.h>
 
+#include <algorithm>
+
 using namespace Rose::Diagnostics;
 using AddressSegment = Sawyer::Container::AddressSegment<Rose::BinaryAnalysis::Address,uint8_t>;
 using opcode = Rose::BinaryAnalysis::JvmInstructionKind;
@@ -889,16 +891,24 @@ NOTES:
     bool inserted = classes_->insert(jvmClass);
     ASSERT_require2(inserted, "duplicate class in repository");
 
-    // Increase base virtual address for the next class
-    baseVa += gf->get_originalSize() + vaDefaultIncrement;
-    baseVa -= baseVa % vaDefaultIncrement;
-
-    // Decode instructions for each method
+    // Decode instructions for each method and determine the complete address envelope for this class. JVM method
+    // addresses include a per-class method ordinal, so decoded instructions can extend beyond the class file's raw size.
+    // The next class must begin after both those instructions and the synthetic entries used for no-code methods.
     std::set<std::string> discoveredClasses{};
     auto disassembler = Architecture::findByName("jvm").orThrow()->newInstructionDecoder();
+    Address nextNoCodeMethodVa = baseVa + 1;
+    size_t nNoCodeMethods = 0;
 
-    for (auto method: jvmClass->methods()) {
+    for (const ByteCode::Method::Ptr &method: jvmClass->methods()) {
         method->decode(disassembler);
+        const std::vector<SgAsmInstruction*> &instructions = method->instructions()->get_instructions();
+        if (instructions.empty()) {
+            ++nNoCodeMethods;
+        } else {
+            for (SgAsmInstruction *insn: instructions) {
+                nextNoCodeMethodVa = std::max(nextNoCodeMethodVa, insn->get_address() + insn->get_size());
+            }
+        }
 
         // Connect the method to its declaring class
         method->declaringClass(&*jvmClass);
@@ -906,6 +916,11 @@ NOTES:
         // Search method invocations for unknown classes
         discoverFunctionCalls(method, functions_, discoveredClasses);
     }
+
+    const Address classFileEndVa = jfh->get_baseVa() + gf->get_originalSize();
+    const Address syntheticMethodsEndVa = nextNoCodeMethodVa + nNoCodeMethods;
+    baseVa = std::max(classFileEndVa, syntheticMethodsEndVa) + vaDefaultIncrement;
+    baseVa -= baseVa % vaDefaultIncrement;
 
     // Find and load super classes
     baseVa = loadBaseClassAndInterfaces(className, fileList, baseVa);
