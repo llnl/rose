@@ -340,19 +340,19 @@ namespace AbstractHandle{
   // such as <numbering,1> <position,1.1-1.9> <name,/home/liao6/svnrepos/mycode/rose/abstracthandle/variable.c> etc
   void fromString(specifier& result, const std::string &input)
   {
-    assert(input.size()>0); // Do not allow empty input here
     istringstream buffer(input);
     char type_str[256], value_str[PATH_MAX+256];
 
     specifier_type_t stype;
     specifier_value_t svalue;
 
-    // check leading '<'
-#ifndef NDEBUG
-    char current;
-    current = buffer.get();
-    assert (current =='<');
-#endif
+    // Consume and validate the leading delimiter in every build mode.
+    char current = buffer.get();
+    if (current != '<')
+    {
+      cerr << "error, expecting '<' in fromString(specifier&,string)" << endl;
+      ROSE_ABORT();
+    }
     // get type string and value string
     buffer.getline(type_str,256,',');
     buffer.getline(value_str,PATH_MAX+256, '>');
