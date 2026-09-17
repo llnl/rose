@@ -53,6 +53,7 @@ public:
 private:
     Architecture::BaseConstPtr architecture_; // Required architecture
     RiscOperatorsPtr operators_;
+    uint32_t nextObjectId_ = 1; // next unique object identifier
 
     /** Non-owning pointer to the ByteCode class repository maintained by the Engine. */
     const ByteCode::ClassRepository* classes_ = nullptr;
@@ -83,6 +84,7 @@ private:
     void serializeCommon(S &s, const unsigned version) {
         ASSERT_always_require(version >= 2);
         s & boost::serialization::make_nvp("operators", operators_); // for backward compatibility
+        s & BOOST_SERIALIZATION_NVP(nextObjectId_);
         s & BOOST_SERIALIZATION_NVP(autoResetInstructionPointer_);
         //s & iproc_table; -- not saved
     }
@@ -274,7 +276,11 @@ public:
      *  base address. */
     virtual void initializeState(const StatePtr&);
 
+    /** Sets non-owning pointer to the ByteCode class repository maintained by the Engine. */
     void classes(const ByteCode::ClassRepository *classes);
+
+    /** Allocates a new unique object identifier. */
+    uint32_t allocateObjectId();
 
     /** Update the instruction pointer register.
      *

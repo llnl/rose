@@ -95,6 +95,11 @@ Dispatcher::currentInstruction() const {
     return operators() ? operators()->currentInstruction() : NULL;
 }
 
+uint32_t
+Dispatcher::allocateObjectId() {
+    return nextObjectId_++;
+}
+
 const ByteCode::ClassRepository&
 Dispatcher::classRepository() const {
     ASSERT_not_null(classes_);

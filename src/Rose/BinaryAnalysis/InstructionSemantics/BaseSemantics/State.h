@@ -23,6 +23,9 @@ namespace BinaryAnalysis {
 namespace InstructionSemantics {
 namespace BaseSemantics {
 
+/** Maps field identities to their current semantic values. */
+using Fields = std::map<std::string, SValuePtr>;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                      State
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,6 +58,7 @@ private:
     RegisterStatePtr registers_;                        // All machine register values for this semantic state.
     MemoryStatePtr memory_;                             // All memory for this semantic state.
     RegisterStatePtr interrupts_;                       // Whether interrupts occurred.
+    Fields fields_;                                     // Storage for field values.
     SValuePtr returnValue_;                             // Result returned by the root method, if any.
     bool terminated_ = false;                           // No further instructions execute on this path.
 
@@ -393,6 +397,12 @@ public:
      *
      *  Calls @ref write on the address space returned by @ref memoryState, which must be non-null. */
     virtual void writeMemory(const SValuePtr &addr, const SValuePtr &value, RiscOperators *addrOps, RiscOperators *valOps);
+
+    /** Store the semantic value of a field. */
+    void putField(const std::string &fieldId, const SValuePtr &value);
+
+    /** Return the semantic value of a field, or null if it has not been stored. */
+    SValuePtr getField(const std::string &fieldId) const;
 
     /** Read an interrupt state.
      *

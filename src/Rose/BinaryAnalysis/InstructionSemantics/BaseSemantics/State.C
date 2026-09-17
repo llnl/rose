@@ -468,6 +468,22 @@ State::writeMemory(const SValue::Ptr &addr, const SValue::Ptr &value, RiscOperat
     notnull(memoryState())->writeMemory(addr, value, addrOps, valOps);
 }
 
+void
+State::putField(const std::string &fieldId, const SValue::Ptr &value) {
+    ASSERT_not_null(value);
+    fields_[fieldId] = value;
+}
+
+SValue::Ptr
+State::getField(const std::string &fieldId) const {
+    auto found = fields_.find(fieldId);
+    if (found == fields_.end()) {
+        return SValuePtr();
+    } else {
+        return found->second;
+    }
+}
+
 SValue::Ptr
 State::readInterrupt(unsigned major, unsigned minor, const SValue::Ptr &dflt, RiscOperators *ops) {
     ASSERT_not_null(dflt);

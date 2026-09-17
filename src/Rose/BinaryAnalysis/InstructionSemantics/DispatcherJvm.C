@@ -217,7 +217,6 @@ namespace JvmSemantics {
     void execute_monitorexit(Ops ops, I insn, Args args);
     void execute_multianewarray(Ops ops, I insn, Args args);
     void execute_newarray(Ops ops, I insn, Args args);
-    void execute_putstatic(Ops ops, I insn, Args args);
 
 
     // Runtime-exception hooks. These are intended to be executable checks in the
@@ -343,6 +342,15 @@ namespace JvmSemantics {
         return constantPoolUtf8(ops, descIdx);
     }
 
+    std::string fieldIdentity(Ops ops, size_t index) {
+        return className(ops, index) + "." + fieldName(ops, index) + ":" + descriptor(ops, index);
+    }
+
+    std::string instanceFieldIdentity(Ops ops, size_t index, const SValuePtr &objectRef) {
+        ASSERT_require(!objectRef->symbolName().empty());
+        return objectRef->symbolName() + "." + fieldIdentity(ops, index);
+    }
+
     template<class UnaryFunc>
     void
     doUnaryOp(Ops ops, ValueKind kind, UnaryFunc func) {
@@ -441,11 +449,13 @@ namespace JvmSemantics {
             case SgAsmJvmConstantPoolEntry::CONSTANT_Integer:
                 value = ops->number_(32, entry->get_bytes());
                 value->kind(ValueKind::Integer32);
+                value->typeDescriptor("I");
                 break;
 
             case SgAsmJvmConstantPoolEntry::CONSTANT_Float:
                 value = ops->number_(32, entry->get_bytes());
                 value->kind(ValueKind::Float32);
+                value->typeDescriptor("F");
                 break;
 
             case SgAsmJvmConstantPoolEntry::CONSTANT_Long: {
@@ -453,6 +463,7 @@ namespace JvmSemantics {
                                  static_cast<uint64_t>(entry->get_low_bytes());
                 value = ops->number_(64, bits);
                 value->kind(ValueKind::Integer64);
+                value->typeDescriptor("J");
                 break;
             }
             case SgAsmJvmConstantPoolEntry::CONSTANT_Double: {
@@ -460,6 +471,7 @@ namespace JvmSemantics {
                                  static_cast<uint64_t>(entry->get_low_bytes());
                 value = ops->number_(64, bits);
                 value->kind(ValueKind::Float64);
+                value->typeDescriptor("D");
                 break;
             }
             case SgAsmJvmConstantPoolEntry::CONSTANT_String:
@@ -478,19 +490,33 @@ namespace JvmSemantics {
     }
 
     void execute_getstatic(Ops ops, size_t index) {
-        const std::string symName = className(ops, index) + "." + fieldName(ops, index);
+        ASSERT_not_null(ops);
+
+        auto state = ops->currentState();
+        ASSERT_not_null(state);
+
+        // Get the field
+        const std::string key = fieldIdentity(ops, index);
+        auto fieldValue = state->getField(key);
+
+        // The field's kind can be obtained from the field descriptor
         const std::string fieldDesc = descriptor(ops, index);
-
-        // Determine the ValueKind of the field descriptor
         auto descType = DescriptorParser::parseFieldDescriptor(fieldDesc);
-        auto kind = descType.kind;
 
-        auto sval = ops->undefined_(32);
-        sval->kind(kind);
-        sval->symbolName(symName);
-        sval->typeDescriptor(fieldDesc);
+        if (!fieldValue) {
+            // Synthesize a new value
+            fieldValue = ops->undefined_(DispatcherJvm::nBitsForKind(descType.kind));
 
-        ops->pushOperand(sval);
+            fieldValue->kind(descType.kind);
+            fieldValue->typeDescriptor(fieldDesc);
+
+            state->putField(key, fieldValue);
+        }
+
+        ASSERT_require(fieldValue->kind() == descType.kind);
+        ASSERT_require(fieldValue->typeDescriptor() == fieldDesc);
+
+        ops->pushOperand(fieldValue);
     }
 
     enum class InvocationKind {
@@ -908,7 +934,6 @@ namespace JvmSemantics {
     void execute_monitorexit(Ops, I, Args) { jvmUnsupported("execute_monitorexit"); }
     void execute_multianewarray(Ops, I, Args) { jvmUnsupported("execute_multianewarray"); }
     void execute_newarray(Ops, I, Args) { jvmUnsupported("execute_newarray"); }
-    void execute_putstatic(Ops, I, Args) { jvmUnsupported("execute_putstatic"); }
 
     void throwIfNull(Ops /*ops*/, const char *exceptionName, SValue::Ptr ref) {
         if (ref && ref->get_number() == 0)
@@ -1433,6 +1458,7 @@ struct IP_bipush: P {
         // Create the SValue and set its type/kind
         auto result = ops->number_(32, imm);
         result->kind(ValueKind::Integer32);
+        result->typeDescriptor("I");
 
         ops->pushOperand(result);
     }
@@ -2449,9 +2475,9 @@ struct IP_getfield: P {
     void p(D /*d*/, Ops ops, I insn, Args args) {
         assert_args(insn, args, 1);
 
-        auto sval = ops->popOperand();
-        ASSERT_not_null(sval);
-        ASSERT_require(sval->kind() == ValueKind::ObjectReference);
+        auto objectRef = ops->popOperand();
+        ASSERT_not_null(objectRef);
+        ASSERT_require(objectRef->kind() == ValueKind::ObjectReference);
 
         auto pool = DispatcherJvm::constantPool(ops);
         ASSERT_not_null(pool);
@@ -2464,16 +2490,22 @@ struct IP_getfield: P {
         std::string fieldDesc = DispatcherJvm::fieldDescriptor(pool, index);
         auto descType = DescriptorParser::parseFieldDescriptor(fieldDesc);
 
-        auto value = ops->undefined_(DispatcherJvm::nBitsForKind(descType.kind));
-        ASSERT_not_null(value);
-        value->kind(descType.kind);
+        auto state = ops->currentState();
+        const std::string key = JS::instanceFieldIdentity(ops, index, objectRef);
 
-        if (descType.isReference()) {
-            value->typeDescriptor(descType.descriptor);
+        auto fieldValue = state->getField(key);
+
+        if (!fieldValue) {
+            // Synthesize a new value
+            fieldValue = ops->undefined_(DispatcherJvm::nBitsForKind(descType.kind));
+
+            fieldValue->kind(descType.kind);
+            fieldValue->typeDescriptor(fieldDesc);
         }
+        ASSERT_require(fieldValue->kind() == descType.kind);
+        ASSERT_require(fieldValue->typeDescriptor() == fieldDesc);
 
-        // Without a heap model, this is an unknown value of the correct type.
-        ops->pushOperand(value);
+        ops->pushOperand(fieldValue);
     }
 };
 
@@ -4263,7 +4295,7 @@ struct IP_multianewarray: P {
         // Run-time Exceptions:
         //   InstantiationError/IllegalAccessError/other resolution errors can occur as specified by class resolution.
 struct IP_new_: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
+    void p(D d, Ops ops, I insn, Args args) {
         assert_args(insn, args, 1);
 
         auto pool = DispatcherJvm::constantPool(ops);
@@ -4277,9 +4309,13 @@ struct IP_new_: P {
         auto entry = pool->get_entry(index);
         ASSERT_not_null(entry);
 
+        const uint32_t objectId = d->allocateObjectId();
+
         std::string className = pool->get_utf8_string(entry->get_name_index());
+        const std::string symbolName = className + "::new#" + std::to_string(objectId);
+
         const std::string descriptor = "L" + className + ";";
-        auto sval = DispatcherJvm::syntheticObjectReference(ops->protoval(), descriptor, className + "::new");
+        auto sval = DispatcherJvm::syntheticObjectReference(ops->protoval(), descriptor, symbolName);
 
         ops->pushOperand(sval);
     }
@@ -4404,24 +4440,25 @@ struct IP_putfield: P {
         const std::string fieldDesc = DispatcherJvm::fieldDescriptor(pool, index);
         const auto descType = DescriptorParser::parseFieldDescriptor(fieldDesc);
 
-        // Stack shape:
-        //
-        //     ..., objectref, value  ->  ...
-        //
-        const auto value = ops->popOperand();
-        ASSERT_not_null(value);
-        ASSERT_require(value->kind() == descType.kind);
-
+        // Pop the field value and the reference to the containing object.
+        const auto fieldValue = ops->popOperand();
         const auto objectRef = ops->popOperand();
+
+        ASSERT_not_null(fieldValue);
         ASSERT_not_null(objectRef);
+
+        ASSERT_require(fieldValue->kind() == descType.kind);
         ASSERT_require(objectRef->kind() == ValueKind::ObjectReference);
 
         if (descType.isReference()) {
-            ASSERT_require(value->kind() == ValueKind::ObjectReference ||
-                           value->kind() == ValueKind::ArrayReference);
+            ASSERT_require(fieldValue->kind() == ValueKind::ObjectReference ||
+                           fieldValue->kind() == ValueKind::ArrayReference);
         }
 
-        // Without a heap model, the field assignment is not retained.
+        auto state = ops->currentState();
+        const std::string key = JS::instanceFieldIdentity(ops, index, objectRef);
+
+        state->putField(key, fieldValue);
     }
 };
 
@@ -4431,9 +4468,25 @@ struct IP_putfield: P {
         // Run-time Exceptions:
         //   ExceptionInInitializerError or other class initialization errors may be observed while initializing the declaring class.
 struct IP_putstatic: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        assert_args(insn, args, 2);
-        JvmSemantics::execute_putstatic(ops, insn, args);
+    void p(D d, Ops ops, I insn, Args args) {
+        assert_args(insn, args, 1);
+
+        auto pool = DispatcherJvm::constantPool(ops);
+        ASSERT_not_null(pool);
+
+        const size_t index = d->asU2(args[0]);
+        const std::string fieldDesc = DispatcherJvm::fieldDescriptor(pool, index);
+        auto descType = DescriptorParser::parseFieldDescriptor(fieldDesc);
+
+        auto value = ops->popOperand();
+        ASSERT_not_null(value);
+        ASSERT_require(value->kind() == descType.kind);
+        ASSERT_require(value->typeDescriptor() == fieldDesc);
+
+        auto state = ops->currentState();
+        const std::string key = JS::fieldIdentity(ops, index);
+
+        state->putField(key, value);
     }
 };
 
@@ -4853,7 +4906,7 @@ DispatcherJvm::initializeDispatchTable() {
 
     iprocSet(0xb1,  new Jvm::IP_return_);
     iprocSet(0xb2,  new Jvm::IP_getstatic);
-//  iprocSet(0xb3,  new Jvm::IP_putstatic);
+    iprocSet(0xb3,  new Jvm::IP_putstatic);
     iprocSet(0xb4,  new Jvm::IP_getfield);
     iprocSet(0xb5,  new Jvm::IP_putfield);
 
