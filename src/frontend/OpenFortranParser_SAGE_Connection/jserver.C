@@ -152,6 +152,11 @@ jserver_start(JvmT* je)
   std::string stack_option = "-Xss2m";
   jvm_options.push_back(stack_option);
 
+  // OFP is loaded from an unnamed module and uses JNI through System.loadLibrary.
+  // JDK 24 and newer require explicit native access for this operation.
+  if (atoi(JAVA_VERSION_MAJOR) >= 24)
+    jvm_options.push_back("--enable-native-access=ALL-UNNAMED");
+
   jvm_args.nOptions = jvm_options.size();
   jvm_args.options = new JavaVMOption[jvm_args.nOptions];
   for(int i=0; i < jvm_args.nOptions; ++i)
