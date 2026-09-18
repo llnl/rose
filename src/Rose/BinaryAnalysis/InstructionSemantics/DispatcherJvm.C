@@ -3612,6 +3612,7 @@ struct IP_jsr: P {
 
         const RegisterDescriptor pcReg = d->instructionPointerRegister();
 
+        // PC has already advanced to the instruction following jsr.
         auto returnAddress = ops->readRegister(pcReg);
         ASSERT_not_null(returnAddress);
         returnAddress->kind(ValueKind::ReturnAddress);
@@ -3631,9 +3632,20 @@ struct IP_jsr: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_jsr_w: P {
-    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
-        assert_args(insn, args, 4);
-        ASSERT_require2(false, "unimplemented");
+    void p(D d, Ops ops, I insn, Args args) {
+        assert_args(insn, args, 1);
+
+        const RegisterDescriptor pcReg = d->instructionPointerRegister();
+
+        // PC has already advanced to the instruction following jsr_w.
+        auto returnAddress = ops->readRegister(pcReg);
+        ASSERT_not_null(returnAddress);
+        returnAddress->kind(ValueKind::ReturnAddress);
+        ops->pushOperand(returnAddress);
+
+        // Branch to the subroutine.
+        auto targetAddr = JvmSemantics::branchTargetAddress(insn, d->asS4(args[0]));
+        ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), targetAddr));
     }
 };
 
@@ -4940,7 +4952,7 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0xc6,  new Jvm::IP_ifnull);
     iprocSet(0xc7,  new Jvm::IP_ifnonnull);
     iprocSet(0xc8,  new Jvm::IP_goto_w);
-//  iprocSet(0xc9,  new Jvm::IP_jsr_w);
+    iprocSet(0xc9,  new Jvm::IP_jsr_w);
 
 //  breakpoint = 202, // 0xca
 //  impdep1    = 254, // 0xfe
