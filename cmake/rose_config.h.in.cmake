@@ -203,6 +203,9 @@
 /* Prefix path for use of IDA. */
 #define IDA_PRO_PATH "${with_ida}"
 
+/* Major version number of the Java JDK. */
+#define JAVA_VERSION_MAJOR "@Java_VERSION_MAJOR@"
+
 /* Path to JVM executable */
 #define JAVA_JVM_PATH "${JAVA_RUNTIME}"
 
