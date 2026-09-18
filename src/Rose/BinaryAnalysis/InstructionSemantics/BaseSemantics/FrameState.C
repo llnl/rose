@@ -448,6 +448,12 @@ FrameState::print(std::ostream &out, Formatter &formatter_) const {
                     out << ":" << sval->typeDescriptor();
                 }
             }
+            else if (sval->kind() == ValueKind::ReturnAddress) {
+                out << *sval << ":ReturnAddress";
+                if (sval->hasTypeDescriptor()) {
+                    out << ":" << sval->typeDescriptor();
+                }
+            }
             else if (sval->kind() == ValueKind::Unknown) {
                 out << "<unknown>";
             }
@@ -495,6 +501,12 @@ FrameState::print(std::ostream &out, Formatter &formatter_) const {
             }
             else if (sval->kind() == ValueKind::ObjectReference) {
                 out << "ObjectReference";
+                if (sval->hasTypeDescriptor()) {
+                    out << ":" << sval->typeDescriptor();
+                }
+            }
+            else if (sval->kind() == ValueKind::ReturnAddress) {
+                out << *sval << ":ReturnAddress";
                 if (sval->hasTypeDescriptor()) {
                     out << ":" << sval->typeDescriptor();
                 }

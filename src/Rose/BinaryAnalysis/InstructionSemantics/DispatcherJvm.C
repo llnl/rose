@@ -397,8 +397,6 @@ namespace JvmSemantics {
     void methodReturn(Ops /*ops*/, I /*insn*/) { jvmUnsupported("methodReturn(void)"); }
     void methodReturn(Ops /*ops*/, I /*insn*/, SValue::Ptr /*value*/) { jvmUnsupported("methodReturn(value)"); }
 
-    void execute_ret(Ops, I, Args) { jvmUnsupported("execute_ret"); }
-
     void execute_anewarray(Ops ops, I /*insn*/, Args args) {
         uint8_t b1 = asU1(args[0]);
         uint8_t b2 = asU1(args[0]);
@@ -643,7 +641,8 @@ namespace JvmSemantics {
                 break;
             case LocalKind::Reference:
                 ASSERT_require(value->kind() == ValueKind::ObjectReference ||
-                               value->kind() == ValueKind::ArrayReference);
+                               value->kind() == ValueKind::ArrayReference ||
+                               value->kind() == ValueKind::ReturnAddress);
                 break;
         }
 
@@ -3041,8 +3040,6 @@ struct IP_ifeq: P {
         auto zero = ops->number_(value->nBits(), 0);
         ASSERT_not_null(zero);
 
-        const auto condition = ops->isEqual(value, zero);
-
         JvmSemantics::execute_condition(d, ops, insn, d->asS2(args[0]), ops->isEqual(value, zero));
     }
 };
@@ -3610,9 +3607,19 @@ struct IP_ixor: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_jsr: P {
-    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
-        assert_args(insn, args, 2);
-        ASSERT_require2(false, "unimplemented");
+    void p(D d, Ops ops, I insn, Args args) {
+        assert_args(insn, args, 1);
+
+        const RegisterDescriptor pcReg = d->instructionPointerRegister();
+
+        auto returnAddress = ops->readRegister(pcReg);
+        ASSERT_not_null(returnAddress);
+        returnAddress->kind(ValueKind::ReturnAddress);
+        ops->pushOperand(returnAddress);
+
+        // Branch to the subroutine.
+        auto targetAddr = JvmSemantics::branchTargetAddress(insn, d->asS2(args[0]));
+        ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), targetAddr));
     }
 };
 
@@ -4498,9 +4505,17 @@ struct IP_putstatic: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_ret: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
+    void p(D d, Ops ops, I insn, Args args) {
         assert_args(insn, args, 1);
-        JS::execute_ret(ops, insn, args);
+
+        const size_t index = d->asU1(args[0]);
+
+        auto returnAddress = ops->readLocal(index);
+        ASSERT_not_null(returnAddress);
+        ASSERT_require(returnAddress->kind() == ValueKind::ReturnAddress);
+
+        const RegisterDescriptor pcReg = d->instructionPointerRegister();
+        ops->writeRegister(pcReg, returnAddress);
     }
 };
 
@@ -4894,8 +4909,8 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0xa6,  new Jvm::IP_if_acmpne);
 
     iprocSet(0xa7,  new Jvm::IP_goto_);
-//  iprocSet(0xa8,  new Jvm::IP_jsr);
-//  iprocSet(0xa9,  new Jvm::IP_ret);
+    iprocSet(0xa8,  new Jvm::IP_jsr);
+    iprocSet(0xa9,  new Jvm::IP_ret);
     iprocSet(0xaa,  new Jvm::IP_tableswitch);
     iprocSet(0xab,  new Jvm::IP_lookupswitch);
     iprocSet(0xac,  new Jvm::IP_ireturn);
