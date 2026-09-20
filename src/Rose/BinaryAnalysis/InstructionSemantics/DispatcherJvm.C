@@ -208,16 +208,12 @@ namespace JvmSemantics {
     void branch_goto_w(Ops ops, I insn, Args args);
     void branch_ifnonnull(Ops ops, I insn, Args args);
     void branch_ifnull(Ops ops, I insn, Args args);
-    void execute_anewarray(Ops ops, I insn, Args args);
     void execute_athrow(Ops ops, I insn, Args args);
     void execute_checkcast(Ops ops, I insn, Args args);
     void execute_instanceof(Ops ops, I insn, Args args);
     void execute_invokedynamic(Ops ops, I insn, Args args);
     void execute_monitorenter(Ops ops, I insn, Args args);
     void execute_monitorexit(Ops ops, I insn, Args args);
-    void execute_multianewarray(Ops ops, I insn, Args args);
-    void execute_newarray(Ops ops, I insn, Args args);
-
 
     // Runtime-exception hooks. These are intended to be executable checks in the
     // concrete JVM semantics state, not documentation-only comments. A symbolic
@@ -297,9 +293,12 @@ namespace JvmSemantics {
 
     std::string className(Ops ops, size_t index) {
         auto entry = constantPoolEntry(ops, index);
-        ASSERT_require(entry && entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Fieldref);
+        ASSERT_not_null(entry);
 
-        entry = constantPoolEntry(ops, entry->get_class_index());
+        if (entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Fieldref) {
+            entry = constantPoolEntry(ops, entry->get_class_index());
+        }
+
         return constantPoolUtf8(ops, entry->get_name_index());
     }
 
@@ -396,25 +395,6 @@ namespace JvmSemantics {
 
     void methodReturn(Ops /*ops*/, I /*insn*/) { jvmUnsupported("methodReturn(void)"); }
     void methodReturn(Ops /*ops*/, I /*insn*/, SValue::Ptr /*value*/) { jvmUnsupported("methodReturn(value)"); }
-
-    void execute_anewarray(Ops ops, I /*insn*/, Args args) {
-        uint8_t b1 = asU1(args[0]);
-        uint8_t b2 = asU1(args[0]);
-        // index into constant pool for array component type
-        int64_t constantPoolIndex = (static_cast<uint16_t>(b1) << 8) | static_cast<uint16_t>(b2);
-        (void) constantPoolIndex; // defeat clang warning
-
-        auto count = ops->popOperand();
-        ASSERT_require(count->kind() == ValueKind::Integer32);
-
-        // Create an ArrayReference and set properties
-        auto arrayRef = ops->protoval();
-        arrayRef->kind(ValueKind::ArrayReference);
-        arrayRef->arrayLength(count->copy());
-        arrayRef->typeDescriptor("<unknown-type>"); // obtain from constant pool
-
-        ops->pushOperand(arrayRef);
-    }
 
     void execute_iinc(Ops ops, size_t index, int32_t increment) {
         auto oldValue = ops->readLocal(index);
@@ -713,10 +693,23 @@ namespace JvmSemantics {
               result = readArrayElement(ops, arrayRef, index, 64);
               result->kind(ValueKind::Float64);
               break;
-          case ArrayElementKind::Reference:
-              result = readArrayElement(ops, arrayRef, index, 32);
-              result->kind(ValueKind::ObjectReference);
+          case ArrayElementKind::Reference: {
+              std::string elementDescriptor = descriptor.substr(1);
+              if (elementDescriptor[0] == '[') {
+                  result = DispatcherJvm::syntheticArrayReference(ops->protoval(), elementDescriptor);
+                  const auto &dimensions = arrayRef->arrayDimensions();
+                  if (dimensions.size() > 1) {
+                      std::vector<SValuePtr> remaining(dimensions.begin() + 1, dimensions.end());
+                      result->arrayDimensions(remaining);
+                      result->arrayLength(remaining[0]);
+                  }
+              } else {
+                  result = readArrayElement(ops, arrayRef, index, 32);
+                  result->kind(ValueKind::ObjectReference);
+                  result->typeDescriptor(elementDescriptor);
+              }
               break;
+          }
           case ArrayElementKind::ByteOrBoolean: {
               ASSERT_require(descriptor == "[B" || descriptor == "[Z");
 
@@ -931,8 +924,6 @@ namespace JvmSemantics {
     void execute_invokeinterface(Ops, I, Args) { jvmUnsupported("execute_invokeinterface"); }
     void execute_monitorenter(Ops, I, Args) { jvmUnsupported("execute_monitorenter"); }
     void execute_monitorexit(Ops, I, Args) { jvmUnsupported("execute_monitorexit"); }
-    void execute_multianewarray(Ops, I, Args) { jvmUnsupported("execute_multianewarray"); }
-    void execute_newarray(Ops, I, Args) { jvmUnsupported("execute_newarray"); }
 
     void throwIfNull(Ops /*ops*/, const char *exceptionName, SValue::Ptr ref) {
         if (ref && ref->get_number() == 0)
@@ -1276,9 +1267,30 @@ struct IP_aload_3: P {
         // Run-time Exceptions:
         //   NegativeArraySizeException if any requested dimension is negative.
 struct IP_anewarray: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
+    void p(D d, Ops ops, I insn, Args args) {
         assert_args(insn, args, 2);
-        JvmSemantics::execute_anewarray(ops, insn, args);
+        std::string descriptor;
+
+        size_t index = (d->asU1(args[0]) << 8) | d->asU1(args[1]);
+        std::string component = JS::className(ops, index);
+
+        // Java multidimensional arrays are arrays of arrays. If the component
+        // is already an array descriptor (e.g., "[I"), prepend another '[';
+        // otherwise construct an array-of-reference descriptor.
+        if (!component.empty() && component[0] == '[') {
+            descriptor = "[" + component;
+        }
+        else {
+            descriptor = "[L" + component + ";";
+        }
+
+        auto length = ops->popOperand();
+        ASSERT_require2(length->kind() == ValueKind::Integer32, "anewarray requires Integer32 stack value");
+
+        auto arrayRef = DispatcherJvm::syntheticArrayReference(ops->protoval(), descriptor);
+        arrayRef->arrayLength(length);
+
+        ops->pushOperand(arrayRef);
     }
 };
 
@@ -4302,9 +4314,28 @@ struct IP_monitorexit: P {
         // Run-time Exceptions:
         //   NegativeArraySizeException if any requested dimension is negative.
 struct IP_multianewarray: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        assert_args(insn, args, 3);
-        JvmSemantics::execute_multianewarray(ops, insn, args);
+    void p(D d, Ops ops, I insn, Args args) {
+        assert_args(insn, args, 2);
+
+        const size_t index = d->asU2(args[0]);
+        const size_t dimensions = d->asU1(args[1]);
+        ASSERT_require2(dimensions > 0, "multianewarray requires at least one dimension");
+
+        std::vector<SValue::Ptr> lengths(dimensions);
+
+        for (size_t i = dimensions; i > 0; --i) {
+            auto length = ops->popOperand();
+            ASSERT_require2(length->kind() == ValueKind::Integer32, "multianewarray requires Integer32 dimension sizes");
+            lengths[i-1] = length;
+        }
+
+        std::string descriptor = JS::className(ops, index); // e.g. "[[[I"
+
+        auto arrayRef = DispatcherJvm::syntheticArrayReference(ops->protoval(), descriptor);
+        arrayRef->arrayLength(lengths[0]);
+        arrayRef->arrayDimensions(lengths);
+
+        ops->pushOperand(arrayRef);
     }
 };
 
@@ -4348,43 +4379,42 @@ struct IP_new_: P {
 struct IP_newarray: P {
     void p(D d, Ops ops, I insn, Args args) {
         assert_args(insn, args, 1);
-        auto length = ops->popOperand();
-        ASSERT_require2(length->kind() == ValueKind::Integer32, "newarray requires Integer32 stack value");
-
-        // Make a copy for the ArrayReference
-        SValue::Ptr arrayRef = length->copy();
-        arrayRef->kind(ValueKind::ArrayReference);
-        arrayRef->arrayLength(length);
-        arrayRef->typeDescriptor("<unknown-type>"); // obtained and reset below
+        std::string descriptor;
 
         switch (d->asU1(args[0])) {
           case 0x04:
-            arrayRef->typeDescriptor("Boolean");
-            break;
+              descriptor = "[Z"; // boolean[]
+              break;
           case 0x05:
-            arrayRef->typeDescriptor("Char");
-            break;
+              descriptor = "[C"; // char[]
+              break;
           case 0x06:
-            arrayRef->typeDescriptor("Float");
-            break;
+              descriptor = "[F"; // float[]
+              break;
           case 0x07:
-            arrayRef->typeDescriptor("Double");
-            break;
+              descriptor = "[D"; // double[]
+              break;
           case 0x08:
-            arrayRef->typeDescriptor("Byte");
-            break;
+              descriptor = "[B"; // byte[]
+              break;
           case 0x09:
-            arrayRef->typeDescriptor("Short");
-            break;
+              descriptor = "[S"; // short[]
+              break;
           case 0x0a:
-            arrayRef->typeDescriptor("Integer");
-            break;
+              descriptor = "[I"; // int[]
+              break;
           case 0x0b:
-            arrayRef->typeDescriptor("Long");
-            break;
+              descriptor = "[J"; // long[]
+              break;
           default:
-            ASSERT_require2(false, "unknown type for newarray");
+              ASSERT_require2(false, "unknown type for newarray");
         }
+
+        auto length = ops->popOperand();
+        ASSERT_require2(length->kind() == ValueKind::Integer32, "newarray requires Integer32 stack value");
+
+        auto arrayRef = DispatcherJvm::syntheticArrayReference(ops->protoval(), descriptor);
+        arrayRef->arrayLength(length);
 
         ops->pushOperand(arrayRef);
     }
@@ -4947,7 +4977,7 @@ DispatcherJvm::initializeDispatchTable() {
 //  iprocSet(0xc2,  new Jvm::IP_monitorenter);
 //  iprocSet(0xc3,  new Jvm::IP_monitorexit);
     iprocSet(0xc4,  new Jvm::IP_wide);
-//  iprocSet(0xc5,  new Jvm::IP_multianewarray);
+    iprocSet(0xc5,  new Jvm::IP_multianewarray);
 
     iprocSet(0xc6,  new Jvm::IP_ifnull);
     iprocSet(0xc7,  new Jvm::IP_ifnonnull);

@@ -113,6 +113,16 @@ SValue::hasArrayLength() const {
     return arrayLength_ != nullptr;
 }
 
+const std::vector<SValuePtr>&
+SValue::arrayDimensions() const {
+    return arrayDimensions_;
+}
+
+void
+SValue::arrayDimensions(const std::vector<SValuePtr> &dims) {
+    arrayDimensions_ = dims;
+}
+
 SValue::WithFormatter
 SValue::with_format(Formatter &fmt) {
     return WithFormatter(SValuePtr(this), fmt);

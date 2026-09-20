@@ -76,6 +76,7 @@ protected:
     size_t width;                               /** Width of the value in bits. Typically (not always) a power of two. */
     ValueKind kind_ = ValueKind::Unknown;       /** Kind of the value type. */
     SValuePtr arrayLength_;                     /** Symbolic length of the array if an ArrayReference. */
+    std::vector<SValuePtr> arrayDimensions_;    /** Known lengths of nested array dimensions. */
     std::string typeDescriptor_;   /** Description of the type if a Reference, empty means no descriptor. */
     std::string symbolName_;       /** Name of the symbolic program entity represented by this value; empty means none. */
 
@@ -90,6 +91,7 @@ private:
         s & BOOST_SERIALIZATION_NVP(width);
         s & BOOST_SERIALIZATION_NVP(kind_);
         s & BOOST_SERIALIZATION_NVP(arrayLength_);
+        s & BOOST_SERIALIZATION_NVP(arrayDimensions_);
         s & BOOST_SERIALIZATION_NVP(typeDescriptor_);
         s & BOOST_SERIALIZATION_NVP(symbolName_);
     }
@@ -218,6 +220,10 @@ public:
     virtual void arrayLength(const SValuePtr &sval);
     virtual SValuePtr arrayLength() const;
     virtual bool hasArrayLength() const;
+
+    /** Property: array dimensions. */
+    virtual void arrayDimensions(const std::vector<SValuePtr> &dims);
+    virtual const std::vector<SValuePtr>& arrayDimensions() const;
 
     /** Property: type descriptor. */
     virtual void typeDescriptor(const std::string &s);
