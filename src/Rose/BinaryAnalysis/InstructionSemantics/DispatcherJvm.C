@@ -5198,6 +5198,10 @@ DispatcherJvm::resolveRuntimeMethod(SgAsmJvmConstantPool *pool, size_t index,
 
     if (found != repo.end()) {
         method = found->second->findMethod(methodName, descriptor);
+        // Make sure the method has instructions, otherwise return null
+        if (method && method->instructions()->get_instructions().empty()) {
+            method = {};
+        }
     }
 
     return method;
