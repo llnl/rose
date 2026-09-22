@@ -498,9 +498,11 @@ namespace JvmSemantics {
     }
 
     enum class InvocationKind {
+        Dynamic,
+        Interface,
         Special,
-        Virtual,
-        Static
+        Static,
+        Virtual
     };
 
     void execute_invoke(D d, Ops ops, size_t index, SgAsmInstruction *insn, InvocationKind invocationKind) {
@@ -524,19 +526,38 @@ namespace JvmSemantics {
         // Get the descriptor directly (valid even if the callee method can't be found)
         const std::string descriptor = DispatcherJvm::methodDescriptor(pool, index);
         const MethodDescriptor methodDesc = DescriptorParser::parseMethodDescriptor(descriptor);
-        const bool hasReceiver = invocationKind != InvocationKind::Static;
 
-        // Find the method; null if it is not available for interpretation.
-        auto calleeMethod = d->resolveMethod(pool, index);
+        ByteCode::Method::Ptr calleeMethod;
 
-        auto calleeFrame = FrameState::instance(state->protoval(), Sawyer::Nothing(), calleeMethod);
-        ASSERT_not_null(calleeFrame);
+        switch (invocationKind) {
+          case InvocationKind::Static:
+          case InvocationKind::Special:
+              calleeMethod = d->resolveMethod(pool, index);
+              break;
 
-        // Transfer/pop arguments and receiver (if it exists) from the
-        // caller's stack and installs them in the callee frame's locals.
-        DispatcherJvm::initializeInvocationLocals(ops, calleeFrame, descriptor, hasReceiver);
+          case InvocationKind::Virtual:
+          case InvocationKind::Interface: {
+              auto receiver = ops->peekOperand(methodDesc.arguments.size());
+              calleeMethod = d->resolveRuntimeMethod(pool, index, receiver);
+              break;
+          }
+
+          case InvocationKind::Dynamic:
+              ASSERT_require2(false, "unimplemented");
+              break;
+        }
 
         if (calleeMethod) {
+            auto calleeFrame = FrameState::instance(state->protoval(), Sawyer::Nothing(), calleeMethod);
+
+            const bool hasReceiver = invocationKind == InvocationKind::Special ||
+                                     invocationKind == InvocationKind::Virtual ||
+                                     invocationKind == InvocationKind::Interface;
+
+            // Transfer/pop arguments and receiver (if it exists) from the
+            // caller's stack and install them in the callee frame's locals.
+            DispatcherJvm::initializeInvocationLocals(ops, calleeFrame, descriptor, hasReceiver);
+
             // Interpret the callee.
             const Address callerResumeAddress = insn->get_address() + insn->get_size();
 
@@ -921,7 +942,6 @@ namespace JvmSemantics {
     void execute_checkcast(Ops, I, Args) { jvmUnsupported("execute_checkcast"); }
     void execute_instanceof(Ops, I, Args) { jvmUnsupported("execute_instanceof"); }
     void execute_invokedynamic(Ops, I, Args) { jvmUnsupported("execute_invokedynamic"); }
-    void execute_invokeinterface(Ops, I, Args) { jvmUnsupported("execute_invokeinterface"); }
     void execute_monitorenter(Ops, I, Args) { jvmUnsupported("execute_monitorenter"); }
     void execute_monitorexit(Ops, I, Args) { jvmUnsupported("execute_monitorexit"); }
 
@@ -3339,9 +3359,16 @@ struct IP_invokedynamic: P {
         //   NullPointerException if an instance invocation receiver is null.
         //   Errors from method resolution or class/interface initialization may be observed as specified by the JVM.
 struct IP_invokeinterface: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        assert_args(insn, args, 4);
-        JvmSemantics::execute_invokeinterface(ops, insn, args);
+    void p(D d, Ops ops, I insn, Args args) {
+        assert_args(insn, args, 3);
+
+        size_t zero  = d->asU1(args[2]);
+        ASSERT_require(zero == 0);
+
+        size_t count = d->asU1(args[1]);
+        ASSERT_require(count > 0);       // receiver must be present
+
+        JvmSemantics::execute_invoke(d, ops, d->asU2(args[0]), insn, InvocationKind::Interface);
     }
 };
 
@@ -4970,7 +4997,7 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0xb6,  new Jvm::IP_invokevirtual);
     iprocSet(0xb7,  new Jvm::IP_invokespecial);
     iprocSet(0xb8,  new Jvm::IP_invokestatic);
-//  iprocSet(0xb9,  new Jvm::IP_invokeinterface);
+    iprocSet(0xb9,  new Jvm::IP_invokeinterface);
 //  iprocSet(0xba,  new Jvm::IP_invokedynamic);
 //  iprocSet(0xc0,  new Jvm::IP_checkcast);
 //  iprocSet(0xc1,  new Jvm::IP_instanceof);
@@ -5093,8 +5120,10 @@ DispatcherJvm::methodDescriptor(SgAsmJvmConstantPool *pool, size_t index) {
     auto entry = pool->get_entry(index);
     ASSERT_not_null(entry);
 
-    ASSERT_require(entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Methodref);
-    entry = pool->get_entry(entry->get_name_and_type_index());
+    if (entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Methodref ||
+        entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_InterfaceMethodref) {
+        entry = pool->get_entry(entry->get_name_and_type_index());
+    }
 
     ASSERT_require(entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_NameAndType);
 
@@ -5106,7 +5135,8 @@ DispatcherJvm::resolveMethod(SgAsmJvmConstantPool *pool, size_t index) {
     auto entry = pool->get_entry(index);
     ASSERT_not_null(entry);
 
-    ASSERT_require(entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Methodref);
+    ASSERT_require(entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Methodref ||
+                   entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_InterfaceMethodref);
 
     auto classIndex = entry->get_class_index();
     auto nameAndTypeIndex = entry->get_name_and_type_index();
@@ -5133,11 +5163,44 @@ DispatcherJvm::resolveMethod(SgAsmJvmConstantPool *pool, size_t index) {
 
     auto found = repo.find(className);
     if (found == repo.end()) {
-        return ByteCode::Method::Ptr(); // ignore
+        return ByteCode::Method::Ptr(); // the class is not in the repository
     }
 
-    auto bcClass = found->second;
-    return bcClass->findMethod(methodName, descriptor);
+    return found->second->findMethod(methodName, descriptor);
+}
+
+ByteCode::Method::Ptr
+DispatcherJvm::resolveRuntimeMethod(SgAsmJvmConstantPool *pool, size_t index,
+                                    const BaseSemantics::SValue::Ptr &receiver) {
+    ByteCode::Method::Ptr method;
+    const std::string receiverDescriptor = receiver->typeDescriptor();
+
+    ASSERT_require(receiverDescriptor.size() >= 2);
+    ASSERT_require(receiverDescriptor.front() == 'L');
+    ASSERT_require(receiverDescriptor.back() == ';');
+
+    const std::string receiverClassName = receiverDescriptor.substr(1, receiverDescriptor.size() - 2);
+
+    auto entry = pool->get_entry(index);
+    ASSERT_not_null(entry);
+
+    ASSERT_require(entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_InterfaceMethodref);
+
+    auto nameAndTypeIndex = entry->get_name_and_type_index();
+    auto nameAndTypeEntry = pool->get_entry(nameAndTypeIndex);
+    ASSERT_require(nameAndTypeEntry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_NameAndType);
+
+    std::string methodName = pool->get_utf8_string(nameAndTypeEntry->get_name_index());
+    std::string descriptor = pool->get_utf8_string(nameAndTypeEntry->get_descriptor_index());
+
+    const auto &repo = classRepository();
+    auto found = repo.find(receiverClassName);
+
+    if (found != repo.end()) {
+        method = found->second->findMethod(methodName, descriptor);
+    }
+
+    return method;
 }
 
 BaseSemantics::SValuePtr
@@ -5232,7 +5295,6 @@ DispatcherJvm::initializeInvocationLocals(BaseSemantics::RiscOperators *ops,
                                           const BaseSemantics::FrameState::Ptr &calleeFrame,
                                           const std::string &descriptor, bool hasReceiver) {
     ASSERT_not_null(ops);
-    ASSERT_not_null(calleeFrame);
     size_t localIndex{0};
 
     const auto parser = DescriptorParser::parseMethodDescriptor(descriptor);
@@ -5245,16 +5307,20 @@ DispatcherJvm::initializeInvocationLocals(BaseSemantics::RiscOperators *ops,
         args[i-1] = ops->popOperand();
     }
 
-    BaseSemantics::SValue::Ptr receiver{nullptr};
     if (hasReceiver) {
-        receiver = ops->popOperand(); // "this" pointer
-        calleeFrame->writeLocal(localIndex++, receiver);
+        auto receiver = ops->popOperand(); // "this" pointer
+
+        if (calleeFrame) {
+            calleeFrame->writeLocal(localIndex++, receiver);
+        }
     }
 
     // Place explicit arguments into locals in declaration order.
-    for (size_t i = 0; i < args.size(); ++i) {
-        calleeFrame->writeLocal(localIndex, args[i]);
-        localIndex += parser.arguments[i].isCategory2() ? 2 : 1;
+    if (calleeFrame) {
+        for (size_t i = 0; i < args.size(); ++i) {
+            calleeFrame->writeLocal(localIndex, args[i]);
+            localIndex += parser.arguments[i].isCategory2() ? 2 : 1;
+        }
     }
 }
 
@@ -5285,14 +5351,18 @@ DispatcherJvm::completeReturn(BaseSemantics::RiscOperators *ops, BaseSemantics::
     ASSERT_not_null(calleeFrame);
 
     if (result) {
-        auto concreteValue = result->toUnsigned();
-        ASSERT_require(concreteValue);
-
         auto method = calleeFrame->method();
+        auto concreteValue = result->toUnsigned();
 
-        std::string note = "@e@ "
-                           + method->identity() + " " + std::to_string(*concreteValue)
-                           + " @e@";
+        std::string note = "@e@ " + method->identity() + " ";
+
+        if (concreteValue) {
+            note += std::to_string(*concreteValue);
+        } else {
+            note += result->toString();
+        }
+
+        note += " @e@";
         ops->comment(note);
     }
 

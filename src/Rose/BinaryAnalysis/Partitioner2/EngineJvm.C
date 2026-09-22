@@ -775,11 +775,11 @@ Address
 EngineJvm::loadClassFile(fs::path path, SgAsmGenericFileList* fileList, Address baseVa) {
 #if 0
    // Temporary NOTES for fs::path usage
-   std::cout << "Root Name: " << p.root_name() << "\n";
-   std::cout << "Root Directory: " << p.root_directory() << "\n";
-   std::cout << "Relative Path: " << p.relative_path() << "\n";
-   std::cout << "Filename: " << p.filename() << "\n";
-   std::cout << "Extension: " << p.extension() << "\n";
+   std::cout << "Root Name: " << path.root_name() << "\n";
+   std::cout << "Root Directory: " << path.root_directory() << "\n";
+   std::cout << "Relative Path: " << path.relative_path() << "\n";
+   std::cout << "Filename: " << path.filename() << "\n";
+   std::cout << "Extension: " << path.extension() << "\n";
 
 Root Name: C:
 Root Directory: \
@@ -873,7 +873,10 @@ NOTES:
     }
 
     if (classes_.find(className) != classes_.end()) {
+//DELETion may be problematic
+#if 0
         SageInterface::deleteAST(gf);
+#endif
         return baseVa;
     }
 
@@ -898,10 +901,12 @@ NOTES:
 
     for (auto method: jvmClass->methods()) {
         method->decode(disassembler);
-//TODO: Change interface to take a ByteCode::Method
-#if 0
-        discoverFunctionCalls(sgMethod, jfh->get_constant_pool(), functions_, discoveredClasses);
-#endif
+
+        // Connect the method to its declaring class
+        method->declaringClass(&*jvmClass);
+
+        // Search method invocations for unknown classes
+        discoverFunctionCalls(method, functions_, discoveredClasses);
     }
 
     // Find and load super classes
@@ -927,30 +932,30 @@ EngineJvm::loadDiscoverableClasses(SgAsmGenericFileList* fileList, Address baseV
         for (auto sgMethod: jfh->get_method_table()->get_methods()) {
           // Examine instructions for classes
             for (auto insn: sgMethod->get_instruction_list()->get_instructions()) {
-              switch (isSgAsmJvmInstruction(insn)->get_kind()) {
-                case opcode::checkcast: // class, array, or interface type
-                case opcode::instanceof: // class, array, or interface type
-                  // TODO: don't try to load an array
-                case opcode::new_: // can reference a class or interface type
-                  if (auto expr = isSgAsmIntegerValueExpression(insn->get_operandList()->get_operands()[0])) {
-                    uint16_t classIndex = static_cast<uint16_t>(expr->get_value());
-                    baseVa = loadClass(classIndex, pool, fileList, baseVa);
-                  }
-                  break;
-                case opcode::getfield: // fetch field from object
-                case opcode::getstatic: // get static field from class
-                case opcode::putfield: // set field in object
-                case opcode::putstatic: // set static field in class
-                  if (auto expr = isSgAsmIntegerValueExpression(insn->get_operandList()->get_operands()[0])) {
-                    auto fieldEntry = pool->get_entry(expr->get_value());
-                    if (fieldEntry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Fieldref) {
-                      uint16_t classIndex = fieldEntry->get_class_index();
-                      baseVa = loadClass(classIndex, pool, fileList, baseVa);
-                    }
-                  }
-                  break;
-                default: ;
-              }
+                switch (isSgAsmJvmInstruction(insn)->get_kind()) {
+                  case opcode::checkcast: // class, array, or interface type
+                  case opcode::instanceof: // class, array, or interface type
+                      // TODO: don't try to load an array
+                  case opcode::new_: // can reference a class or interface type
+                      if (auto expr = isSgAsmIntegerValueExpression(insn->get_operandList()->get_operands().front())) {
+                          uint16_t classIndex = static_cast<uint16_t>(expr->get_value());
+                          baseVa = loadClass(classIndex, pool, fileList, baseVa);
+                      }
+                      break;
+                  case opcode::getfield: // fetch field from object
+                  case opcode::getstatic: // get static field from class
+                  case opcode::putfield: // set field in object
+                  case opcode::putstatic: // set static field in class
+                      if (auto expr = isSgAsmIntegerValueExpression(insn->get_operandList()->get_operands().front())) {
+                          auto fieldEntry = pool->get_entry(expr->get_value());
+                          if (fieldEntry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Fieldref) {
+                              uint16_t classIndex = fieldEntry->get_class_index();
+                              baseVa = loadClass(classIndex, pool, fileList, baseVa);
+                          }
+                      }
+                      break;
+                  default: ;
+                }
             }
         }
     }
@@ -985,29 +990,37 @@ EngineJvm::loadBaseClassAndInterfaces(const std::string &className, SgAsmGeneric
 }
 
 void
-EngineJvm::discoverFunctionCalls(SgAsmJvmMethod* sgMethod, SgAsmJvmConstantPool* pool, std::map<std::string,Address> &fnm,
+EngineJvm::discoverFunctionCalls(const ByteCode::Method::Ptr &method, std::map<std::string,Address> &fnm,
                                  std::set<std::string> &classes) {
-    for (auto insn: sgMethod->get_instruction_list()->get_instructions()) {
+    auto jvmMethod = ByteCode::JvmMethod::promote(method);
+    auto pool = jvmMethod->constant_pool();
+
+    for (auto insn: jvmMethod->instructions()->get_instructions()) {
         switch (isSgAsmJvmInstruction(insn)->get_kind()) {
           case opcode::invokedynamic:
           case opcode::invokeinterface:
           case opcode::invokespecial:
           case opcode::invokestatic:
           case opcode::invokevirtual:
-            if (auto expr = isSgAsmIntegerValueExpression(insn->get_operandList()->get_operands()[0])) {
-              std::string functionName = ByteCode::constantPoolEntryName(expr->get_value(), pool);
-              if (fnm.find(functionName) == fnm.end()) {
-                fnm[functionName] = nextFunctionVa_;
-                nextFunctionVa_ -= 1024;
+              if (auto expr = isSgAsmIntegerValueExpression(insn->get_operandList()->get_operands()[0])) {
+                  std::string functionName = ByteCode::constantPoolEntryName(expr->get_value(), pool);
+                  if (fnm.find(functionName) == fnm.end()) {
+                      // Retrieve and save the class name
+                      std::string className;
+                      auto pos = functionName.find_first_of("::");
+                      if (pos != std::string::npos) {
+                          className = functionName.substr(0,pos);
+                          if (ByteCode::JvmContainer::isJvmSystemReserved(className)) {
+                              continue;
+                          }
+                          classes.emplace(className);
+                      }
 
-                // Also store corresponding class
-                auto pos = functionName.find_first_of("::");
-                if (pos != std::string::npos) {
-                  classes.emplace(functionName.substr(0,pos));
-                }
+                      fnm[functionName] = nextFunctionVa_;
+                      nextFunctionVa_ -= 1024;
+                  }
               }
-            }
-            break;
+              break;
           default: ;
         }
     }
@@ -1297,16 +1310,16 @@ EngineJvm::runPartitionerRecursive(const Partitioner::Ptr &partitioner) {
 
             auto jvmClass = ByteCode::JvmClass::promote(classByName(className));
 
-//TODO: Rethink this (which class should be exported?)
-#if 1
             // Make the ByteCode analysis class available
             analysisClass_ = jvmClass;
-#endif
 
             // Start discovering instructions and forming them into basic blocks and functions
             SAWYER_MESG(where) <<"discovering and populating functions\n";
 
             jvmClass->partition(partitioner, functions_, p);
+
+            // Fully connect the class with its methods, and methods with their instructions
+            jvmClass->finalize();
 
             ++nHeadersHandled;
             if (p)

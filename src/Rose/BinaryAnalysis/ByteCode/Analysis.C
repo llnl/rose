@@ -91,8 +91,9 @@ Method::finalize() {
 }
 
 SgAsmInstruction*
-Method::instructionAt(Address va) const {
-    const auto found = instructionMap_.find(va);
+Method::instructionAt(Address address) const {
+    const auto found = instructionMap_.find(address);
+
     return found == instructionMap_.end()
         ? nullptr
         : found->second;
@@ -183,25 +184,25 @@ Class::strings() {
     return strings_;
 }
 
-ByteCode::Method::Ptr
-Class::findMethod(const std::string &name,
-                  const std::string &descriptor) const {
+void
+Class::finalize() {
     for (const Method::Ptr &method: methods_) {
         ASSERT_not_null(method);
+        ASSERT_require(method->declaringClass() == this);
 
+        method->finalize();
+    }
+}
+
+Method::Ptr
+Class::findMethod(const std::string &name, const std::string &descriptor) const {
+    for (const Method::Ptr &method: methods_) {
+        ASSERT_not_null(method);
         if (method->name() == name && method->descriptor() == descriptor) {
             return method;
         }
     }
-
-    return ByteCode::Method::Ptr();
-}
-
-void
-Class::finalize() {
-    for (const Method::Ptr &method: methods_) {
-        method->finalize();
-    }
+    return Method::Ptr();
 }
 
 void
@@ -226,7 +227,6 @@ Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address
         BasicBlockPtr block{};
         bool needNewBlock{true};
         bool insertFallthroughSuccessors{true};
-        Address seenVa{0};
 
         // Provide the ByteCode::Method with access to its declaring ByteCode::Class
         method->declaringClass(this);
@@ -239,8 +239,9 @@ Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address
             // The address of the Partitioner2::Function is the address of the first basic block
             va = instructions.front()->get_address();
         } else {
-            // A Java interface has no instructions, use the class address instead
-            ASSERT_require2(false, "Need unique method address");
+            // If there are no instructions (e.g., Java interface), use the class address instead.
+            // Note: this is a synthetic address in the sense that it is a placeholder and not used.
+            va = method->declaringClass()->address();
         }
 
         // Determine if this method/function has been seen before (e.g., ".ctor" of parent class)
@@ -320,29 +321,6 @@ Class::partition(const PartitionerPtr &partitioner, std::map<std::string,Address
                 function->insertBasicBlock(va);
                 method->append(block);
                 needNewBlock = false;
-            }
-
-            if (block->address() == function->address() && function->address() != seenVa) {
-//TODO: Save this for initializing frames
-#if 0
-                // Create and push the this pointer for a new frame
-                // TODO: This should be done by initializeFrame
-                // CIL needs ops to work with frames
-                if (ops) {
-                    seenVa = function->address();
-
-                    std::string desc = "L";
-                    desc += name() + ";";
-
-                    auto this_ = ops->unspecified_(32);
-                    ASSERT_require(this_->nBits() == 32);
-
-                    this_->kind(InstructionSemantics::BaseSemantics::ValueKind::ObjectReference);
-                    this_->typeDescriptor(desc);
-
-                    ops->writeLocal(0, this_);
-                }
-#endif
             }
 
             // Warning: this instruction can't be linked into ROSE's AST (parent must be null)

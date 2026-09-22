@@ -195,8 +195,6 @@ main(int argc, char *argv[]) {
 
     // Process ByteCode methods and their instructions
     if (bcClass) {
-        // Prepare the class and its methods for analysis
-        bcClass->finalize();
 
         for (auto bcMethod: bcClass->methods()) {
 

@@ -281,7 +281,7 @@ public:
      *  stores the class names of the discovered functions.
      *
      * @{ */
-    void discoverFunctionCalls(SgAsmJvmMethod*, SgAsmJvmConstantPool*, std::map<std::string,Address> &, std::set<std::string> &);
+    void discoverFunctionCalls(const ByteCode::Method::Ptr &, std::map<std::string,Address> &, std::set<std::string> &);
 
 private:
     void registerWarProgress(ModulesJvm::Zipper*);
