@@ -58,7 +58,7 @@ namespace AstUtilInterface{
         case EnumVariant::Modify: result.push_back("modify"); break;
         case EnumVariant::Call: result.push_back("call"); break;
         case EnumVariant::Read: result.push_back("read"); break;
-        case EnumVariant::Parameter: result.push_back("read"); result.push_back("parameter"); break;
+        case EnumVariant::Parameter: result.push_back("parameter"); break;
         case EnumVariant::Return: result.push_back("read"); result.push_back("return"); break;
         case EnumVariant::Init: result.push_back("init"); break;
         default:

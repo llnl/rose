@@ -310,9 +310,16 @@ std::string AstUtilInterface::GetVariableSignature(const AstNodePtr&  variable) 
      std::string filename;
      int lineno = -1; 
      if (AstInterface::get_fileInfo(variable, &filename, &lineno)) {
+        std::vector<std::string> deptype;
         std::stringstream loc;
-        loc << "Line:" << lineno;
-        DependenceEntry e(sig, filename, { loc.str() });
+        loc << "line=" << lineno;
+        deptype.push_back(loc.str());
+        AstNodeType exptype;
+        if (AstInterface::IsExpression(variable, &exptype) && exptype != AST_NULL_TYPE) {
+          std::stringstream t; t << "type=" << AstInterface::GetTypeName(exptype); 
+          deptype.push_back(t.str());
+        }
+        DependenceEntry e(sig, filename, deptype);
         dict_table->SaveDependence(e);
      }
   }

@@ -2117,7 +2117,12 @@ IsVarRef( SgNode* exp, SgType** vartype, std::string* varname,
     case V_SgThisExp:
       {
         const SgThisExp *var = isSgThisExp( exp );
-        if (vartype != 0) *vartype = var->get_type();
+        assert(var != 0);
+        if (vartype != 0) {
+          if (var->get_class_symbol() != NULL) {
+             *vartype = var->get_class_symbol()->get_type();
+          }
+        }
         if (varname != 0) *varname = "this";
         scope = GetScope(exp);
       }
