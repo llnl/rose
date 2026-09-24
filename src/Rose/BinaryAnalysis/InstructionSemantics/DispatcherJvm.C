@@ -205,13 +205,9 @@ namespace JvmSemantics {
     void methodReturn(Ops ops, I insn);
     void methodReturn(Ops ops, I insn, SValue::Ptr value);
 
-    void branch_goto_w(Ops ops, I insn, Args args);
     void branch_ifnonnull(Ops ops, I insn, Args args);
     void branch_ifnull(Ops ops, I insn, Args args);
     void execute_athrow(Ops ops, I insn, Args args);
-    void execute_checkcast(Ops ops, I insn, Args args);
-    void execute_instanceof(Ops ops, I insn, Args args);
-    void execute_invokedynamic(Ops ops, I insn, Args args);
     void execute_monitorenter(Ops ops, I insn, Args args);
     void execute_monitorexit(Ops ops, I insn, Args args);
 
@@ -250,7 +246,7 @@ namespace JvmSemantics {
     }
 
     SValue::Ptr nullReference(Ops ops) {
-        // The JVMS does not mandate a concrete representation for null.  This
+        // The JVM does not mandate a concrete representation for null.  This
         // default model uses a zero-valued reference-sized symbolic value.
         auto nullRef = ops->number_(32, 0);
         ASSERT_not_null(nullRef);
@@ -260,6 +256,28 @@ namespace JvmSemantics {
 
         return nullRef;
     }
+
+    SValue::Ptr isNullReference(Ops ops, const SValue::Ptr &reference) {
+        ASSERT_not_null(ops);
+        ASSERT_not_null(reference);
+
+        ASSERT_require(reference->kind() == ValueKind::ObjectReference ||
+                       reference->kind() == ValueKind::ArrayReference);
+
+        // Explicit null reference.
+        if (reference->symbolName() == "null") {
+            return ops->boolean_(true);
+        }
+
+        // References produced by 'new' are definitely non-null.
+        if (reference->symbolName().find("::new#") != std::string::npos) {
+            return ops->boolean_(false);
+        }
+
+        // Nullness is unknown.
+        return ops->undefined_(1);
+    }
+
 
     SgAsmJvmConstantPool* constantPool(Ops ops) {
         auto state = ops->currentState();
@@ -906,19 +924,10 @@ namespace JvmSemantics {
         ASSERT_require(reference->kind() == ValueKind::ObjectReference ||
                        reference->kind() == ValueKind::ArrayReference);
 
-        // This semantic model represents the null reference as zero.
-        auto nullRef = JvmSemantics::nullReference(ops);
-        ASSERT_not_null(nullRef);
+        SValuePtr condition = JvmSemantics::isNullReference(ops, reference);
 
-        SValuePtr condition;
-
-        switch (branchKind) {
-            case NullBranchKind::IfNull:
-                condition = ops->isEqual(reference, nullRef);
-                break;
-            case NullBranchKind::IfNonNull:
-                condition = ops->isNotEqual(reference, nullRef);
-                break;
+        if (branchKind == NullBranchKind::IfNonNull) {
+            condition = ops->invert(condition);
         }
         ASSERT_not_null(condition);
 
@@ -939,9 +948,6 @@ namespace JvmSemantics {
     }
 
     void execute_athrow(Ops, I, Args) { jvmUnsupported("execute_athrow"); }
-    void execute_checkcast(Ops, I, Args) { jvmUnsupported("execute_checkcast"); }
-    void execute_instanceof(Ops, I, Args) { jvmUnsupported("execute_instanceof"); }
-    void execute_invokedynamic(Ops, I, Args) { jvmUnsupported("execute_invokedynamic"); }
     void execute_monitorenter(Ops, I, Args) { jvmUnsupported("execute_monitorenter"); }
     void execute_monitorexit(Ops, I, Args) { jvmUnsupported("execute_monitorexit"); }
 
@@ -1529,9 +1535,9 @@ struct IP_castore: P {
         // Run-time Exceptions:
         //   ClassCastException if objectref is non-null and not assignment-compatible with the resolved type.
 struct IP_checkcast: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        assert_args(insn, args, 2);
-        JvmSemantics::execute_checkcast(ops, insn, args);
+    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
+        assert_args(insn, args, 1);
+        ASSERT_require2(false, "unimplemented");
     }
 };
 
@@ -3333,9 +3339,9 @@ struct IP_ineg: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_instanceof: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        assert_args(insn, args, 2);
-        JvmSemantics::execute_instanceof(ops, insn, args);
+    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
+        assert_args(insn, args, 1);
+        ASSERT_require2(false, "unimplemented");
     }
 };
 
@@ -3346,9 +3352,9 @@ struct IP_instanceof: P {
         //   NullPointerException if an instance invocation receiver is null.
         //   Errors from method resolution or class/interface initialization may be observed as specified by the JVM.
 struct IP_invokedynamic: P {
-    void p(D /*d*/, Ops ops, I insn, Args args) {
-        assert_args(insn, args, 4);
-        JvmSemantics::execute_invokedynamic(ops, insn, args);
+    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
+        assert_args(insn, args, 3);
+        ASSERT_require2(false, "unimplemented");
     }
 };
 
@@ -5253,7 +5259,7 @@ DispatcherJvm::syntheticObjectReference(const BaseSemantics::SValuePtr &protoval
     ASSERT_require(descriptor.front() == 'L');
     ASSERT_require(descriptor.back() == ';');
 
-    BaseSemantics::SValuePtr reference = protoval->undefined_(protoval->nBits());
+    BaseSemantics::SValuePtr reference = protoval->undefined_(nBitsForKind(BaseSemantics::ValueKind::ObjectReference));
     ASSERT_not_null(reference);
 
     reference->kind(BaseSemantics::ValueKind::ObjectReference);
