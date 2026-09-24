@@ -5351,59 +5351,6 @@ DispatcherJvm::initializeMemoryState() {
 }
 
 void
-DispatcherJvm::completeReturn(BaseSemantics::RiscOperators *ops, BaseSemantics::SValuePtr result) {
-    ASSERT_not_null(ops);
-
-    auto state = ops->currentState();
-    ASSERT_not_null(state);
-
-    auto calleeFrame = state->currentFrame();
-    ASSERT_not_null(calleeFrame);
-
-    if (result) {
-        auto method = calleeFrame->method();
-        auto concreteValue = result->toUnsigned();
-
-        std::string note = "@e@ " + method->identity() + " ";
-
-        if (concreteValue) {
-            note += std::to_string(*concreteValue);
-        } else {
-            note += result->toString();
-        }
-
-        note += " @e@";
-        ops->comment(note);
-    }
-
-    // Save before removing the frame.
-    const auto returnAddress = calleeFrame->returnAddress();
-
-    auto poppedFrame = state->popFrame();
-    ASSERT_require(poppedFrame == calleeFrame);
-
-    if (returnAddress) {
-        // The caller frame is now current.
-        if (result) {
-            ops->pushOperand(std::move(result));
-        }
-        const RegisterDescriptor pcReg = instructionPointerRegister();
-        ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), *returnAddress));
-    }
-    else {
-        // No caller: this was the root analysis frame.
-        if (result) {
-            // Preserve the return value produced by a value-returning root method.
-            state->terminate(std::move(result));
-        }
-        else {
-            // The root method returned void.
-            state->terminate();
-        }
-    }
-}
-
-void
 DispatcherJvm::recordSemanticError(const std::string &msg) {
 //TODO: This should probably be improved (a switch/command-line option)
 #if MOVE_ON

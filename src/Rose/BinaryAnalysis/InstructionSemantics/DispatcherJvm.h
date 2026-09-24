@@ -87,15 +87,6 @@ public:
     virtual int iprocKey(SgAsmInstruction*) const override;
     virtual RegisterDescriptor instructionPointerRegister() const override;
 
-    /** Completes a return from the current JVM method.
-     *
-     *  Pops the current frame, pushes @p result onto the caller's operand stack
-     *  when non-null, and restores the caller's instruction pointer. A frame
-     *  without a return address is treated as the root analysis frame.
-     */
-    void completeReturn(BaseSemantics::RiscOperators*,
-                        const BaseSemantics::SValuePtr result = BaseSemantics::SValuePtr());
-
     /** Records an error in the semantic analysis */
     void recordSemanticError(const std::string &msg);
 

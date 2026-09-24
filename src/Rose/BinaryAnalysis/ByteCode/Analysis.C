@@ -69,6 +69,16 @@ Method::identity() const {
     return declClass->name() + "." + name() + ":" + descriptor();
 }
 
+bool
+Method::returnsVoid() const {
+    const std::string desc = descriptor();
+    const size_t pos = desc.find(')');
+    ASSERT_require(pos != std::string::npos);
+    ASSERT_require(pos + 1 < desc.size());
+
+    return desc[pos + 1] == 'V';
+}
+
 void
 Method::finalize() {
     instructionMap_.clear();

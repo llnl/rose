@@ -66,6 +66,7 @@ class Method: public Sawyer::SharedObject,
     /** Complete initialization of the method once decoding is done. */
     void finalize();
 
+    virtual bool returnsVoid() const;
     virtual bool isStatic() const = 0;
     virtual bool isSystemReserved(const std::string &name) const = 0;
 

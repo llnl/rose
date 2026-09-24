@@ -282,6 +282,15 @@ public:
     /** Allocates a new unique object identifier. */
     uint32_t allocateObjectId();
 
+    /** Completes a return from the current method.
+     *
+     *  Pops the current frame, pushes @p result onto the caller's operand stack
+     *  when non-null, and restores the caller's instruction pointer. A frame
+     *  without a return address is treated as the root analysis frame.
+     */
+    void completeReturn(BaseSemantics::RiscOperators*,
+                        const BaseSemantics::SValuePtr result = BaseSemantics::SValuePtr());
+
     /** Update the instruction pointer register.
      *
      *  Causes the instruction pointer register to point to the address following the specified instruction.  Since every

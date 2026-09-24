@@ -4433,7 +4433,7 @@ normalizeCurrentMethodReturnValue(D dispatcher,
     return result;
 }
 
-static void
+static SValue::Ptr
 preserveCurrentMethodReturnValue(D dispatcher,
                                  Ops ops,
                                  const DispatcherCil::CilTypeAnalysis::CurrentMethodDescriptor &method,
@@ -4447,6 +4447,8 @@ preserveCurrentMethodReturnValue(D dispatcher,
         CilSemantics::normalizeCurrentMethodReturnValue(dispatcher, ops, method, value);
 
     ops->writeLocal(CilSemantics::cilReturnValueSlot(), normalized);
+
+    return normalized;
 }
 
      static void
@@ -9674,15 +9676,23 @@ struct IP_ret: P {
     void p(D dispatcher, Ops ops, I insn, Args args) override {
         assert_args(insn, args, 0);
 
-        const auto &cm = dispatcher->currentMethod();
+        auto state = ops->currentState();
+        ASSERT_not_null(state);
 
-        if (!cm.returnsVoid) {
-            SValue::Ptr retval = ops->popOperand();
+        auto frame = state->currentFrame();
+        ASSERT_not_null(frame);
+
+        auto method = frame->method();
+        ASSERT_not_null(method);
+
+        SValue::Ptr retval;
+
+        if (!method->returnsVoid()) {
+            retval = ops->popOperand();
             ASSERT_not_null(retval);
-            CilSemantics::preserveCurrentMethodReturnValue(dispatcher, ops, cm, retval);
         }
 
-        CilSemantics::writeUnknownInstructionPointer(dispatcher, ops);
+        dispatcher->completeReturn(ops, retval);
     }
 };
  
