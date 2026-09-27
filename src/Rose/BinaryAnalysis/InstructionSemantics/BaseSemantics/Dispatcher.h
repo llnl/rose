@@ -55,10 +55,10 @@ private:
     RiscOperatorsPtr operators_;
     uint32_t nextObjectId_ = 1; // next unique object identifier
 
-    /** Non-owning pointer to the ByteCode class repository maintained by the Engine. */
-    const ByteCode::ClassRepository* classes_ = nullptr;
-
 protected:
+    /** The ByteCode class repository maintained by the Engine. */
+    ByteCode::ClassRepository::Ptr classes_;
+
     bool autoResetInstructionPointer_ = true;           /**< Reset instruction pointer register for each instruction. */
 
     // Dispatchers keep a table of all the kinds of instructions they can handle.  The lookup key is typically some sort of
@@ -85,6 +85,7 @@ private:
         ASSERT_always_require(version >= 2);
         s & boost::serialization::make_nvp("operators", operators_); // for backward compatibility
         s & BOOST_SERIALIZATION_NVP(nextObjectId_);
+        // s & BOOST_SERIALIZATION_NVP(classes_); -- not saved
         s & BOOST_SERIALIZATION_NVP(autoResetInstructionPointer_);
         //s & iproc_table; -- not saved
     }
@@ -204,11 +205,11 @@ public:
      *  object. */
     virtual SgAsmInstruction* currentInstruction() const;
 
-    /** Returns a pointer to the ByteCode::Class repository.
-     *
-     *  The repository is maintained by the Engine. */
-    const ByteCode::ClassRepository& classRepository() const;
-    void classRepository(const ByteCode::ClassRepository *repo);
+    /** Sets the ByteCode::Class repository. It is maintained by the Engine. */
+    void classRepository(const ByteCode::ClassRepository::Ptr &repo);
+
+    /** Returns the ByteCode::Class repository. */
+    const ByteCode::ClassRepository::Ptr& classRepository() const;
 
     /** Return a new undefined semantic value.
      *

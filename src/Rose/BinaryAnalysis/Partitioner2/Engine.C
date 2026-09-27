@@ -470,7 +470,8 @@ Engine::CodeConstants::nextConstant(const Partitioner::ConstPtr &partitioner) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Engine::Engine(const std::string &name, const Settings &settings)
-    : name_{name}, settings_{settings}, interp_{nullptr}, progress_{Progress::instance()} {
+    : name_{name}, settings_{settings}, interp_{nullptr}, progress_{Progress::instance()},
+      classes_{ByteCode::ClassRepository::instance()} {
     init();
 }
 
@@ -1243,16 +1244,16 @@ Engine::analysisClass() {
     return analysisClass_;
 }
 
-Engine::ClassRepository
+ByteCode::ClassRepository::Ptr
 Engine::classRepository() const {
     return classes_;
 }
 
 ByteCode::Class::Ptr
 Engine::classByName(const std::string &name) const {
-    auto found = classes_.find(name);
-    ASSERT_require2(found != classes_.end(), "class not found in repository");
-    return found->second;
+    auto cls = classes_->findClass(name);
+    ASSERT_require2(cls, "class not found in repository");
+    return cls;
 }
 
 } // namespace

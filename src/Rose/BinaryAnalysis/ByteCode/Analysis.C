@@ -565,6 +565,80 @@ Container::partition(const PartitionerPtr& partitioner) {
     // partitioner->dumpCfg(std::cout, "Worker:", true, false);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ClassRepository
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ClassRepository::ClassRepository() {}
+ClassRepository::~ClassRepository() {}
+
+ClassRepository::Ptr
+ClassRepository::instance() {
+    return Ptr(new ClassRepository());
+}
+
+bool
+ClassRepository::contains(const std::string &name) const {
+    return classes_.find(name) != classes_.end();
+}
+
+bool
+ClassRepository::insert(const ByteCode::ClassPtr &cls) {
+    ASSERT_not_null(cls);
+    return classes_.insert({cls->name(), cls}).second;
+}
+
+ByteCode::ClassPtr
+ClassRepository::findClass(const std::string &name) const {
+    auto iter = classes_.find(name);
+    if (iter == classes_.end()) {
+        return {};
+    }
+    return iter->second;
+}
+
+bool
+ClassRepository::isAssignableTo(const Class::Ptr &source,
+                                const Class::Ptr &target) const {
+    ASSERT_not_null(source);
+    ASSERT_not_null(target);
+
+    std::set<std::string> visited;
+
+    std::function<bool(const Class::Ptr&)> visit =
+        [&](const Class::Ptr &current) -> bool {
+            if (!current)
+                return false;
+
+            const std::string currentName = current->name();
+
+            if (currentName == target->name())
+                return true;
+
+            if (!visited.insert(currentName).second)
+                return false;
+
+            for (const auto &iface: current->interfaces()) {
+                ASSERT_not_null(iface);
+
+                auto ifaceClass = findClass(iface->name());
+                if (ifaceClass && visit(ifaceClass))
+                    return true;
+            }
+
+            const std::string baseName = current->baseClassName();
+            if (!baseName.empty()) {
+                auto baseClass = findClass(baseName);
+                if (visit(baseClass))
+                    return true;
+            }
+
+            return false;
+        };
+
+    return visit(source);
+}
+
 } // namespace
 } // namespace
 } // namespace

@@ -187,8 +187,8 @@ main(int argc, char *argv[]) {
     IS::BaseSemantics::Dispatcher::Ptr cpu = partitioner->newDispatcher(tops);
     ASSERT_not_null(cpu);
 
-    auto repo = engine->classRepository();
-    cpu->classRepository(&repo);
+    const ByteCode::ClassRepository::Ptr repo = engine->classRepository();
+    cpu->classRepository(repo);
 
     IS::BaseSemantics::StatePtr initialState = state->clone();
     ASSERT_not_null(initialState);

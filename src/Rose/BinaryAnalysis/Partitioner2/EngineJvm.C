@@ -687,7 +687,7 @@ EngineJvm::loadArchiveClassFiles(ModulesJvm::Zipper *zip, SgAsmGenericFileList* 
 
             // Skip if this class has already been loaded
             // (prevents loading same class from both WAR and nested JARs)
-            if (isSelected && classes_.find(className) == classes_.end()) {
+            if (isSelected && !classes_->contains(className)) {
 //TODO::add zip as a parameter to loadClassFile so faster to find
                 baseVa = loadClassFile(file.filename(), fileList, baseVa);
             }
@@ -753,7 +753,7 @@ EngineJvm::loadClass(uint16_t classIndex, SgAsmJvmConstantPool* pool, SgAsmGener
     std::string className{ByteCode::constantPoolEntryName(classIndex, pool)};
 
     // Don't load classes twice
-    if (classes_.find(className) != classes_.end()) {
+    if (classes_->contains(className)) {
         return baseVa;
     }
 
@@ -814,7 +814,7 @@ NOTES:
     std::string className = archiveClassName(path.string());
 
     // Check to see if the class has already been processed
-    if (classes_.find(className) != classes_.end()) {
+    if (classes_->contains(className)) {
         return baseVa;
     }
 
@@ -872,11 +872,9 @@ NOTES:
         className = parsedClassName;
     }
 
-    if (classes_.find(className) != classes_.end()) {
-//DELETion may be problematic
-#if 0
-        SageInterface::deleteAST(gf);
-#endif
+    if (classes_->contains(className)) {
+        // Deletion of SAGE nodes is problematic, so just ignore
+        // SageInterface::deleteAST(gf);
         return baseVa;
     }
 
@@ -887,8 +885,8 @@ NOTES:
     ByteCode::Namespace::Ptr ns = ByteCode::Namespace::instance();
     ByteCode::JvmClass::Ptr jvmClass = ByteCode::JvmClass::instance(className, ns, jfh);
 
-    // Insert the JvmClass into the class repository
-    bool inserted = classes_.emplace(jvmClass->name(), jvmClass).second;
+    // Insert the class into the repository
+    bool inserted = classes_->insert(jvmClass);
     ASSERT_require2(inserted, "duplicate class in repository");
 
     // Increase base virtual address for the next class

@@ -353,7 +353,6 @@ protected:
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                  Data members
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-using ClassRepository = std::map<std::string, ByteCode::Class::Ptr>;
 
 private:
     std::string name_;                                  // factory name
@@ -369,7 +368,7 @@ protected:
     ByteCode::Class::Ptr analysisClass_;                // the ByteCode analysis class used for partitioning
     Architecture::BaseConstPtr architecture_;           // architecture-specific information
     InstructionSemantics::BaseSemantics::StatePtr state_; // the semantics machine state
-    ClassRepository classes_;                           // Repository of ByteCode Classes
+    ByteCode::ClassRepository::Ptr classes_;              // Repository of ByteCode Classes
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                  Construction and destruction
@@ -1047,7 +1046,7 @@ public:
      *  Repository of ByteCode Classes.
      *
      * @{ */
-    ClassRepository classRepository() const;
+    ByteCode::ClassRepository::Ptr classRepository() const;
 
     /** Retrieve a ByteCode class from the repository by name */
     ByteCode::Class::Ptr classByName(const std::string &name) const;

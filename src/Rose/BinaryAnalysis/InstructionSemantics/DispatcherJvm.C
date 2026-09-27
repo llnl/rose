@@ -278,32 +278,18 @@ namespace JvmSemantics {
         return ops->undefined_(1);
     }
 
-
-    SgAsmJvmConstantPool* constantPool(Ops ops) {
-        auto state = ops->currentState();
-        ASSERT_not_null(state);
-
-        auto frame = state->currentFrame();
-        ASSERT_not_null(frame);
-
-        auto jvmMethod = ByteCode::JvmMethod::promote(frame->method());
-        ASSERT_not_null(jvmMethod);
-
-        auto pool = jvmMethod->constant_pool();
+    SgAsmJvmConstantPoolEntry* constantPoolEntry(Ops ops, size_t index) {
+        auto pool = DispatcherJvm::constantPool(ops);
         ASSERT_not_null(pool);
 
-        return pool;
-    }
-
-    SgAsmJvmConstantPoolEntry* constantPoolEntry(Ops ops, size_t index) {
-        return constantPool(ops)->get_entry(index);
+        return pool->get_entry(index);
     }
 
     std::string constantPoolUtf8(Ops ops, size_t index) {
         auto entry = constantPoolEntry(ops, index);
         ASSERT_require(entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Utf8);
 
-        auto pool = constantPool(ops);
+        auto pool = DispatcherJvm::constantPool(ops);
         ASSERT_not_null(pool);
 
         return pool->get_utf8_string(index);
@@ -530,15 +516,7 @@ namespace JvmSemantics {
         auto state = ops->currentState();
         ASSERT_not_null(state);
 
-        auto callerFrame = state->currentFrame();
-        ASSERT_not_null(callerFrame);
-
-        auto method = callerFrame->method();
-        ASSERT_not_null(method);
-
-        auto jvmMethod = ByteCode::JvmMethod::promote(method);
-        ASSERT_not_null(jvmMethod);
-        auto pool = jvmMethod->constant_pool();
+        auto pool = DispatcherJvm::constantPool(ops);
         ASSERT_not_null(pool);
 
         // Get the descriptor directly (valid even if the callee method can't be found)
@@ -1535,9 +1513,59 @@ struct IP_castore: P {
         // Run-time Exceptions:
         //   ClassCastException if objectref is non-null and not assignment-compatible with the resolved type.
 struct IP_checkcast: P {
-    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
+    void p(D d, Ops ops, I insn, Args args) {
         assert_args(insn, args, 1);
-        ASSERT_require2(false, "unimplemented");
+
+        auto ref = ops->popOperand();
+
+        ASSERT_require(ref->kind() == ValueKind::ObjectReference ||
+                       ref->kind() == ValueKind::ArrayReference);
+
+        // null can be cast to any reference type.
+        if (ref->symbolName() == "null") {
+            ops->pushOperand(ref);
+            return;
+        }
+
+        auto pool = DispatcherJvm::constantPool(ops);
+        ASSERT_not_null(pool);
+
+        auto classEntry = pool->get_entry(d->asU2(args[0]));
+        ASSERT_not_null(classEntry);
+        ASSERT_require(classEntry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Class);
+
+        const std::string targetClassName = pool->get_utf8_string(classEntry->get_name_index());
+        const std::string sourceDescriptor = ref->typeDescriptor();
+
+        // For now handle ordinary object descriptors only.
+        if (sourceDescriptor.size() < 2 ||
+            sourceDescriptor.front() != 'L' ||
+            sourceDescriptor.back() != ';') {
+            // Arrays need their own assignability rules.
+            ops->pushOperand(ref);          // conservative for now?
+            return;
+        }
+
+        if (sourceDescriptor.size() >= 2 &&
+            sourceDescriptor.front() == 'L' &&
+            sourceDescriptor.back() == ';') {
+
+            auto repo = d->classRepository();
+            ASSERT_not_null(repo);
+
+            const std::string sourceClassName = sourceDescriptor.substr(1, sourceDescriptor.size() - 2);
+
+            auto sourceClass = repo->findClass(sourceClassName);
+            auto targetClass = repo->findClass(targetClassName);
+
+            if (sourceClass && targetClass && repo->isAssignableTo(sourceClass, targetClass)) {
+                ops->pushOperand(ref);
+                return;
+            }
+        }
+
+        // TODO: model java/lang/ClassCastException.
+        //   - decide how to resolve an unsuccessful or unresolved cast represented.
     }
 };
 
@@ -3339,9 +3367,67 @@ struct IP_ineg: P {
         // Run-time Exceptions:
         //   None specified other than VirtualMachineError subclasses.
 struct IP_instanceof: P {
-    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
+    void p(D d, Ops ops, I insn, Args args) {
         assert_args(insn, args, 1);
-        ASSERT_require2(false, "unimplemented");
+
+        auto ref = ops->popOperand();
+
+        ASSERT_require(ref->kind() == ValueKind::ObjectReference ||
+                       ref->kind() == ValueKind::ArrayReference);
+
+        // null instanceof T == false
+        if (ref->symbolName() == "null") {
+            auto result = ops->number_(32, 0);
+            result->kind(ValueKind::Integer32);
+            ops->pushOperand(result);
+            return;
+        }
+
+        auto pool = DispatcherJvm::constantPool(ops);
+        ASSERT_not_null(pool);
+
+        auto classEntry = pool->get_entry(d->asU2(args[0]));
+        ASSERT_not_null(classEntry);
+        ASSERT_require(classEntry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_Class);
+
+        const std::string targetClassName = pool->get_utf8_string(classEntry->get_name_index());
+        const std::string targetDescriptor = "L" + targetClassName + ";";
+
+        if (ref->typeDescriptor() == targetDescriptor) {
+            auto result = ops->number_(32, 1);
+            result->kind(ValueKind::Integer32);
+            ops->pushOperand(result);
+            return;
+        }
+
+        const std::string sourceDescriptor = ref->typeDescriptor();
+
+        if (sourceDescriptor.size() >= 2 &&
+            sourceDescriptor.front() == 'L' &&
+            sourceDescriptor.back() == ';') {
+
+            auto repo = d->classRepository();
+
+            const std::string sourceClassName = sourceDescriptor.substr(1, sourceDescriptor.size() - 2);
+
+            auto sourceClass = repo->findClass(sourceClassName);
+            auto targetClass = repo->findClass(targetClassName);
+
+            if (sourceClass && targetClass) {
+                const bool assignable = repo->isAssignableTo(sourceClass, targetClass);
+
+                auto result = ops->number_(32, assignable ? 1 : 0);
+                result->kind(ValueKind::Integer32);
+                ops->pushOperand(result);
+                return;
+            }
+        }
+
+        // No type match found; push an undefined value
+        //
+        auto result = ops->undefined_(32);
+        result->kind(ValueKind::Integer32);
+        ops->pushOperand(result);
     }
 };
 
@@ -5005,8 +5091,8 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0xb8,  new Jvm::IP_invokestatic);
     iprocSet(0xb9,  new Jvm::IP_invokeinterface);
 //  iprocSet(0xba,  new Jvm::IP_invokedynamic);
-//  iprocSet(0xc0,  new Jvm::IP_checkcast);
-//  iprocSet(0xc1,  new Jvm::IP_instanceof);
+    iprocSet(0xc0,  new Jvm::IP_checkcast);
+    iprocSet(0xc1,  new Jvm::IP_instanceof);
 //  iprocSet(0xc2,  new Jvm::IP_monitorenter);
 //  iprocSet(0xc3,  new Jvm::IP_monitorexit);
     iprocSet(0xc4,  new Jvm::IP_wide);
@@ -5164,15 +5250,12 @@ DispatcherJvm::resolveMethod(SgAsmJvmConstantPool *pool, size_t index) {
     std::string methodName = pool->get_utf8_string(nameAndTypeEntry->get_name_index());
     std::string descriptor = pool->get_utf8_string(nameAndTypeEntry->get_descriptor_index());
 
-    // Class repository
-    const auto &repo = classRepository();
-
-    auto found = repo.find(className);
-    if (found == repo.end()) {
+    auto cls = classes_->findClass(className);
+    if (!cls) {
         return ByteCode::Method::Ptr(); // the class is not in the repository
     }
 
-    return found->second->findMethod(methodName, descriptor);
+    return cls->findMethod(methodName, descriptor);
 }
 
 ByteCode::Method::Ptr
@@ -5199,11 +5282,10 @@ DispatcherJvm::resolveRuntimeMethod(SgAsmJvmConstantPool *pool, size_t index,
     std::string methodName = pool->get_utf8_string(nameAndTypeEntry->get_name_index());
     std::string descriptor = pool->get_utf8_string(nameAndTypeEntry->get_descriptor_index());
 
-    const auto &repo = classRepository();
-    auto found = repo.find(receiverClassName);
+    auto cls = classes_->findClass(receiverClassName);
 
-    if (found != repo.end()) {
-        method = found->second->findMethod(methodName, descriptor);
+    if (cls) {
+        method = cls->findMethod(methodName, descriptor);
         // Make sure the method has instructions, otherwise return null
         if (method && method->instructions()->get_instructions().empty()) {
             method = {};

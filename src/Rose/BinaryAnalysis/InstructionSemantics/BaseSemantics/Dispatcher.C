@@ -153,15 +153,16 @@ Dispatcher::completeReturn(BaseSemantics::RiscOperators *ops, BaseSemantics::SVa
     }
 }
 
-const ByteCode::ClassRepository&
-Dispatcher::classRepository() const {
-    ASSERT_not_null(classes_);
-    return *classes_;
+void
+Dispatcher::classRepository(const ByteCode::ClassRepository::Ptr &repo) {
+    ASSERT_not_null(repo);
+    classes_ = repo;
 }
 
-void
-Dispatcher::classRepository(const ByteCode::ClassRepository* repo) {
-    classes_ = repo;
+const ByteCode::ClassRepository::Ptr&
+Dispatcher::classRepository() const {
+    ASSERT_not_null(classes_);
+    return classes_;
 }
 
 SValue::Ptr

@@ -25,7 +25,6 @@ class Namespace;
 
 using ClassPtr = Sawyer::SharedPointer<Class>;
 using NamespacePtr = Sawyer::SharedPointer<Namespace>;
-using ClassRepository = std::map<std::string, ClassPtr>;
 
 /** Base class for ByteCode Fields.
  *
@@ -119,7 +118,7 @@ class Method: public Sawyer::SharedObject,
  *  An Interface stores information about an interface.
  */
 class Interface: public Sawyer::SharedObject,
-                 public Sawyer::SharedFromThis<Class> {
+                 public Sawyer::SharedFromThis<Interface> {
   public:
     /** Shared ownership pointers. */
     using Ptr = Sawyer::SharedPointer<Interface>;
@@ -264,6 +263,45 @@ class Container: public Sawyer::SharedObject,
 
   private:
     static Address nextSystemReservedVa_;
+};
+
+/** Class repository
+ *
+ *  A repository for containing Classes
+ */
+class ClassRepository: public Sawyer::SharedObject,
+                        public Sawyer::SharedFromThis<ClassRepository> {
+  public:
+    /** Shared ownership pointer. */
+    using Ptr = Sawyer::SharedPointer<ClassRepository>;
+
+    virtual ~ClassRepository();
+
+  public:
+
+    /** Allocating constructor. */
+    static Ptr instance();
+
+    /** Inserts a class into the repository.
+     *
+     *  Returns true if the class was inserted, or false if a class with the same name is already present.
+     */
+    bool insert(const Class::Ptr &cls);
+
+    /** Returns true if a class with the given name is present. */
+    bool contains(const std::string &name) const;
+
+    /** Returns the Class with the given name, null if not present. */
+    ByteCode::ClassPtr findClass(const std::string &name) const;
+
+    /** Returns true if a value of the source class can be assigned to the target. */
+    bool isAssignableTo(const ClassPtr &source, const ClassPtr &target) const;
+
+  protected:
+    ClassRepository();
+
+  private:
+    std::map<std::string, ClassPtr> classes_;
 };
 
 } // namespace
