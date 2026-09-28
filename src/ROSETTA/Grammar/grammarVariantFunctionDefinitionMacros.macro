@@ -6,7 +6,7 @@ $CLASSNAME::variant() const
 #ifdef DEBUG
   // printf ("In $CLASSNAME::variant() const \n");
 #endif
-     assert(this != NULL);
+     ASSERT_this();
      return $MARKER;
    }
 

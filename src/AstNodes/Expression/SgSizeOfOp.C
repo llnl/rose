@@ -46,14 +46,14 @@ SgSizeOfOp::replace_expression (SgExpression *o, SgExpression *n)
 int
 SgSizeOfOp::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgSizeOfOp::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -63,14 +63,14 @@ SgSizeOfOp::set_name_qualification_length ( int name_qualification_length )
 bool
 SgSizeOfOp::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgSizeOfOp::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -80,14 +80,14 @@ SgSizeOfOp::set_type_elaboration_required ( bool type_elaboration_required )
 bool
 SgSizeOfOp::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgSizeOfOp::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -101,14 +101,14 @@ SgSizeOfOp::set_global_qualification_required ( bool global_qualification_requir
 int
 SgSizeOfOp::get_name_qualification_for_pointer_to_member_class_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_for_pointer_to_member_class_length;
    }
 
 void
 SgSizeOfOp::set_name_qualification_for_pointer_to_member_class_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -118,14 +118,14 @@ SgSizeOfOp::set_name_qualification_for_pointer_to_member_class_length ( int name
 bool
 SgSizeOfOp::get_type_elaboration_for_pointer_to_member_class_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_for_pointer_to_member_class_required;
    }
 
 void
 SgSizeOfOp::set_type_elaboration_for_pointer_to_member_class_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -135,14 +135,14 @@ SgSizeOfOp::set_type_elaboration_for_pointer_to_member_class_required ( bool typ
 bool
 SgSizeOfOp::get_global_qualification_for_pointer_to_member_class_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_for_pointer_to_member_class_required;
    }
 
 void
 SgSizeOfOp::set_global_qualification_for_pointer_to_member_class_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);

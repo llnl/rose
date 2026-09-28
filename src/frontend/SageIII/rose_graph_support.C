@@ -18,7 +18,7 @@ using namespace std;
 std::set<SgGraphEdge*>
 SgGraph::computeEdgeSet( SgGraphNode* node )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(node != NULL);
 
      std::set<SgGraphEdge*>  returnSet;
@@ -53,7 +53,7 @@ SgGraph::computeEdgeSet( SgGraphNode* node )
 std::set<int>
 SgGraph::computeEdgeSet( int node_index )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      std::set<int>  returnSet;
 
@@ -76,7 +76,7 @@ SgGraph::computeEdgeSet( int node_index )
 std::set< std::pair<int,int> >
 SgGraph::computeNodeIndexPairSet( int node_index )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      std::set< std::pair<int,int> >  returnSet;
 
@@ -109,7 +109,7 @@ SgGraph::computeNodeIndexPairSet( int node_index )
 std::set<SgGraphNode*>
 SgGraph::computeNodeSet()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      std::set<SgGraphNode*>  returnSet;
 
      rose_graph_integer_node_hash_map::iterator i = p_node_index_to_node_map.begin();
@@ -126,7 +126,7 @@ SgGraph::computeNodeSet()
 std::set<SgGraphNode*>
 SgGraph::computeNodeSet( const string & label )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      std::set<SgGraphNode*>  returnSet;
 
      std::set<int> nodeIndexSet = computeNodeIndexSet( label );
@@ -145,7 +145,7 @@ SgGraph::computeNodeSet( const string & label )
 std::set<int>
 SgGraph::computeNodeIndexSet( const string & label )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
 #if 0
      typedef std::pair<rose_graph_string_integer_hash_multimap::const_iterator,rose_graph_string_integer_hash_multimap::const_iterator> equal_range_type;
@@ -211,7 +211,7 @@ SgGraph::numberOfGraphEdges() const
 bool
 SgGraph::exists( SgGraphNode* node )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(node != NULL);
 
      return (p_node_index_to_node_map.find(node->get_index()) != p_node_index_to_node_map.end());
@@ -220,7 +220,7 @@ SgGraph::exists( SgGraphNode* node )
 bool
 SgGraph::exists( SgGraphEdge* edge )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(edge != NULL);
 
      return (p_edge_index_to_edge_map.find(edge->get_index()) != p_edge_index_to_edge_map.end());
@@ -232,7 +232,7 @@ SgGraph::exists( SgGraphEdge* edge )
 SgGraphNode*
 SgGraph::addNode( const std::string & name, SgNode* internal_node )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgGraphNode* node = new SgGraphNode(name);
      ROSE_ASSERT(node != NULL);
@@ -246,7 +246,7 @@ SgGraph::addNode( const std::string & name, SgNode* internal_node )
 SgGraphNode*
 SgGraph::addNode( SgGraphNode* node )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(node != NULL);
 
      node->set_parent(this);
@@ -276,7 +276,7 @@ SgGraph::addNode( SgGraphNode* node )
 SgGraphEdge*
 SgGraph::addEdge( SgGraphNode* a, SgGraphNode* b, const std::string & name )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgGraphEdge* edge = NULL;
 
@@ -290,7 +290,7 @@ SgGraph::addEdge( SgGraphNode* a, SgGraphNode* b, const std::string & name )
 SgGraphEdge*
 SgGraph::addEdge( SgGraphEdge* edge )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      edge->set_parent(this);
 
@@ -340,7 +340,7 @@ SgGraph::addEdge( SgGraphEdge* edge )
 SgDirectedGraphEdge*
 SgIncidenceDirectedGraph::addDirectedEdge( SgGraphNode* a, SgGraphNode* b, const std::string & name )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      ROSE_ASSERT( a != NULL && b != NULL ) ;
 
@@ -358,7 +358,7 @@ SgIncidenceDirectedGraph::addDirectedEdge( SgGraphNode* a, SgGraphNode* b, const
 SgDirectedGraphEdge*
 SgIncidenceDirectedGraph::addDirectedEdge( SgDirectedGraphEdge* edge )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      edge->set_parent(this);
 
@@ -684,7 +684,7 @@ target(boost::detail::edge_desc_impl<boost::undirected_tag, long unsigned int>& 
 std::vector <SgGraphEdge*>
 SgGraph::generateSpanningTree()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
   // return rose_spanning_tree;
      std::vector <SgGraphEdge*> returnEdgeList;
@@ -833,7 +833,7 @@ SgGraph::generateSpanningTree()
 std::set<SgDirectedGraphEdge*>
 SgIncidenceDirectedGraph::computeEdgeSetIn( SgGraphNode* node )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(node != NULL);
 
      std::set<SgDirectedGraphEdge*> returnSet;
@@ -865,7 +865,7 @@ SgIncidenceDirectedGraph::computeEdgeSetIn( SgGraphNode* node )
 std::set<int>
 SgIncidenceDirectedGraph::computeEdgeSetIn( int node_index )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      std::set<int>  returnSet;
 
@@ -885,7 +885,7 @@ SgIncidenceDirectedGraph::computeEdgeSetIn( int node_index )
 std::set<SgDirectedGraphEdge*>
 SgIncidenceDirectedGraph::computeEdgeSetOut( SgGraphNode* node )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(node != NULL);
 
      std::set<SgDirectedGraphEdge*> returnSet;
@@ -917,7 +917,7 @@ SgIncidenceDirectedGraph::computeEdgeSetOut( SgGraphNode* node )
 std::set<int>
 SgIncidenceDirectedGraph::computeEdgeSetOut( int node_index )
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      std::set<int>  returnSet;
 

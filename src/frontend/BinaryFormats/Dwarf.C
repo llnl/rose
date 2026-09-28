@@ -12,7 +12,7 @@
 SgAsmDwarfConstructList*
 SgAsmDwarfArrayType::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -24,7 +24,7 @@ SgAsmDwarfArrayType::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfClassType::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -35,7 +35,7 @@ SgAsmDwarfClassType::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfEnumerationType::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -46,7 +46,7 @@ SgAsmDwarfEnumerationType::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfLexicalBlock::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -57,7 +57,7 @@ SgAsmDwarfLexicalBlock::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfCompilationUnit::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_language_constructs == NULL)
           p_language_constructs = new SgAsmDwarfConstructList();
@@ -68,7 +68,7 @@ SgAsmDwarfCompilationUnit::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfStructureType::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -79,7 +79,7 @@ SgAsmDwarfStructureType::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfSubroutineType::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -90,7 +90,7 @@ SgAsmDwarfSubroutineType::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfUnionType::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -101,7 +101,7 @@ SgAsmDwarfUnionType::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfCommonBlock::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -112,7 +112,7 @@ SgAsmDwarfCommonBlock::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfInlinedSubroutine::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -123,7 +123,7 @@ SgAsmDwarfInlinedSubroutine::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfSubprogram::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -134,7 +134,7 @@ SgAsmDwarfSubprogram::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfNamespace::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      if (p_body == NULL)
           p_body = new SgAsmDwarfConstructList();
@@ -145,7 +145,7 @@ SgAsmDwarfNamespace::get_children()
 SgAsmDwarfConstructList*
 SgAsmDwarfConstruct::get_children()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      printf ("Warning: base class of virtual function called by mistake: class_name = %s \n",class_name().c_str());
      return NULL;

@@ -46,14 +46,14 @@ SgAlignOfOp::replace_expression (SgExpression *o, SgExpression *n)
 int
 SgAlignOfOp::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgAlignOfOp::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -63,14 +63,14 @@ SgAlignOfOp::set_name_qualification_length ( int name_qualification_length )
 bool
 SgAlignOfOp::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgAlignOfOp::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -80,14 +80,14 @@ SgAlignOfOp::set_type_elaboration_required ( bool type_elaboration_required )
 bool
 SgAlignOfOp::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgAlignOfOp::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);

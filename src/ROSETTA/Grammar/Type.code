@@ -740,7 +740,7 @@ SOURCE_GET_MANGLED_START
 SgName
 $CLASSNAME::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
   // DQ (10/4/2010): Modified to provide Fortran support (type_kind is a data member used for Fortran only, it is always NULL for other languages)
   // type_kind is also used for Jovial.
@@ -808,7 +808,7 @@ $CLASSNAME::get_mangled (void) const
   // likely usage within the AST construction, if so then I guess we have to allow these functions to be
   // called in the frontend AST construction).
 
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      const SgType* base_type = get_base_type();
      ROSE_ASSERT (base_type != NULL);
@@ -837,7 +837,7 @@ SOURCE_POINTER_MEMBER_GET_MANGLED_START
 SgName
 $CLASSNAME::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
   // Generate a pointer type _without_ the class name in it
      string base_str = SgPointerType::get_mangled ().getString ();
@@ -900,7 +900,7 @@ SOURCE_GET_MANGLED_TYPE_FIXED_START
 SgName
 SgTypeFixed::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgName mangled_name = "MANGLED_ID_STRING";
 
@@ -1381,7 +1381,7 @@ SgType::stripType(unsigned char bit_array) const
 SgName
 SgType::mangledNameSupport(SgName & fname, SgUnparse_Info & /*info*/)
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      SgName rtmp;
 
   // This only makes sense to call from either the SgFunctionType or the SgMemberFunctionType
@@ -2017,7 +2017,7 @@ SOURCE_TYPE_DEFAULT_TYPE_START
 SgName
 SgTypeDefault::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgName mangled_name;
      mangled_name << "__" << "MANGLED_ID_DEFAULT_TYPE" << "b__" // start tag
@@ -2074,7 +2074,7 @@ SOURCE_TYPE_LABEL_TYPE_START
 SgName
 SgTypeLabel::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgName mangled_name;
      mangled_name << "__" << "MANGLED_ID_LABEL_TYPE" << "b__" // start tag
@@ -2329,7 +2329,7 @@ SgType*
 SgDeclType::get_base_type() const
    {
      SgType* return_type = NULL;
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(p_base_expression != NULL);
      if (p_base_expression == NULL || isSgFunctionParameterRefExp(p_base_expression) != NULL)
         {
@@ -2349,7 +2349,7 @@ SgDeclType::get_base_type() const
 SgName
 SgDeclType::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      ROSE_ASSERT (p_base_expression != NULL);
 
@@ -2390,7 +2390,7 @@ SgType*
 SgTypeOfType::get_base_type() const
    {
      SgType* return_type = NULL;
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
   // ROSE_ASSERT(p_base_expression != NULL);
      if (p_base_expression == NULL || isSgFunctionParameterRefExp(p_base_expression) != NULL)
         {
@@ -2412,7 +2412,7 @@ SgTypeOfType::get_base_type() const
 SgName
 SgTypeOfType::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      const SgType* base_type = get_base_type();
      ROSE_ASSERT (base_type != NULL);
@@ -2524,7 +2524,7 @@ SgClassType::get_name() const
 SgName
 SgClassType::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
 #if DEBUG_CLASS_TYPE_GET_MANGLED
      printf ("In SgClassType::get_mangled(): get_name() = %s \n",get_name().str());
@@ -2702,7 +2702,7 @@ SgJavaParameterizedType::get_qualified_name() const {
 SgName
 $CLASSNAME::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgName mangled_name;
      if (get_name().is_null() == false) // not anonymous
@@ -2748,7 +2748,7 @@ SgJavaQualifiedType::get_qualified_name() const
 SgName
 $CLASSNAME::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgName mangled_name;
      if (get_name().is_null() == false) // not anonymous
@@ -2827,7 +2827,7 @@ SgJavaWildcardType::get_qualified_name() const {
 SgName
 SgJavaWildcardType::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      string mangled_name = "__MANGLED_ID_WILDCARD_TYPEb__";
      mangled_name += get_name().str(); // name of wildcard type is "?"
@@ -2866,7 +2866,7 @@ SgJavaUnionType::get_name() const {
 SgName
 $CLASSNAME::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      SgName mangled_name;
 
      for (size_t i = 0; i < p_type_list.size(); i++) {
@@ -2907,7 +2907,7 @@ SgJavaParameterType::get_qualified_name() const
 SgName
 $CLASSNAME::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgClassDeclaration *class_declaration = isSgClassDeclaration(get_declaration() -> get_definingDeclaration());
      ROSE_ASSERT(class_declaration);
@@ -2949,7 +2949,7 @@ SgJovialTableType::get_qualified_name() const
 SgName
 $CLASSNAME::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
   // DQ (2/10/2014): We want to iterate over the list of types and output a name from the concatination of the type names.
      SgClassDeclaration *class_declaration = isSgClassDeclaration(get_declaration() -> get_definingDeclaration());
@@ -2972,7 +2972,7 @@ SOURCE_TEMPLATE_TYPE_START
 SgName
 SgTemplateType::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      SgName mangled_name = get_name();
 
   // DQ (9/21/2012): Add the pointer value for the first undefined declaration as a way to make this a unique mangled value.
@@ -3008,7 +3008,7 @@ SgEnumType::get_name() const
 SgName
 SgEnumType::get_mangled (void) const
     {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      const SgEnumDeclaration* decl = isSgEnumDeclaration (get_declaration());
      ROSE_ASSERT (decl != NULL);
@@ -3070,7 +3070,7 @@ SgTypedefType::get_base_type() const
 SgName
 SgTypedefType::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      const SgTypedefDeclaration* decl = isSgTypedefDeclaration (get_declaration());
      ROSE_ASSERT (decl != NULL);
@@ -3086,21 +3086,21 @@ SOURCE_MODIFIER_TYPE_START
 SgTypeModifier &
 SgModifierType::get_typeModifier ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_typeModifier;
    }
 
 const SgTypeModifier &
 SgModifierType::get_typeModifier (void) const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_typeModifier;
    }
 
 SgName
 SgModifierType::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgName mangled_name;
 
@@ -3203,7 +3203,7 @@ SgQualifiedNameType::get_prefix() const
 SgName
 SgQualifiedNameType::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgName tmp;
      tmp << "qualified_name_" << get_base_type()->get_mangled().str();
@@ -3300,14 +3300,14 @@ SgFunctionType::get_mangled(SgType* ret_type, SgFunctionParameterTypeList* typeL
 SgName
 SgFunctionType::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return get_mangled(get_return_type(), get_argument_list());
    }
 
 SgName
 SgFunctionType::get_mangled_type()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return get_mangled();
    }
 
@@ -3409,7 +3409,7 @@ SgMemberFunctionType::unsetRvalueReferenceFunc()
 SgName
 SgMemberFunctionType::get_mangled_name (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return get_mangled ();
    }
 
@@ -3490,7 +3490,7 @@ SgName SgMemberFunctionType::get_mangled(SgType* ret_type, SgFunctionParameterTy
 SgName
 SgMemberFunctionType::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
   // Member-function specific information (class name, const/volatile qualifiers)
      SgName mangled_cls_tag;
@@ -3720,7 +3720,7 @@ namespace ConstantFolding
 SgName
 SgArrayType::get_mangled(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      const SgType* base_type = get_base_type();
      ROSE_ASSERT (base_type != NULL);
@@ -4083,7 +4083,7 @@ SOURCE_TYPE_ELLIPSE_TYPE_START
 SgName
 $CLASSNAME::get_mangled (void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return SgName ("_E_");
    }
 SOURCE_TYPE_ELLIPSE_TYPE_END

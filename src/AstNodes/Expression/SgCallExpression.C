@@ -30,7 +30,7 @@ SgCallExpression::get_next(int& n) const
 void
 SgCallExpression::append_arg(SgExpression* what)
    {
-     assert(this != NULL);
+     ASSERT_this();
 
   // DQ (11/15/2006): avoid setting newArgs this late in the process.
      ROSE_ASSERT(p_args != NULL);

@@ -19,14 +19,14 @@ SgType* SgEnumVal::get_type() const
 int
 SgEnumVal::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgEnumVal::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -36,14 +36,14 @@ SgEnumVal::set_name_qualification_length ( int name_qualification_length )
 bool
 SgEnumVal::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgEnumVal::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -53,14 +53,14 @@ SgEnumVal::set_type_elaboration_required ( bool type_elaboration_required )
 bool
 SgEnumVal::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgEnumVal::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);

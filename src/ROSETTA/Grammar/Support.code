@@ -3907,7 +3907,7 @@ void $CLASSNAME::reset()
 const SgConstVolatileModifier &
 $CLASSNAME::get_constVolatileModifier (void) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_constVolatileModifier;
    }
 
@@ -3915,14 +3915,14 @@ $CLASSNAME::get_constVolatileModifier (void) const
 const SgUPC_AccessModifier &
 $CLASSNAME::get_upcModifier (void) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_upcModifier;
    }
 
 const SgStructureModifier &
 $CLASSNAME::get_structureModifier (void) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_structureModifier;
    }
 
@@ -3930,7 +3930,7 @@ $CLASSNAME::get_structureModifier (void) const
 const SgElaboratedTypeModifier &
 $CLASSNAME::get_elaboratedTypeModifier (void) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_elaboratedTypeModifier;
    }
 
@@ -4182,14 +4182,14 @@ bool operator== (const $CLASSNAME& lhs, const $CLASSNAME& rhs)
 SgAccessModifier &
 $CLASSNAME::get_accessModifier ()
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_accessModifier;
    }
 
 const SgAccessModifier &
 $CLASSNAME::get_accessModifier () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_accessModifier;
    }
 
@@ -10628,14 +10628,14 @@ SgBaseClass::get_qualified_name_prefix() const
 int
 SgBaseClass::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgBaseClass::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10645,14 +10645,14 @@ SgBaseClass::set_name_qualification_length ( int name_qualification_length )
 bool
 SgBaseClass::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgBaseClass::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10662,14 +10662,14 @@ SgBaseClass::set_type_elaboration_required ( bool type_elaboration_required )
 bool
 SgBaseClass::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgBaseClass::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -10790,7 +10790,7 @@ SgInitializedName::SgInitializedName() ROSE_DEPRECATED_FUNCTION
 SgStorageModifier &
 SgInitializedName::get_storageModifier()
    {
-     assert (this != NULL);
+     ASSERT_this();
      assert (p_storageModifier != NULL);
      return *p_storageModifier;
    }
@@ -10798,7 +10798,7 @@ SgInitializedName::get_storageModifier()
 const SgStorageModifier &
 SgInitializedName::get_storageModifier() const
    {
-     assert (this != NULL);
+     ASSERT_this();
      assert (p_storageModifier != NULL);
      return *p_storageModifier;
    }
@@ -11133,7 +11133,7 @@ SgInitializedName::get_type() const
 void
 SgInitializedName::set_type(SgType *t)
    {
-     assert(this != NULL);
+     ASSERT_this();
 
   // DQ (4/14/2015): Added call to set_isModified() function to record change to this IR node.
      set_isModified(true);
@@ -11254,7 +11254,7 @@ SgInitializedName::get_mangled_name (void) const
 SgDeclarationStatement*
 SgInitializedName::get_declaration() const
    {
-     assert (this != NULL);
+     ASSERT_this();
   // DQ (6/13/2005): This function assumes that the parents have been set!
   // so it should not be used in the EDG/Sage translation!
 
@@ -11945,7 +11945,7 @@ SgName::caseInsensitiveEquality ( const SgName & x, const SgName & y )
 int
 SgName::operator<(const SgName& n1) const
    {
-     assert(this != NULL);
+     ASSERT_this();
 
      return p_char < n1.p_char;
    }
@@ -11953,14 +11953,14 @@ SgName::operator<(const SgName& n1) const
 bool
 SgName::is_null(void) const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return p_char.empty();
    }
 
 void
 SgName::replace_space(char t)
    {
-     assert(this != NULL);
+     ASSERT_this();
 
      int len = p_char.size();
      for(int i=0; i < len; i++)
@@ -11979,7 +11979,7 @@ SgName::replace_space(char t)
 SgName&
 SgName::operator<<(const std::string& str)
    {
-     assert (this != NULL);
+     ASSERT_this();
 
      p_char += str;
      return *this;
@@ -11996,7 +11996,7 @@ SgName::itoname(int val)
 SgName&
 SgName::operator<<(int val)
    {
-     assert(this != NULL);
+     ASSERT_this();
 
      SgName str = itoname(val);
      p_char += str.p_char;
@@ -12006,7 +12006,7 @@ SgName::operator<<(int val)
 SgName&
 SgName::operator=(const SgName& n1)
    {
-     assert(this != NULL);
+     ASSERT_this();
      this->p_char = n1.p_char;
      return *this;
    }
@@ -12014,7 +12014,7 @@ SgName::operator=(const SgName& n1)
 SgName&
 SgName::tail(int n) // keep string after n
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_char = (unsigned int)n >= p_char.size() ? "" : p_char.substr(n);
      return *this;
    }
@@ -12022,34 +12022,34 @@ SgName::tail(int n) // keep string after n
 SgName&
 SgName::head(int n) // keep first n chars
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_char = (unsigned int)n >= p_char.size() ? p_char : p_char.substr(0, n);
      return *this;
    }
 
 const char* SgName::str() const {
-     assert(this != NULL);
+     ASSERT_this();
   return p_char.c_str();
 }
 
 std::string&
 SgName::getString()
    {
-     assert(this != NULL);
+     ASSERT_this();
      return p_char;
    }
 
 const std::string&
 SgName::getString() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return p_char;
    }
 
 
 void SgName::display( const std::string& label ) const
    {
-     assert(this != NULL);
+     ASSERT_this();
 
      std::cout << label << ": " << p_char << "\n";
    }
@@ -12065,7 +12065,7 @@ operator+(const SgName & n1, const SgName & n2)
 SgName &
 SgName::operator+= (const SgName & n1)
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_char += n1.p_char;
      return *this;
    }
@@ -12214,7 +12214,7 @@ std::map<int, std::string> Sg_File_Info::p_fileidtoname_map;
 bool
 Sg_File_Info::ok() const
    {
-     assert(this != NULL);
+     ASSERT_this();
 
   // DQ (10/22/2007): Are these reasonable constraints when #line n "" are used?
      bool lineNumberOK      = p_line > 0;
@@ -12503,7 +12503,7 @@ Sg_File_Info::display() const
 void
 Sg_File_Info::display( const std::string label ) const
    {
-     assert(this != NULL);
+     ASSERT_this();
 
   // DQ (6/25/2020): If we call display, then we mean for it to be displayed, not hidden.
      printf ("Inside of Sg_File_Info::display(%s) of this pointer = %p \n",label.c_str(), this);
@@ -12554,7 +12554,7 @@ Sg_File_Info::display( const std::string label ) const
 string
 Sg_File_Info::displayString(const std::string & label ) const
    {
-     assert(this != NULL);
+     ASSERT_this();
 
      std::string s;
      s += std::string("Inside of Sg_File_Info::displayString(") + label + std::string (") \n");
@@ -12699,7 +12699,7 @@ int
 Sg_File_Info::get_file_id () const
    {
   // DQ (10/27/2007): This is custom generated so that it can be consistant with the get_filename() member function
-     assert (this != NULL);
+     ASSERT_this();
 
      check_file_id("Sg_File_Info::get_file_id");
 
@@ -12770,7 +12770,7 @@ Sg_File_Info::get_file_id () const
 void
 Sg_File_Info::set_file_id( int file_id )
    {
-     assert (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
      check_file_id("Sg_File_Info::set_file_id");
@@ -12783,7 +12783,7 @@ int
 Sg_File_Info::get_physical_file_id() const
    {
   // DQ (12/18/2012): Added support for physical file position information.
-     assert (this != NULL);
+     ASSERT_this();
 
   // Initialize to error value.
      int return_physical_file_id = NULL_FILE_ID;
@@ -12825,7 +12825,7 @@ Sg_File_Info::get_physical_file_id() const
 int*
 Sg_File_Info::get_physical_file_id_reference()
    {
-     assert (this != NULL);
+     ASSERT_this();
 
      return &p_physical_file_id;
    }
@@ -12909,7 +12909,7 @@ Sg_File_Info::get_physical_file_id(int input_file_id) const
 void
 Sg_File_Info::set_physical_file_id( int physical_file_id )
    {
-     assert(this != NULL);
+     ASSERT_this();
      set_isModified(true);
      p_physical_file_id = physical_file_id;
 
@@ -12923,7 +12923,7 @@ Sg_File_Info::set_physical_file_id( int physical_file_id )
 void
 Sg_File_Info::set_physical_source_position_to_match_logical_source_position()
    {
-     assert(this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
      p_physical_file_id = p_file_id;
@@ -12973,7 +12973,7 @@ void
 // Sg_File_Info::set_filename(const char* filename)
 Sg_File_Info::set_filenameString ( const std::string & filename )
    {
-     assert(this != NULL);
+     ASSERT_this();
      check_file_id("Sg_File_Info::set_filenameString");
 
      if (p_nametofileid_map.find(filename) == p_nametofileid_map.end())
@@ -13001,7 +13001,7 @@ Sg_File_Info::set_filenameString ( const std::string & filename )
 void
 Sg_File_Info::set_physical_filename ( const std::string & filename )
    {
-     assert(this != NULL);
+     ASSERT_this();
 
      if (p_nametofileid_map.find(filename) == p_nametofileid_map.end())
         {
@@ -13031,7 +13031,7 @@ Sg_File_Info::set_filename(const char* filename)
 const std::string &
 Sg_File_Info::get_filenameString() const
    {
-     assert (this != NULL);
+     ASSERT_this();
      check_file_id("Sg_File_Info::get_filenameString");
 
      const std::string* returnString = NULL;
@@ -13085,7 +13085,7 @@ Sg_File_Info::get_filename() const
 string
 Sg_File_Info::get_raw_filename() const
    {
-     assert (this != NULL);
+     ASSERT_this();
 
   // return whatever name is in the map
      return getFilenameFromID(p_file_id);
@@ -13094,7 +13094,7 @@ Sg_File_Info::get_raw_filename() const
 string
 Sg_File_Info::get_physical_filename() const
    {
-     assert (this != NULL);
+     ASSERT_this();
 
   // DQ (9/21/2013): The support to return the filename must account for when this is compiler generated, a transformations, part of the front-end, etc.
      const std::string* returnString = NULL;
@@ -13135,7 +13135,7 @@ Sg_File_Info::get_physical_filename() const
 void
 Sg_File_Info::set_line(int line)
    {
-     assert (this != NULL);
+     ASSERT_this();
 
      p_line = line;
      if (isTransformation() || isCompilerGenerated())
@@ -13159,7 +13159,7 @@ Sg_File_Info::set_line(int line)
 int
 Sg_File_Info::get_line() const
    {
-     assert (this != NULL);
+     ASSERT_this();
 
      const int undefinedValue = 0;
      int returnValue = 0;
@@ -13202,7 +13202,7 @@ Sg_File_Info::get_line(int file_id) const
    {
   // Where this is a shared IR node across multiple files, return the line number location of the IR node for a specific file.
 
-     assert (this != NULL);
+     ASSERT_this();
 
      const int undefinedValue = 0;
      int returnValue = 0;
@@ -13267,21 +13267,21 @@ Sg_File_Info::get_line(int file_id) const
 int
 Sg_File_Info::get_raw_line() const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_line;
    }
 
 void
 Sg_File_Info::set_physical_line(int line)
    {
-     assert (this != NULL);
+     ASSERT_this();
      p_physical_line = line;
    }
 
 int
 Sg_File_Info::get_physical_line(int file_id) const
    {
-     assert (this != NULL);
+     ASSERT_this();
 
      int returnValue = 0;
 
@@ -13323,7 +13323,7 @@ Sg_File_Info::get_physical_line(int file_id) const
 int
 Sg_File_Info::get_physical_line() const
    {
-     assert (this != NULL);
+     ASSERT_this();
      // PHL (11/25/2013) use get_line for Fortran frontend
      if (SageInterface::is_Fortran_language() )
      {
@@ -13339,21 +13339,21 @@ Sg_File_Info::get_physical_line() const
 void
 Sg_File_Info::set_source_sequence_number (unsigned int n)
    {
-     assert (this != NULL);
+     ASSERT_this();
      p_source_sequence_number = n;
    }
 
 unsigned int
 Sg_File_Info::get_source_sequence_number() const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_source_sequence_number;
    }
 
 int
 Sg_File_Info::get_col() const
    {
-     assert (this != NULL);
+     ASSERT_this();
      assert (p_col >= 0);
   // return p_col;
 
@@ -13398,7 +13398,7 @@ Sg_File_Info::get_col() const
 int
 Sg_File_Info::get_raw_col() const
    {
-     assert (this != NULL);
+     ASSERT_this();
      assert (p_col >= 0);
      return p_col;
    }
@@ -13407,7 +13407,7 @@ Sg_File_Info::get_raw_col() const
 void
 Sg_File_Info::set_isPartOfTransformation( bool isPartOfTransformation )
    {
-     assert (this != NULL);
+     ASSERT_this();
   // p_isPartOfTransformation = isPartOfTransformation;
 
      if (isPartOfTransformation == true)
@@ -13498,42 +13498,42 @@ Sg_File_Info::isSameFile(const Sg_File_Info &fileInfo) const
 bool
 Sg_File_Info::isTransformation() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_transformation);
    }
 
 void
 Sg_File_Info::setTransformation()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_transformation;
    }
 
 void
 Sg_File_Info::unsetTransformation()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_transformation;
    }
 
 bool
 Sg_File_Info::isCompilerGenerated() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_compiler_generated);
    }
 
 void
 Sg_File_Info::setCompilerGenerated()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_compiler_generated;
    }
 
 void
 Sg_File_Info::unsetCompilerGenerated()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_compiler_generated;
    }
 
@@ -13541,7 +13541,7 @@ bool
 Sg_File_Info::isCompilerGeneratedNodeToBeUnparsed() const
    {
   // Make sure that both bits are set!
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_output_in_code_generation);
    }
 
@@ -13549,14 +13549,14 @@ void
 Sg_File_Info::setCompilerGeneratedNodeToBeUnparsed()
    {
   // Make sure that both bits are set!
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_output_in_code_generation;
    }
 
 void
 Sg_File_Info::unsetCompilerGeneratedNodeToBeUnparsed()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_output_in_code_generation;
    }
 
@@ -13564,7 +13564,7 @@ bool
 Sg_File_Info::isOutputInCodeGeneration() const
    {
   // Make sure that both bits are set!
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_output_in_code_generation);
    }
 
@@ -13572,21 +13572,21 @@ void
 Sg_File_Info::setOutputInCodeGeneration()
    {
   // Make sure that both bits are set!
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_output_in_code_generation;
    }
 
 void
 Sg_File_Info::unsetOutputInCodeGeneration()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_output_in_code_generation;
    }
 
 bool
 Sg_File_Info::isShared() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_shared);
    }
 
@@ -13594,7 +13594,7 @@ void
 Sg_File_Info::setShared()
    {
   // MK (8/3/05) : We always want to unparse the current file (this is a performance issue)
-     assert(this != NULL);
+     ASSERT_this();
   // DQ (10/27/2007): Make sure this is a valid file that we are trying to share.
   // I am unclear as to how important this is.
      int temp_file_id = this->get_file_id();
@@ -13609,91 +13609,91 @@ Sg_File_Info::setShared()
 void
 Sg_File_Info::unsetShared()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_shared;
    }
 
 bool
 Sg_File_Info::isFrontendSpecific() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_frontend_specific);
    }
 
 void
 Sg_File_Info::setFrontendSpecific()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_frontend_specific;
    }
 
 void
 Sg_File_Info::unsetFrontendSpecific()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_frontend_specific;
    }
 
 bool
 Sg_File_Info::isSourcePositionUnavailableInFrontend() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_source_position_unavailable_in_frontend);
    }
 
 void
 Sg_File_Info::setSourcePositionUnavailableInFrontend()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_source_position_unavailable_in_frontend;
    }
 
 void
 Sg_File_Info::unsetSourcePositionUnavailableInFrontend()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_source_position_unavailable_in_frontend;
    }
 
 bool
 Sg_File_Info::isCommentOrDirective() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_comment_or_directive);
    }
 
 void
 Sg_File_Info::setCommentOrDirective()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_comment_or_directive;
    }
 
 void
 Sg_File_Info::unsetCommentOrDirective()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_comment_or_directive;
    }
 
 bool
 Sg_File_Info::isToken() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_token);
    }
 
 void
 Sg_File_Info::setToken()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_token;
    }
 
 void
 Sg_File_Info::unsetToken()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_token;
    }
 
@@ -13702,21 +13702,21 @@ Sg_File_Info::unsetToken()
 bool
 Sg_File_Info::isDefaultArgument() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_default_argument);
    }
 
 void
 Sg_File_Info::unsetDefaultArgument()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_default_argument;
    }
 
 void
 Sg_File_Info::setDefaultArgument()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_default_argument;
    }
 
@@ -13725,21 +13725,21 @@ Sg_File_Info::setDefaultArgument()
 bool
 Sg_File_Info::isImplicitCast() const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return (p_classificationBitField & e_implicit_cast);
    }
 
 void
 Sg_File_Info::unsetImplicitCast()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField &= ~e_implicit_cast;
    }
 
 void
 Sg_File_Info::setImplicitCast()
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField |= e_implicit_cast;
    }
 
@@ -13750,7 +13750,7 @@ Sg_File_Info::setImplicitCast()
 void
 Sg_File_Info::addFileToUnparse(int file_id)
    {
-     assert(this != NULL);
+     ASSERT_this();
 
   // DQ (2/27/2019): Debugging how this is getting out of sync with the list of line numbers for multi-file handling.
      mprintf ("Error: In Sg_File_Info::addFileToUnparse(): I think this function should not be called \n");
@@ -13762,21 +13762,21 @@ Sg_File_Info::addFileToUnparse(int file_id)
 bool
 Sg_File_Info::shouldUnparse(int file_id)
    {
-     assert(this != NULL);
+     ASSERT_this();
      return std::find(p_fileIDsToUnparse.begin(), p_fileIDsToUnparse.end(), file_id) != p_fileIDsToUnparse.end();
    }
 
 unsigned int
 Sg_File_Info::get_classificationBitField(void) const
    {
-     assert(this != NULL);
+     ASSERT_this();
      return p_classificationBitField;
    }
 
 void
 Sg_File_Info::set_classificationBitField( unsigned int bitflags )
    {
-     assert(this != NULL);
+     ASSERT_this();
      p_classificationBitField = bitflags;
    }
 
@@ -16405,21 +16405,21 @@ SgProject::display ( const std::string & label ) const
 const SgStringList &
 SgProject::get_includePathList () const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_includePathList;
    }
 
 SgStringList &
 SgProject::get_includePathList ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_includePathList;
    }
 
 void
 SgProject::set_includePathList ( const SgStringList & includePathList )
    {
-     assert (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
      p_includePathList = includePathList;
@@ -16429,21 +16429,21 @@ SgProject::set_includePathList ( const SgStringList & includePathList )
 const SgStringList &
 SgProject::get_excludePathList () const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_excludePathList;
    }
 
 SgStringList &
 SgProject::get_excludePathList ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_excludePathList;
    }
 
 void
 SgProject::set_excludePathList ( const SgStringList & excludePathList )
    {
-     assert (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
      p_excludePathList = excludePathList;
@@ -16452,21 +16452,21 @@ SgProject::set_excludePathList ( const SgStringList & excludePathList )
 const SgStringList &
 SgProject::get_includeFileList () const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_includeFileList;
    }
 
 SgStringList &
 SgProject::get_includeFileList ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_includeFileList;
    }
 
 void
 SgProject::set_includeFileList ( const SgStringList & includeFileList )
    {
-     assert (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
      p_includeFileList = includeFileList;
@@ -16476,21 +16476,21 @@ SgProject::set_includeFileList ( const SgStringList & includeFileList )
 const SgStringList &
 SgProject::get_excludeFileList () const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_excludeFileList;
    }
 
 SgStringList &
 SgProject::get_excludeFileList ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_excludeFileList;
    }
 
 void
 SgProject::set_excludeFileList ( const SgStringList & excludeFileList )
    {
-     assert (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
      p_excludeFileList = excludeFileList;
@@ -16696,7 +16696,7 @@ SgUnparse_Info & SgUnparse_Info::operator= ( const SgUnparse_Info & X )
 bool
 SgUnparse_Info::checkBit(unparse_type_num bit) const
    {
-     assert (this != NULL);
+     ASSERT_this();
      assert (bit > 0);
      assert (bit < UNPARSE_TYPE_LAST);
      assert (p_unparse_attribute.size() == UNPARSE_TYPE_LAST);
@@ -16707,7 +16707,7 @@ SgUnparse_Info::checkBit(unparse_type_num bit) const
 void
 SgUnparse_Info::setBit(unparse_type_num bit)
    {
-     assert (this != NULL);
+     ASSERT_this();
      assert (bit > 0);
      assert (bit < UNPARSE_TYPE_LAST);
      assert (p_unparse_attribute.size() == UNPARSE_TYPE_LAST);
@@ -16718,7 +16718,7 @@ SgUnparse_Info::setBit(unparse_type_num bit)
 void
 SgUnparse_Info::unsetBit(unparse_type_num bit)
    {
-     assert (this != NULL);
+     ASSERT_this();
      assert (bit > 0);
      assert (bit < UNPARSE_TYPE_LAST);
      assert (p_unparse_attribute.size() == UNPARSE_TYPE_LAST);
@@ -16732,7 +16732,7 @@ SgUnparse_Info::post_construction_initialization()
   // DQ (11/4/2003): Modified initialization from "0" to "NULL"
   // and "" for non-integer values
 
-     assert (this != NULL);
+     ASSERT_this();
 
   // Clear all bit flags
      for (int i = 0; i < UNPARSE_TYPE_LAST; i++)
@@ -18673,14 +18673,14 @@ SgTemplateArgument::is_matching_kind (const SgTemplateArgument & X, const SgTemp
 int
 SgTemplateArgument::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgTemplateArgument::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -18690,14 +18690,14 @@ SgTemplateArgument::set_name_qualification_length ( int name_qualification_lengt
 bool
 SgTemplateArgument::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgTemplateArgument::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -18707,14 +18707,14 @@ SgTemplateArgument::set_type_elaboration_required ( bool type_elaboration_requir
 bool
 SgTemplateArgument::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgTemplateArgument::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -18725,14 +18725,14 @@ SgTemplateArgument::set_global_qualification_required ( bool global_qualificatio
 bool
 SgTemplateArgument::get_requiresGlobalNameQualificationOnType () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_requiresGlobalNameQualificationOnType;
    }
 
 void
 SgTemplateArgument::set_requiresGlobalNameQualificationOnType ( bool requiresGlobalNameQualificationOnType )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -18742,14 +18742,14 @@ SgTemplateArgument::set_requiresGlobalNameQualificationOnType ( bool requiresGlo
 int
 SgTemplateArgument::get_name_qualification_length_for_type () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length_for_type;
    }
 
 void
 SgTemplateArgument::set_name_qualification_length_for_type ( int name_qualification_length_for_type )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -18760,14 +18760,14 @@ SgTemplateArgument::set_name_qualification_length_for_type ( int name_qualificat
 bool
 SgTemplateArgument::get_type_elaboration_required_for_type() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required_for_type;
    }
 
 void
 SgTemplateArgument::set_type_elaboration_required_for_type(bool type_elaboration_required_for_type)
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -18778,14 +18778,14 @@ SgTemplateArgument::set_type_elaboration_required_for_type(bool type_elaboration
 bool
 SgTemplateArgument::get_global_qualification_required_for_type() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required_for_type;
    }
 
 void
 SgTemplateArgument::set_global_qualification_required_for_type(bool global_qualification_required_for_type)
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -18939,7 +18939,7 @@ int SgGraphNode::p_index_counter = 0;
 void
 SgGraphNode::append_properties( int addr, const std::string & prop )
    {
-     assert(this != NULL);
+     ASSERT_this();
   /* implemented directly until we can fix how the statementList is built */
      p_properties[addr] = prop;
    }
@@ -18989,7 +18989,7 @@ int SgGraph::p_index_counter = 0;
 void
 SgGraph::append_properties( int addr, const std::string & prop )
    {
-     assert(this != NULL);
+     ASSERT_this();
   /* implemented directly until we can fix how the statementList is built */
      p_properties[addr] = prop;
    }
@@ -18997,7 +18997,7 @@ SgGraph::append_properties( int addr, const std::string & prop )
 int
 SgGraph::hashCode( const char* p, int len) const // hash a character array
    {
-     assert(this != NULL);
+     ASSERT_this();
      unsigned int h = 0;
      for (int i=0; i < len; i++)
         {
@@ -19014,7 +19014,7 @@ SgGraph::hashCode( const char* p, int len) const // hash a character array
 void
 SgGraph::post_construction_initialization()
    {
-     assert(this != NULL);
+     ASSERT_this();
 
   // Setup an internal graph_id
      p_index = p_index_counter++;

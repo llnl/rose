@@ -535,7 +535,7 @@ AstNodeClass::setName(const string& label, const string& tagName) {
 void
 AstNodeClass::setGrammar ( Grammar* grammarPointer )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (grammarPointer != NULL);
      ((AstNodeClass*)this)->associatedGrammar = grammarPointer;
    }
@@ -543,7 +543,7 @@ AstNodeClass::setGrammar ( Grammar* grammarPointer )
 Grammar*
 AstNodeClass::getGrammar() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (associatedGrammar != NULL);
      return associatedGrammar;
    }
@@ -551,7 +551,7 @@ AstNodeClass::getGrammar() const
 const string&
 AstNodeClass::getName () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (!name.empty());
      return name;
    }
@@ -559,7 +559,7 @@ AstNodeClass::getName () const
 const string&
 AstNodeClass::getBaseName () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return baseName;
    }
 

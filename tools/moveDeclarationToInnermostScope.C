@@ -983,7 +983,7 @@ void Scope_Node::deep_delete_children()
 void Scope_Node::traverse_node(std::vector<Scope_Node* >& allnodes)
 {
   // action on current node, save to the vector
-  ROSE_ASSERT (this != NULL); // we should not push NULL pointers
+  ASSERT_this(); // we should not push NULL pointers
   allnodes.push_back(this);
   std::vector < Scope_Node* > children = this->children;
   for (size_t i=0; i<children.size(); i++) 

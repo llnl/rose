@@ -1649,7 +1649,7 @@ SgType*
 
 $CLASSNAME::get_type() const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgType* returnType = SgTypeDefault::createType();
      return returnType;
@@ -1661,7 +1661,7 @@ SOURCE_GET_TYPE_FROM_SYMBOL_START
 SgType*
 $CLASSNAME::get_type() const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgSymbol* symbol = this->get_symbol();
      if (symbol == NULL)
@@ -1700,7 +1700,7 @@ SOURCE_GET_TYPE_CLASS_DECL_START
 SgType*
 $CLASSNAME::get_type(void) const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
   // DQ (8/5/2006): Now that we store the expression type explicitly this is a simpler function.
      SgType* returnType = p_expression_type;

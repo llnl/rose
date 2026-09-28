@@ -146,14 +146,14 @@ SgConstructorInitializer::replace_expression(SgExpression *o, SgExpression *n)
 int
 SgConstructorInitializer::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgConstructorInitializer::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -163,7 +163,7 @@ SgConstructorInitializer::set_name_qualification_length ( int name_qualification
 bool
 SgConstructorInitializer::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
      return p_type_elaboration_required;
    }
@@ -171,7 +171,7 @@ SgConstructorInitializer::get_type_elaboration_required () const
 void
 SgConstructorInitializer::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -181,14 +181,14 @@ SgConstructorInitializer::set_type_elaboration_required ( bool type_elaboration_
 bool
 SgConstructorInitializer::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgConstructorInitializer::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);

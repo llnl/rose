@@ -2,7 +2,7 @@
 std::vector<std::pair<SgNode*,std::string> >
 $CLASSNAME::returnDataMemberPointers() const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
   // ------------ checking pointers of $CLASSNAME -------------------
      if (p_freepointer != AST_FileIO::IS_VALID_POINTER() )

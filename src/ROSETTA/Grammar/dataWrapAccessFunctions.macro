@@ -4,7 +4,7 @@ DATA_ACCESS_FUNCTION_START
 $DATA_TYPE 
 $CLASSNAME::get_$DATA () const
    {
-     assert (this != NULL);
+     ASSERT_this();
      if (get_$WRAP() == NULL)
           return  NULL;
 
@@ -19,7 +19,7 @@ $CLASSNAME::get_$DATA () const
 void
 $CLASSNAME::set_$DATA ( $DATA_TYPE $DATA )
    {
-     assert (this != NULL);
+     ASSERT_this();
      if ( $DATA == NULL)
           set_$WRAP(NULL);
      else if (get_$WRAP() == NULL) 

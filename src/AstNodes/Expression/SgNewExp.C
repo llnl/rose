@@ -113,14 +113,14 @@ SgNewExp::get_type() const
 int
 SgNewExp::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgNewExp::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -130,14 +130,14 @@ SgNewExp::set_name_qualification_length ( int name_qualification_length )
 bool
 SgNewExp::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgNewExp::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -147,14 +147,14 @@ SgNewExp::set_type_elaboration_required ( bool type_elaboration_required )
 bool
 SgNewExp::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgNewExp::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -169,14 +169,14 @@ SgNewExp::set_global_qualification_required ( bool global_qualification_required
 int
 SgNewExp::get_name_qualification_for_pointer_to_member_class_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_for_pointer_to_member_class_length;
    }
 
 void
 SgNewExp::set_name_qualification_for_pointer_to_member_class_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -186,14 +186,14 @@ SgNewExp::set_name_qualification_for_pointer_to_member_class_length ( int name_q
 bool
 SgNewExp::get_type_elaboration_for_pointer_to_member_class_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_for_pointer_to_member_class_required;
    }
 
 void
 SgNewExp::set_type_elaboration_for_pointer_to_member_class_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -203,14 +203,14 @@ SgNewExp::set_type_elaboration_for_pointer_to_member_class_required ( bool type_
 bool
 SgNewExp::get_global_qualification_for_pointer_to_member_class_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_for_pointer_to_member_class_required;
    }
 
 void
 SgNewExp::set_global_qualification_for_pointer_to_member_class_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);

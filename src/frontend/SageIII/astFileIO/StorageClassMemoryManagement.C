@@ -1525,7 +1525,7 @@ PreprocessingInfo* EasyStorage<PreprocessingInfo*>::rebuildDataStoredInEasyStora
   printf ("EasyStorage<PreprocessingInfo*>::rebuildDataStoredInEasyStorageClass \n");
 #endif
 
-     assert ( this != NULL );
+     ASSERT_this();
      PreprocessingInfo* returnInfo  = NULL;
 #if STORAGE_CLASS_MEMORY_MANAGEMENT_CHECK
      assert ( Base::actualBlock <= 1 );

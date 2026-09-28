@@ -137,6 +137,7 @@ SAWYER_EXPORT extern AssertFailureHandler assertFailureHandler;
     #define ASSERT_always_require2(expr, note) assert(expr)
     #define ASSERT_always_forbid2(expr, note) assert(!(expr))
     #define ASSERT_always_not_null2(expr, note) assert((expr) != nullptr)
+    #define ASSERT_this2() assert(this != NULL)
 #else
     #define ASSERT_always_require2(expr, note)                                                                                 \
         ((expr) ?                                                                                                              \
@@ -156,6 +157,35 @@ SAWYER_EXPORT extern AssertFailureHandler assertFailureHandler;
             static_cast<void>(0) :                                                                                             \
             Sawyer::Assert::fail("null pointer",                                                                               \
                                  #expr, boost::lexical_cast<std::string>(note), __FILE__, __LINE__, SAWYER_PRETTY_FUNCTION))
+
+    #if defined(__GNUC__) && !defined(__clang__)
+        #define ROSE_ASSERT_DIAG_PUSH    _Pragma("GCC diagnostic push")
+        #define ROSE_ASSERT_DIAG_POP     _Pragma("GCC diagnostic pop")
+        #define ROSE_ASSERT_DIAG_IGNORED _Pragma("GCC diagnostic ignored \"-Wnonnull-compare\"")
+    #elif defined(__clang__)
+        #define ROSE_ASSERT_DIAG_PUSH    _Pragma("GCC diagnostic push")
+        #define ROSE_ASSERT_DIAG_POP     _Pragma("GCC diagnostic pop")
+        #define ROSE_ASSERT_DIAG_IGNORED _Pragma("GCC diagnostic ignored \"-Wtautological-undefined-compare\"")
+    #else
+        #define ROSE_ASSERT_DIAG_PUSH
+        #define ROSE_ASSERT_DIAG_POP
+        #define ROSE_ASSERT_DIAG_IGNORED
+    #endif
+
+    #define ASSERT_suppress_nonnull_compare(expr)                                                                              \
+        do {                                                                                                                   \
+            ROSE_ASSERT_DIAG_PUSH                                                                                              \
+            ROSE_ASSERT_DIAG_IGNORED                                                                                           \
+            expr;                                                                                                              \
+            ROSE_ASSERT_DIAG_POP                                                                                               \
+        } while (false)
+
+    #define ASSERT_this2()                                                                                                     \
+        ASSERT_suppress_nonnull_compare((this != NULL) ?                                                                       \
+            static_cast<void>(0) :                                                                                             \
+            Sawyer::Assert::fail("null pointer",                                                                               \
+                                 "this != NULL", boost::lexical_cast<std::string>(""), __FILE__, __LINE__,                     \
+                                                 SAWYER_PRETTY_FUNCTION))
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -184,7 +214,7 @@ SAWYER_EXPORT extern AssertFailureHandler assertFailureHandler;
 #define ASSERT_not_null2(expr, note)    ASSERT_always_not_null2(expr, note)
 #define ASSERT_not_reachable(note)      ASSERT_always_not_reachable(note)
 #define ASSERT_not_implemented(note)    ASSERT_always_not_implemented(note)
-#define ASSERT_this()                   /*void*/
+#define ASSERT_this()                   ASSERT_this2()
 
 #endif
 

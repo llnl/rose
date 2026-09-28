@@ -13,7 +13,7 @@ SgTemplateParameterVal::get_template_parameter_name() const
   // can of course use different names).
 
   // DQ (7/24/2012): Added test.
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      ROSE_ASSERT(get_parent() != NULL);
 

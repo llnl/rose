@@ -341,7 +341,7 @@ SnippetFile::findSnippetFunctions()
 SnippetPtr
 SnippetFile::findSnippet(const std::string &snippetName)
 {
-    assert(this!=NULL);
+    ASSERT_this();
     assert(!snippetName.empty());
     FunctionDefinitionMap::const_iterator found = functions.find(snippetName);
     if (found!=functions.end() && !found->second.empty())
@@ -352,7 +352,7 @@ SnippetFile::findSnippet(const std::string &snippetName)
 std::vector<SnippetPtr>
 SnippetFile::findSnippets(const std::string &snippetName)
 {
-    assert(this!=NULL);
+    ASSERT_this();
     assert(!snippetName.empty());
     std::vector<SnippetPtr> retval;
     FunctionDefinitionMap::const_iterator found = functions.find(snippetName);
@@ -366,7 +366,7 @@ SnippetFile::findSnippets(const std::string &snippetName)
 std::vector<std::string>
 SnippetFile::getSnippetNames() const
 {
-    assert(this!=NULL);
+    ASSERT_this();
     std::vector<std::string> retval;
     for (FunctionDefinitionMap::const_iterator fi=functions.begin(); fi!=functions.end(); ++fi)
         retval.push_back(fi->first);
@@ -376,7 +376,7 @@ SnippetFile::getSnippetNames() const
 bool
 SnippetFile::globallyInjected(SgGlobal *destination)
 {
-    assert(this!=NULL);
+    ASSERT_this();
     assert(destination!=NULL);
     return !globals.insert(destination).second; // return true iff not already present
 }
@@ -505,7 +505,7 @@ SnippetFile::doNotInsert(const std::string &name, SgType *type/*=NULL*/)
 bool
 SnippetFile::isBlackListed(SgDeclarationStatement *decl)
 {
-    assert(this!=NULL);
+    ASSERT_this();
     assert(decl!=NULL);
     bool retval = false;
 
@@ -584,7 +584,7 @@ Snippet::instanceFromFile(const std::string &snippetName, const std::string &fil
 size_t
 Snippet::numberOfArguments() const
 {
-    assert(this!=NULL);
+    ASSERT_this();
     assert(ast!=NULL);
     assert(ast->get_declaration()!=NULL);
     assert(ast->get_declaration()->get_parameterList()!=NULL);
@@ -640,7 +640,7 @@ void
 Snippet::insert(SgStatement *insertionPoint, const std::vector<SgNode*> &actuals)
 {
     using namespace StringUtility;
-    assert(this!=NULL);
+    ASSERT_this();
     assert(insertionPoint!=NULL);
     assert(ast!=NULL);
 
@@ -897,7 +897,7 @@ Snippet::causeUnparsing(SgNode *ast, Sg_File_Info */*target*/)
 void
 Snippet::renameTemporaries(SgNode *ast)
 {
-    assert(this!=NULL);
+    ASSERT_this();
 
     struct: SnippetAstTraversal {
         void operator()(SgNode *node, AstSimpleProcessing::Order when) {
@@ -1013,7 +1013,7 @@ Snippet::removeIncludeDirectives(SgNode *node)
 void
 Snippet::insertRelatedThings(SgStatement *insertionPoint)
 {
-    assert(this!=NULL);
+    ASSERT_this();
     assert(insertionPoint!=NULL);
 
     // Have we inserted stuff here already? Also mark that we've now done so.

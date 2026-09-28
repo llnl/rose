@@ -6,7 +6,7 @@ $CLASSNAME::isInMemoryPool ()
 
      bool found = false;
 
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      ROSE_ASSERT(p_freepointer == AST_FileIO::IS_VALID_POINTER());
 

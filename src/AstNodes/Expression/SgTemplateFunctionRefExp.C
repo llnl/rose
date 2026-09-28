@@ -39,14 +39,14 @@ SgTemplateFunctionRefExp::getAssociatedFunctionDeclaration() const
 int
 SgTemplateFunctionRefExp::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgTemplateFunctionRefExp::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -56,14 +56,14 @@ SgTemplateFunctionRefExp::set_name_qualification_length ( int name_qualification
 bool
 SgTemplateFunctionRefExp::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgTemplateFunctionRefExp::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -73,14 +73,14 @@ SgTemplateFunctionRefExp::set_type_elaboration_required ( bool type_elaboration_
 bool
 SgTemplateFunctionRefExp::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgTemplateFunctionRefExp::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);

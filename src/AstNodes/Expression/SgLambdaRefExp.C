@@ -17,7 +17,7 @@ SgLambdaRefExp::post_construction_initialization()
 SgFunctionParameterList*
 SgLambdaRefExp::get_parameterList()
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgFunctionDeclaration* func_decl = this->get_functionDeclaration();
      ROSE_ASSERT(func_decl != NULL);
@@ -27,7 +27,7 @@ SgLambdaRefExp::get_parameterList()
 
 SgStatement*
 SgLambdaRefExp::get_body() {
-    ROSE_ASSERT(this != NULL);
+    ASSERT_this();
 
     SgFunctionDeclaration* func_decl =
         this->get_functionDeclaration();

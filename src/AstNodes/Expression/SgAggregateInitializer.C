@@ -11,7 +11,7 @@ SgAggregateInitializer::post_construction_initialization()
 void
 SgAggregateInitializer::append_initializer(SgExpression* what)
    {
-     assert(this != NULL);
+     ASSERT_this();
 
   // DQ (11/15/2006): avoid setting newArgs this late in the process.
      ROSE_ASSERT(p_initializers != NULL);
@@ -80,14 +80,14 @@ SgAggregateInitializer::get_type() const
 bool
 SgAggregateInitializer::get_requiresGlobalNameQualificationOnType () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_requiresGlobalNameQualificationOnType;
    }
 
 void
 SgAggregateInitializer::set_requiresGlobalNameQualificationOnType ( bool requiresGlobalNameQualificationOnType )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -97,14 +97,14 @@ SgAggregateInitializer::set_requiresGlobalNameQualificationOnType ( bool require
 int
 SgAggregateInitializer::get_name_qualification_length_for_type () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length_for_type;
    }
 
 void
 SgAggregateInitializer::set_name_qualification_length_for_type ( int name_qualification_length_for_type )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -114,14 +114,14 @@ SgAggregateInitializer::set_name_qualification_length_for_type ( int name_qualif
 bool
 SgAggregateInitializer::get_type_elaboration_required_for_type () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required_for_type;
    }
 
 void
 SgAggregateInitializer::set_type_elaboration_required_for_type ( bool type_elaboration_required_for_type )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -131,14 +131,14 @@ SgAggregateInitializer::set_type_elaboration_required_for_type ( bool type_elabo
 bool
 SgAggregateInitializer::get_global_qualification_required_for_type () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required_for_type;
    }
 
 void
 SgAggregateInitializer::set_global_qualification_required_for_type ( bool global_qualification_required_for_type )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 

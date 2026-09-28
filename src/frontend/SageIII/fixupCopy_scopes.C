@@ -1171,7 +1171,7 @@ SgTemplateInstantiationMemberFunctionDecl::fixupCopy_scopes(SgNode* copy, SgCopy
      printf ("\nIn SgTemplateInstantiationMemberFunctionDecl::fixupCopy_scopes(): for function = %s = %p = %s copy = %p \n",this->get_name().str(),this,this->class_name().c_str(),copy);
 #endif
 
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 #if 0
      printf ("\nIn SgTemplateInstantiationMemberFunctionDecl::fixupCopy_scopes(): for function = %s = %p = %s copy = %p \n",this->get_name().str(),this,this->class_name().c_str(),copy);
 #endif
@@ -1225,7 +1225,7 @@ SgTemplateInstantiationFunctionDecl::fixupCopy_scopes(SgNode* copy, SgCopyHelp &
 #endif
 
   // DQ (12/28/2012): Added asseretion.
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
 #if 0
      printf ("\nIn SgTemplateInstantiationFunctionDecl::fixupCopy_scopes(): for function = %s = %p = %s copy = %p \n",this->get_name().str(),this,this->class_name().c_str(),copy);

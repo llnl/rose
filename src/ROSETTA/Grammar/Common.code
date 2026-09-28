@@ -402,7 +402,7 @@ int
 $CLASSNAME::getVariant() const
    {
      // This function is used in ROSE while "variant()" is used in SAGE 
-     assert(this != NULL);
+     ASSERT_this();
      return variant();
    }
 #endif
@@ -417,7 +417,7 @@ VariantT
 $CLASSNAME::variantT() const 
    {
   // DQ (7/30/2014): Added assertion so that we can make sure we have a valid IR node.
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return V_$CLASSNAME;
    }
 
@@ -426,7 +426,7 @@ int
 $CLASSNAME::variant() const
    {
   // This function is used in SAGE
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return $CLASSTAG;
    }
 #endif
@@ -434,14 +434,14 @@ $CLASSNAME::variant() const
 ROSE_DLL_API const char*
 $CLASSNAME::sage_class_name() const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return "$CLASSNAME";  
    }
 
 std::string
 $CLASSNAME::class_name() const
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      return "$CLASSNAME";  
    }
 
@@ -450,13 +450,13 @@ $CLASSNAME::class_name() const
 void
 $CLASSNAME::executeVisitorMemberFunction (ROSE_VisitorPattern & visitor)
    {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      visitor.visit(this);
    }
 
 // DXN (08/09/2010): the classic, i.e. Gof, visitor pattern:
 void $CLASSNAME::accept (ROSE_VisitorPattern & visitor) {
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
      visitor.visit(this);
    }
 

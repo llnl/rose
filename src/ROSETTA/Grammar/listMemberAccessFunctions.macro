@@ -5,7 +5,7 @@ DATA_ACCESS_FUNCTION_START
 const $DATA_TYPE &
 $CLASSNAME::get_$DATA () const
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_$DATA;
    }
 
@@ -13,7 +13,7 @@ $CLASSNAME::get_$DATA () const
 $DATA_TYPE &
 $CLASSNAME::get_$DATA () 
    {
-     assert (this != NULL);
+     ASSERT_this();
 
   // DQ (4/14/2015): After discussion with Markus we agree that even non-const functions should not have to set the isModified flag.
   // As a rule only set_ access functions can set the isModified flag.

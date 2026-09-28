@@ -7,14 +7,14 @@
 unsigned
 AST_Rewrite::AccumulatedDeclarationsAttribute::size() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return stackOfLists.size();
    }
 
 void
 AST_Rewrite::AccumulatedDeclarationsAttribute::pushScope()
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      list<SgDeclarationStatement*> emptyDeclarationList;
      stackOfLists.push(emptyDeclarationList);
      ROSE_ASSERT (stackOfLists.size() > 0);
@@ -26,7 +26,7 @@ AST_Rewrite::AccumulatedDeclarationsAttribute::pushScope()
 void
 AST_Rewrite::AccumulatedDeclarationsAttribute::popScope()
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (stackOfLists.size() > 0);
      stackOfLists.pop();
 
@@ -37,7 +37,7 @@ AST_Rewrite::AccumulatedDeclarationsAttribute::popScope()
 void
 AST_Rewrite::AccumulatedDeclarationsAttribute::addNewDeclaration( SgDeclarationStatement* declaration )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (stackOfLists.size() > 0);
 
      stackOfLists.top().push_back(declaration);
@@ -50,7 +50,7 @@ AST_Rewrite::AccumulatedDeclarationsAttribute::addNewDeclaration( SgDeclarationS
 void
 AST_Rewrite::AccumulatedDeclarationsAttribute::display( const string & label )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      printf ("In AST_Rewrite::AccumulatedDeclarationsAttribute::display(%s) \n",label.c_str());
   // printf ("   (output of declarations is in reverse order of declaration in AST) \n");
 
@@ -138,7 +138,7 @@ generateDeclarationString ( SgDeclarationStatement* declaration ) const
   //        d) template declarations
   //        e) variable definition???
 
-      ROSE_ASSERT (this != NULL);
+      ASSERT_this();
       ROSE_ASSERT ( declaration != NULL );
       string declarationString;
 
@@ -268,7 +268,7 @@ AST_Rewrite::AccumulatedDeclarationsAttribute::generateGlobalDeclarationString()
   // (rewriting).
 
   // error checking
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // Make a copy of the stack of lists becuase extracting 
   // information from the stack distroys the stack
@@ -314,7 +314,7 @@ AST_Rewrite::AccumulatedDeclarationsAttribute::generateOpeningNonGlobalDeclarati
   // defined within the code).
 
   // error checking
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // printf ("In generateOpeningNonGlobalDeclarationString(): stackOfLists.size() = %" PRIuPTR " \n",stackOfLists.size());
 
@@ -380,7 +380,7 @@ AST_Rewrite::AccumulatedDeclarationsAttribute::generateClosingNonGlobalDeclarati
    {
      string returnString;
 
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // printf ("In generateClosingNonGlobalDeclarationString(): stackOfLists.size() = %" PRIuPTR " \n",stackOfLists.size());
 

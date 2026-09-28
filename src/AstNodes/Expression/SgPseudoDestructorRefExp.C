@@ -12,7 +12,7 @@ SgPseudoDestructorRefExp::post_construction_initialization()
 int
 SgPseudoDestructorRefExp::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
@@ -20,7 +20,7 @@ SgPseudoDestructorRefExp::get_name_qualification_length () const
 void
 SgPseudoDestructorRefExp::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -31,7 +31,7 @@ SgPseudoDestructorRefExp::set_name_qualification_length ( int name_qualification
 bool
 SgPseudoDestructorRefExp::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
@@ -39,7 +39,7 @@ SgPseudoDestructorRefExp::get_type_elaboration_required () const
 void
 SgPseudoDestructorRefExp::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -50,7 +50,7 @@ SgPseudoDestructorRefExp::set_type_elaboration_required ( bool type_elaboration_
 bool
 SgPseudoDestructorRefExp::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
@@ -58,7 +58,7 @@ SgPseudoDestructorRefExp::get_global_qualification_required () const
 void
 SgPseudoDestructorRefExp::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);

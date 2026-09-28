@@ -4,14 +4,14 @@ DATA_ACCESS_FUNCTION_START
 $DATA_TYPE 
 $CLASSNAME::get_$DATA () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_$DATA;
    }
 
 void
 $CLASSNAME::set_$DATA ( $DATA_TYPE $DATA )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      $TEST_DATA_POINTER
      p_$DATA = $DATA;
    }

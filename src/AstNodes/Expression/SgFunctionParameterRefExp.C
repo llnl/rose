@@ -5,7 +5,7 @@ SgFunctionParameterRefExp::get_type() const
    {
   // DQ (8/11/2014): Added support for C++11 decltype used in new function return syntax.
 
-     ROSE_ASSERT(this != NULL);
+     ASSERT_this();
 
      SgType* returnType = NULL;
 

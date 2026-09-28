@@ -4505,14 +4505,14 @@ SgScopeStatement::append_statement ( SgStatement* stmt )
 std::set<SgSymbol*> &
 SgScopeStatement::get_type_elaboration_list ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_list;
    }
 
 void
 SgScopeStatement::set_type_elaboration_list ( const std::set<SgSymbol*> & type_elaboration_list )
    {
-     assert (this != NULL);
+     ASSERT_this();
 
   // DQ (6/12/2015): Need to evluate if this is used, if it is part of the API that must not set the isModified, etc.
      printf ("Inside of SgScopeStatement::set_type_elaboration_list(): we need to know if this is called! \n");
@@ -4526,14 +4526,14 @@ SgScopeStatement::set_type_elaboration_list ( const std::set<SgSymbol*> & type_e
 std::set<SgSymbol*> &
 SgScopeStatement::get_hidden_type_list ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_hidden_type_list;
    }
 
 void
 SgScopeStatement::set_hidden_type_list ( const std::set<SgSymbol*> & hidden_type_list )
    {
-     assert (this != NULL);
+     ASSERT_this();
 
   // DQ (6/12/2015): Need to evluate if this is used, if it is part of the API that must not set the isModified, etc.
      printf ("Inside of SgScopeStatement::set_type_elaboration_list(): we need to know if this is called! \n");
@@ -4547,14 +4547,14 @@ SgScopeStatement::set_hidden_type_list ( const std::set<SgSymbol*> & hidden_type
 std::set<SgSymbol*> &
 SgScopeStatement::get_hidden_declaration_list ()
    {
-     assert (this != NULL);
+     ASSERT_this();
      return p_hidden_declaration_list;
    }
 
 void
 SgScopeStatement::set_hidden_declaration_list ( const std::set<SgSymbol*> & hidden_declaration_list )
    {
-     assert (this != NULL);
+     ASSERT_this();
 
   // DQ (6/12/2015): Need to evluate if this is used, if it is part of the API that must not set the isModified, etc.
      printf ("Inside of SgScopeStatement::set_type_elaboration_list(): we need to know if this is called! \n");
@@ -4691,7 +4691,7 @@ SgScopeStatement::symbol_exists ( const SgSymbol *sp ) const
 SgSymbolTable*
 SgScopeStatement::get_symbol_table () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_symbol_table;
    }
 
@@ -4699,7 +4699,7 @@ SgScopeStatement::get_symbol_table () const
 void
 SgScopeStatement::set_symbol_table ( SgSymbolTable* symbol_table )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      set_isModified(true);
      p_symbol_table = symbol_table;
    }
@@ -4890,7 +4890,7 @@ SgScopeStatement::remove_symbol ( SgSymbol* s )
 
 int SgScopeStatement::lookup_symbol(const SgName& n, SgSymbol *s) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      if (p_symbol_table->find(n,s)) return true;
@@ -4923,7 +4923,7 @@ int SgScopeStatement::lookup_symbol(const SgName& n, SgSymbol *s) const
 SgSymbol*
 SgScopeStatement::lookup_symbol(const SgName& n, SgTemplateParameterPtrList* templateParameterList, SgTemplateArgumentPtrList* templateArgumentList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
   // DQ (7/14/2025): Adding timers to support Matt's tool.
@@ -4971,7 +4971,7 @@ SgScopeStatement::lookup_symbol(const SgName& n, SgTemplateParameterPtrList* tem
 SgTypedefSymbol*
 SgScopeStatement::lookup_typedef_symbol(const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgTypedefSymbol * symbol = p_symbol_table->find_typedef(n);
@@ -5000,7 +5000,7 @@ SgScopeStatement::lookup_typedef_symbol(const SgName& n) const
 SgEnumSymbol*
 SgScopeStatement::lookup_enum_symbol(const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgEnumSymbol * symbol = p_symbol_table->find_enum(n);
@@ -5029,7 +5029,7 @@ SgScopeStatement::lookup_enum_symbol(const SgName& n) const
 SgEnumFieldSymbol*
 SgScopeStatement::lookup_enum_field_symbol(const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgEnumFieldSymbol * symbol = p_symbol_table->find_enum_field(n);
@@ -5065,7 +5065,7 @@ SgScopeStatement::lookup_var_symbol(const SgName& n) const
 SgVariableSymbol*
 SgScopeStatement::lookup_variable_symbol(const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgVariableSymbol * symbol = p_symbol_table->find_variable(n);
@@ -5094,7 +5094,7 @@ SgScopeStatement::lookup_variable_symbol(const SgName& n) const
 SgClassSymbol*
 SgScopeStatement::lookup_class_symbol(const SgName& n, SgTemplateArgumentPtrList* templateArgumentsList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgClassSymbol * symbol = p_symbol_table->find_class(n,templateArgumentsList);
@@ -5123,7 +5123,7 @@ SgScopeStatement::lookup_class_symbol(const SgName& n, SgTemplateArgumentPtrList
 SgNonrealSymbol*
 SgScopeStatement::lookup_nonreal_symbol(const SgName& n, SgTemplateParameterPtrList* templateParameterList, SgTemplateArgumentPtrList* templateArgumentsList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgNonrealSymbol * symbol = p_symbol_table->find_nonreal(n,templateParameterList,templateArgumentsList);
@@ -5152,7 +5152,7 @@ SgScopeStatement::lookup_nonreal_symbol(const SgName& n, SgTemplateParameterPtrL
 SgLabelSymbol*
 SgScopeStatement::lookup_label_symbol(const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgLabelSymbol * symbol = p_symbol_table->find_label(n);
@@ -5184,7 +5184,7 @@ SgScopeStatement::lookup_label_symbol(const SgName& n) const
 SgJavaLabelSymbol*
 SgScopeStatement::lookup_java_label_symbol(const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      return p_symbol_table->find_java_label(n);
@@ -5193,7 +5193,7 @@ SgScopeStatement::lookup_java_label_symbol(const SgName& n) const
 SgFunctionSymbol*
 SgScopeStatement::lookup_function_symbol(const SgName& n, const SgType* t, SgTemplateArgumentPtrList* templateArgumentsList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgFunctionSymbol * symbol = p_symbol_table->find_function(n,t,templateArgumentsList);
@@ -5222,7 +5222,7 @@ SgScopeStatement::lookup_function_symbol(const SgName& n, const SgType* t, SgTem
 SgFunctionSymbol*
 SgScopeStatement::lookup_function_symbol(const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgFunctionSymbol * symbol = p_symbol_table->find_function(n);
@@ -5251,7 +5251,7 @@ SgScopeStatement::lookup_function_symbol(const SgName& n) const
 SgNamespaceSymbol*
 SgScopeStatement::lookup_namespace_symbol ( const SgName & n ) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgNamespaceSymbol * symbol = p_symbol_table->find_namespace(n);
@@ -5280,7 +5280,7 @@ SgScopeStatement::lookup_namespace_symbol ( const SgName & n ) const
 SgTemplateClassSymbol*
 SgScopeStatement::lookup_template_class_symbol (const SgName& n, SgTemplateParameterPtrList* templateParameterList, SgTemplateArgumentPtrList* templateSpecializationArgumentList ) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgTemplateClassSymbol * symbol = p_symbol_table->find_template_class(n, templateParameterList, templateSpecializationArgumentList);
@@ -5309,7 +5309,7 @@ SgScopeStatement::lookup_template_class_symbol (const SgName& n, SgTemplateParam
 SgTemplateTypedefSymbol*
 SgScopeStatement::lookup_template_typedef_symbol (const SgName& n) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgTemplateTypedefSymbol * symbol = p_symbol_table->find_template_typedef(n);
@@ -5340,7 +5340,7 @@ SgScopeStatement::lookup_template_typedef_symbol (const SgName& n) const
 SgClassSymbol*
 SgScopeStatement::lookup_nontemplate_class_symbol (const SgName& n, SgTemplateArgumentPtrList* templateArgumentsList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgClassSymbol * symbol = p_symbol_table->find_nontemplate_class(n,templateArgumentsList);
@@ -5369,7 +5369,7 @@ SgScopeStatement::lookup_nontemplate_class_symbol (const SgName& n, SgTemplateAr
 SgTemplateFunctionSymbol*
 SgScopeStatement::lookup_template_function_symbol (const SgName& n, const SgType* t, SgTemplateParameterPtrList* templateParameterList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgTemplateFunctionSymbol * symbol = p_symbol_table->find_template_function(n,t,templateParameterList);
@@ -5398,7 +5398,7 @@ SgScopeStatement::lookup_template_function_symbol (const SgName& n, const SgType
 SgTemplateVariableSymbol*
 SgScopeStatement::lookup_template_variable_symbol(const SgName& n, SgTemplateParameterPtrList* templateParameterList, SgTemplateArgumentPtrList* templateArgumentsList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgTemplateVariableSymbol * symbol = p_symbol_table->find_template_variable(n, templateParameterList, templateArgumentsList);
@@ -5427,7 +5427,7 @@ SgScopeStatement::lookup_template_variable_symbol(const SgName& n, SgTemplatePar
 SgFunctionSymbol*
 SgScopeStatement::lookup_nontemplate_function_symbol (const SgName& n, const SgType* t, SgTemplateArgumentPtrList* templateArgumentsList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgFunctionSymbol * symbol = p_symbol_table->find_nontemplate_function(n,t,templateArgumentsList);
@@ -5456,7 +5456,7 @@ SgScopeStatement::lookup_nontemplate_function_symbol (const SgName& n, const SgT
 SgTemplateMemberFunctionSymbol*
 SgScopeStatement::lookup_template_member_function_symbol (const SgName& n, const SgType* t, SgTemplateParameterPtrList* templateParameterList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgTemplateMemberFunctionSymbol * symbol = p_symbol_table->find_template_member_function(n,t,templateParameterList);
@@ -5487,7 +5487,7 @@ SgScopeStatement::lookup_template_member_function_symbol (const SgName& n, const
 SgMemberFunctionSymbol*
 SgScopeStatement::lookup_nontemplate_member_function_symbol (const SgName& n, const SgType* t, SgTemplateArgumentPtrList* templateArgumentsList) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgMemberFunctionSymbol * symbol = p_symbol_table->find_nontemplate_member_function(n,t,templateArgumentsList);
@@ -5516,7 +5516,7 @@ SgScopeStatement::lookup_nontemplate_member_function_symbol (const SgName& n, co
 SgAliasSymbol*
 SgScopeStatement::lookup_alias_symbol(const SgName& n, SgSymbol* sp) const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (p_symbol_table != NULL);
 
      SgAliasSymbol * symbol = p_symbol_table->find_aliased_symbol(n,sp);
@@ -7788,7 +7788,7 @@ SgDeclarationStatement::resetTemplateNameSupport ( bool & nameResetFromMangledFo
   // postprocessing normalization of name.  Still it would be good to refactor this code so that the names
   // generated would be identical (and tested to be identical).
 
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      string returnName;
 
      SgScopeStatement* parentScope = get_scope();
@@ -8782,7 +8782,7 @@ SgDeclarationStatement*
 SgDeclarationStatement::get_definingDeclaration () const
    {
   // DQ (1/26/2013): Added non-automatically generated versions of this function so that we could implement more testing.
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_definingDeclaration;
    }
 
@@ -8791,7 +8791,7 @@ SgDeclarationStatement::set_definingDeclaration ( SgDeclarationStatement* defini
    {
   // DQ (1/26/2013): Added non-automatically generated versions of this function so that we could implement more testing.
 
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
 #if DEBUG_SAGE_ACCESS_FUNCTIONS
@@ -8835,14 +8835,14 @@ SgDeclarationStatement*
 SgDeclarationStatement::get_firstNondefiningDeclaration () const
    {
   // DQ (1/26/2013): Added non-automatically generated versions of this function so that we could implement more testing.
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_firstNondefiningDeclaration;
    }
 
 void
 SgDeclarationStatement::set_firstNondefiningDeclaration ( SgDeclarationStatement* firstNondefiningDeclaration )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
 #if DEBUG_SAGE_ACCESS_FUNCTIONS
@@ -9373,7 +9373,7 @@ SgForStatement::replace_child(SgStatement *target,
 SgExpression*
 SgForStatement::get_test_expr () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(p_test != NULL);
      ROSE_ASSERT(isSgStatement(p_test) != NULL);
 
@@ -9400,7 +9400,7 @@ SgForStatement::set_test_expr (SgExpression* expr )
    {
   // DQ (11/25/2005): preserve the previous interface. This function
   // sets the SgStatement using a SgExpressionRoot IR node.
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (expr != NULL);
 
      Sg_File_Info* fileInfo = New_File_Info(expr);
@@ -9751,7 +9751,7 @@ SgUpcForAllStatement::replace_child(SgStatement* target,
 SgExpression*
 SgUpcForAllStatement::get_test_expr() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT(p_test != NULL);
      ROSE_ASSERT(isSgStatement(p_test) != NULL);
 
@@ -9777,7 +9777,7 @@ SgUpcForAllStatement::set_test_expr (SgExpression* expr )
    {
   // DQ (11/25/2005): preserve the previous interface. This function
   // sets the SgStatement using a SgExpressionRoot IR node.
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (expr != NULL);
 
     Sg_File_Info* fileInfo = New_File_Info(expr);
@@ -10404,14 +10404,14 @@ SgFunctionDeclaration::isNormalizedTemplateFunction() const
 int
 SgFunctionDeclaration::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgFunctionDeclaration::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10421,14 +10421,14 @@ SgFunctionDeclaration::set_name_qualification_length ( int name_qualification_le
 bool
 SgFunctionDeclaration::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgFunctionDeclaration::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10438,14 +10438,14 @@ SgFunctionDeclaration::set_type_elaboration_required ( bool type_elaboration_req
 bool
 SgFunctionDeclaration::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgFunctionDeclaration::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -10456,14 +10456,14 @@ SgFunctionDeclaration::set_global_qualification_required ( bool global_qualifica
 bool
 SgFunctionDeclaration::get_requiresNameQualificationOnReturnType () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_requiresNameQualificationOnReturnType;
    }
 
 void
 SgFunctionDeclaration::set_requiresNameQualificationOnReturnType ( bool requiresNameQualificationOnReturnType )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10474,14 +10474,14 @@ SgFunctionDeclaration::set_requiresNameQualificationOnReturnType ( bool requires
 int
 SgFunctionDeclaration::get_name_qualification_length_for_return_type() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length_for_return_type;
    }
 
 void
 SgFunctionDeclaration::set_name_qualification_length_for_return_type(int name_qualification_length_for_return_type)
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10491,14 +10491,14 @@ SgFunctionDeclaration::set_name_qualification_length_for_return_type(int name_qu
 bool
 SgFunctionDeclaration::get_type_elaboration_required_for_return_type() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required_for_return_type;
    }
 
 void
 SgFunctionDeclaration::set_type_elaboration_required_for_return_type(bool type_elaboration_required_for_return_type)
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10508,14 +10508,14 @@ SgFunctionDeclaration::set_type_elaboration_required_for_return_type(bool type_e
 bool
 SgFunctionDeclaration::get_global_qualification_required_for_return_type() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required_for_return_type;
    }
 
 void
 SgFunctionDeclaration::set_global_qualification_required_for_return_type(bool global_qualification_required_for_return_type)
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -10726,7 +10726,7 @@ SgFunctionDefinition::replace_child(SgStatement* target,
 void
 SgFunctionDefinition::append_statement(SgStatement* what)
    {
-     assert(this != NULL);
+     ASSERT_this();
      if (!get_body())
         {
           set_body(new SgBasicBlock(New_File_Info(this)));
@@ -10740,7 +10740,7 @@ SgFunctionDefinition::append_statement(SgStatement* what)
 void
 SgFunctionDefinition::prepend_statement(SgStatement *what)
    {
-     assert(this != NULL);
+     ASSERT_this();
      if(!get_body()) {
           set_body(new SgBasicBlock(New_File_Info(this)));
      }
@@ -10998,7 +10998,7 @@ SgMemberFunctionDeclaration::replace_child(SgStatement *target,SgStatement *news
 SgDeclarationStatement*
 SgMemberFunctionDeclaration::get_associatedClassDeclaration () const
    {
-     assert (this != NULL);
+     ASSERT_this();
   // return p_associatedClassDeclaration;
 
      SgDeclarationStatement* returnValue = NULL;
@@ -11053,7 +11053,7 @@ SgMemberFunctionDeclaration::get_associatedClassDeclaration () const
 void
 SgMemberFunctionDeclaration::set_associatedClassDeclaration ( SgDeclarationStatement* associatedClassDeclaration )
    {
-     assert (this != NULL);
+     ASSERT_this();
      set_isModified(true);
 
 #if DEBUG_SAGE_ACCESS_FUNCTIONS
@@ -11238,7 +11238,7 @@ SgVariableDeclaration::SgVariableDeclaration(Sg_File_Info *info, const SgName& v
    {
   // DQ (11/10/2006): Ultimately, i think this constructor should be eliminated since it will be
   // redundant with a higher level interface which is planned and it is not automatically generated.
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // printf ("Inside of SgVariableDeclaration constructor taking all parameters \n");
      initializeData (info,var_name,type,initializer);
@@ -11248,7 +11248,7 @@ SgVariableDeclaration::SgVariableDeclaration( const SgName& var_name, SgType *ty
    {
   // DQ (11/10/2006): Ultimately, i think this constructor should be eliminated since it will be
   // redundant with a higher level interface which is planned and it is not automatically generated.
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // printf ("Inside of SgVariableDeclaration constructor taking all parameters \n");
      initializeData (NULL,var_name,type,initializer);
@@ -11256,20 +11256,20 @@ SgVariableDeclaration::SgVariableDeclaration( const SgName& var_name, SgType *ty
 
 SgVariableDeclaration::SgVariableDeclaration( Sg_File_Info *info, SgInitializedName* c_item )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      initializeData (info,c_item);
    }
 
 SgVariableDeclaration::SgVariableDeclaration( SgInitializedName* c_item )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      initializeData (NULL,c_item);
    }
 
 void
 SgVariableDeclaration::initializeData(Sg_File_Info *info, const SgName& var_name, SgType *type, SgInitializer *initializer)
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
      SgInitializedName* c_item = SageBuilder::buildInitializedName_nfi(var_name, type, initializer, this);
      ROSE_ASSERT (c_item != NULL);
@@ -11283,7 +11283,7 @@ SgVariableDeclaration::initializeData(Sg_File_Info *info, const SgName& var_name
 void
 SgVariableDeclaration::initializeData(Sg_File_Info *info, SgInitializedName* c_item)
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // DQ (7/20/2006): Suggested by Peter to so that the initializer will be used.
   // DQ (6/1/2004): Changed list to contain pointers to SgInitializedName elements
@@ -11493,7 +11493,7 @@ SgVariableDeclaration::append_variable( SgInitializedName* what, SgInitializer *
   // DQ (6/1/2004): Can we assert this
   // ROSE_ASSERT (decl_item == what);
 
-     assert(this != NULL);
+     ASSERT_this();
      ROSE_ASSERT (what != NULL);
 
      SageBuilder::buildVariableDefinition_nfi (this, what, initializer);
@@ -11659,14 +11659,14 @@ SgVariableDeclaration::set_baseTypeDefiningDeclaration(SgDeclarationStatement* d
 int
 SgVariableDeclaration::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgVariableDeclaration::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -11676,14 +11676,14 @@ SgVariableDeclaration::set_name_qualification_length ( int name_qualification_le
 bool
 SgVariableDeclaration::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgVariableDeclaration::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -11693,14 +11693,14 @@ SgVariableDeclaration::set_type_elaboration_required ( bool type_elaboration_req
 bool
 SgVariableDeclaration::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgVariableDeclaration::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -11711,14 +11711,14 @@ SgVariableDeclaration::set_global_qualification_required ( bool global_qualifica
 bool
 SgVariableDeclaration::get_requiresGlobalNameQualificationOnType () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_requiresGlobalNameQualificationOnType;
    }
 
 void
 SgVariableDeclaration::set_requiresGlobalNameQualificationOnType ( bool requiresGlobalNameQualificationOnType )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -11949,14 +11949,14 @@ SgClassDeclaration::compute_classDefinition() const
 int
 SgClassDeclaration::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgClassDeclaration::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -11966,14 +11966,14 @@ SgClassDeclaration::set_name_qualification_length ( int name_qualification_lengt
 bool
 SgClassDeclaration::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgClassDeclaration::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -11983,14 +11983,14 @@ SgClassDeclaration::set_type_elaboration_required ( bool type_elaboration_requir
 bool
 SgClassDeclaration::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgClassDeclaration::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -12791,28 +12791,28 @@ SgEnumDeclaration::get_symbol_from_symbol_table() const
 int
 SgEnumDeclaration::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgEnumDeclaration::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      p_name_qualification_length = name_qualification_length;
    }
 
 bool
 SgEnumDeclaration::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgEnumDeclaration::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -12822,14 +12822,14 @@ SgEnumDeclaration::set_type_elaboration_required ( bool type_elaboration_require
 bool
 SgEnumDeclaration::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgEnumDeclaration::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -13103,7 +13103,7 @@ SgSwitchStatement::prepend_append_normalization() {
 void
 SgSwitchStatement::prepend_case(SgCaseOptionStmt *& what)
    {
-     assert(this != NULL);
+     ASSERT_this();
      prepend_append_normalization();
      ROSE_ASSERT (isSgBasicBlock(get_body()));
      SageInterface::prependStatement(what, isSgBasicBlock(get_body()));
@@ -13115,7 +13115,7 @@ SgSwitchStatement::prepend_case(SgCaseOptionStmt *& what)
 void
 SgSwitchStatement::append_case(SgCaseOptionStmt *& what)
    {
-     assert(this != NULL);
+     ASSERT_this();
      prepend_append_normalization();
      ROSE_ASSERT (isSgBasicBlock(get_body()));
      SageInterface::appendStatement(what, isSgBasicBlock(get_body()));
@@ -13127,7 +13127,7 @@ SgSwitchStatement::append_case(SgCaseOptionStmt *& what)
 void
 SgSwitchStatement::prepend_default(SgDefaultOptionStmt *& what)
    {
-     assert(this != NULL);
+     ASSERT_this();
      prepend_append_normalization();
      ROSE_ASSERT (isSgBasicBlock(get_body()));
      SageInterface::prependStatement(what, isSgBasicBlock(get_body()));
@@ -13139,7 +13139,7 @@ SgSwitchStatement::prepend_default(SgDefaultOptionStmt *& what)
 void
 SgSwitchStatement::append_default(SgDefaultOptionStmt *& what)
    {
-     assert(this != NULL);
+     ASSERT_this();
      prepend_append_normalization();
      ROSE_ASSERT (isSgBasicBlock(get_body()));
      SageInterface::appendStatement(what, isSgBasicBlock(get_body()));
@@ -13938,14 +13938,14 @@ SgTypedefDeclaration::get_baseTypeDefiningDeclaration() const
 bool
 SgTypedefDeclaration::get_requiresGlobalNameQualificationOnType () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_requiresGlobalNameQualificationOnType;
    }
 
 void
 SgTypedefDeclaration::set_requiresGlobalNameQualificationOnType ( bool requiresGlobalNameQualificationOnType )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -13955,14 +13955,14 @@ SgTypedefDeclaration::set_requiresGlobalNameQualificationOnType ( bool requiresG
 int
 SgTypedefDeclaration::get_name_qualification_length_for_base_type () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length_for_base_type;
    }
 
 void
 SgTypedefDeclaration::set_name_qualification_length_for_base_type ( int name_qualification_length_for_base_type )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -13972,14 +13972,14 @@ SgTypedefDeclaration::set_name_qualification_length_for_base_type ( int name_qua
 bool
 SgTypedefDeclaration::get_type_elaboration_required_for_base_type () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required_for_base_type;
    }
 
 void
 SgTypedefDeclaration::set_type_elaboration_required_for_base_type ( bool type_elaboration_required_for_base_type )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -13989,14 +13989,14 @@ SgTypedefDeclaration::set_type_elaboration_required_for_base_type ( bool type_el
 bool
 SgTypedefDeclaration::get_global_qualification_required_for_base_type () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required_for_base_type;
    }
 
 void
 SgTypedefDeclaration::set_global_qualification_required_for_base_type ( bool global_qualification_required_for_base_type )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14007,7 +14007,7 @@ SgTypedefDeclaration::set_global_qualification_required_for_base_type ( bool glo
 int
 SgTypedefDeclaration::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
@@ -14015,7 +14015,7 @@ SgTypedefDeclaration::get_name_qualification_length () const
 void
 SgTypedefDeclaration::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14026,7 +14026,7 @@ SgTypedefDeclaration::set_name_qualification_length ( int name_qualification_len
 bool
 SgTypedefDeclaration::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
@@ -14034,7 +14034,7 @@ SgTypedefDeclaration::get_type_elaboration_required () const
 void
 SgTypedefDeclaration::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14045,7 +14045,7 @@ SgTypedefDeclaration::set_type_elaboration_required ( bool type_elaboration_requ
 bool
 SgTypedefDeclaration::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
@@ -14053,7 +14053,7 @@ SgTypedefDeclaration::get_global_qualification_required () const
 void
 SgTypedefDeclaration::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14215,7 +14215,7 @@ SgTemplateVariableDeclaration::SgTemplateVariableDeclaration( const SgName& var_
    {
   // DQ (11/10/2006): Ultimately, i think this constructor should be eliminated since it will be
   // redundant with a higher level interface which is planned and it is not automatically generated.
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // printf ("Inside of SgTemplateVariableDeclaration constructor taking all parameters \n");
   // initializeData (NULL,var_name,type,initializer);
@@ -14617,14 +14617,14 @@ SgNamespaceAliasDeclarationStatement::get_symbol_from_symbol_table() const
 int
 SgNamespaceAliasDeclarationStatement::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgNamespaceAliasDeclarationStatement::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14634,14 +14634,14 @@ SgNamespaceAliasDeclarationStatement::set_name_qualification_length ( int name_q
 bool
 SgNamespaceAliasDeclarationStatement::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgNamespaceAliasDeclarationStatement::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14651,14 +14651,14 @@ SgNamespaceAliasDeclarationStatement::set_type_elaboration_required ( bool type_
 bool
 SgNamespaceAliasDeclarationStatement::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgNamespaceAliasDeclarationStatement::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -14800,14 +14800,14 @@ SgUsingDirectiveStatement::get_mangled_name(void) const
 int
 SgUsingDirectiveStatement::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgUsingDirectiveStatement::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14817,14 +14817,14 @@ SgUsingDirectiveStatement::set_name_qualification_length ( int name_qualificatio
 bool
 SgUsingDirectiveStatement::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgUsingDirectiveStatement::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14834,14 +14834,14 @@ SgUsingDirectiveStatement::set_type_elaboration_required ( bool type_elaboration
 bool
 SgUsingDirectiveStatement::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgUsingDirectiveStatement::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -14886,14 +14886,14 @@ SgUsingDeclarationStatement::get_mangled_name(void) const
 int
 SgUsingDeclarationStatement::get_name_qualification_length () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgUsingDeclarationStatement::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14903,14 +14903,14 @@ SgUsingDeclarationStatement::set_name_qualification_length ( int name_qualificat
 bool
 SgUsingDeclarationStatement::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgUsingDeclarationStatement::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -14920,14 +14920,14 @@ SgUsingDeclarationStatement::set_type_elaboration_required ( bool type_elaborati
 bool
 SgUsingDeclarationStatement::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgUsingDeclarationStatement::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
 
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
@@ -15127,14 +15127,14 @@ $CLASSNAME::get_qualified_name() const
 int
 SgTypedefDeclaration::get_name_qualification_length() const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_name_qualification_length;
    }
 
 void
 SgTypedefDeclaration::set_name_qualification_length ( int name_qualification_length )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -15145,14 +15145,14 @@ SgTypedefDeclaration::set_name_qualification_length ( int name_qualification_len
 bool
 SgTypedefDeclaration::get_type_elaboration_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_type_elaboration_required;
    }
 
 void
 SgTypedefDeclaration::set_type_elaboration_required ( bool type_elaboration_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
@@ -15163,14 +15163,14 @@ SgTypedefDeclaration::set_type_elaboration_required ( bool type_elaboration_requ
 bool
 SgTypedefDeclaration::get_global_qualification_required () const
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
      return p_global_qualification_required;
    }
 
 void
 SgTypedefDeclaration::set_global_qualification_required ( bool global_qualification_required )
    {
-     ROSE_ASSERT (this != NULL);
+     ASSERT_this();
   // This can't be called by the name qualification API (see test2015_26.C).
   // set_isModified(true);
 
