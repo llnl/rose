@@ -21,6 +21,8 @@ class SymbolicTerm
   ~SymbolicTerm() {}
   SymbolicTerm& operator = (const SymbolicTerm& that)
      { time1 = that.time1; time2 = that.time2; v = that.v; return *this; }
+  SymbolicTerm( const SymbolicTerm& that) :
+     time1(that.time1), time2(that.time2), v(that.v) { }
 
   std::string toString() const;
   bool IsConst() const

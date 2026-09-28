@@ -104,6 +104,7 @@ class SymbolicVar : public SymbolicValImpl
   SymbolicVar( std:: string name, const AstNodePtr& sc, const AstNodePtr exp = AST_NULL) : varname(name), scope(sc), exp_(exp) {}
   SymbolicVar() : varname(""), scope(AST_NULL), exp_(AST_NULL) {}
   SymbolicVar(const SymbolicVar& that) : varname(that.varname), scope(that.scope), exp_(that.exp_) {}
+  SymbolicVar& operator=(const SymbolicVar& that) { varname = that.varname; scope = that.scope; exp_ = that.exp_; return *this; }
   ~SymbolicVar() {}
   virtual std:: string toString() const;
   virtual void Dump() const { std:: cerr << varname; }
