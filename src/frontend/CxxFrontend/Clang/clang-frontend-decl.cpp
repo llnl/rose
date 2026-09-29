@@ -1145,8 +1145,6 @@ bool ClangToSageTranslator::VisitTagDecl(clang::TagDecl * tag_decl, SgNode ** no
 #if DEBUG_VISIT_DECL
             logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a record\n";
 #endif   
-//            sg_class_def->append_member(decl_context);
-//            decl_context->set_parent(sg_class_def);
          }
          if(llvm::isa<clang::FriendDecl>(tmpDecl))
          {
@@ -1435,6 +1433,42 @@ bool ClangToSageTranslator::VisitRecordDecl(clang::RecordDecl * record_decl, SgN
 
     *node = sg_class_decl;
     res = VisitTagDecl(record_decl, node);
+    // Clang can expose a nested record through the enclosing DeclContext
+    // without adding it to the Sage class member list. Attach only named
+    // records used by an enclosing static record-array member.
+    SgClassDefinition * parentClassDefinition = isSgClassDefinition(declContextScope);
+    clang::CXXRecordDecl * nestedCxxRecord = llvm::dyn_cast<clang::CXXRecordDecl>(record_decl);
+    clang::CXXRecordDecl * enclosingCxxRecord = llvm::dyn_cast<clang::CXXRecordDecl>(record_decl->getDeclContext());
+    bool referencedByStaticDataMember = false;
+    if (nestedCxxRecord != NULL && enclosingCxxRecord != NULL) {
+        for (clang::Decl * enclosingDecl : enclosingCxxRecord->decls()) {
+            clang::VarDecl * staticMember = llvm::dyn_cast<clang::VarDecl>(enclosingDecl);
+            if (staticMember == NULL || !staticMember->isStaticDataMember()) continue;
+            const clang::Type * memberType = staticMember->getType().getTypePtr();
+            while (true) {
+                if (const clang::ElaboratedType * elaboratedType = llvm::dyn_cast<clang::ElaboratedType>(memberType)) {
+                    memberType = elaboratedType->getNamedType().getTypePtr();
+                } else if (const clang::ArrayType * arrayType = llvm::dyn_cast<clang::ArrayType>(memberType)) {
+                    memberType = arrayType->getElementType().getTypePtr();
+                } else {
+                    break;
+                }
+            }
+            if (const clang::RecordType * recordType = llvm::dyn_cast<clang::RecordType>(memberType))
+                referencedByStaticDataMember = recordType->getDecl()->getCanonicalDecl() == nestedCxxRecord->getCanonicalDecl();
+            if (referencedByStaticDataMember) break;
+        }
+    }
+    if (parentClassDefinition != NULL && nestedCxxRecord != NULL && referencedByStaticDataMember
+        && nestedCxxRecord->hasNameForLinkage()
+        && !nestedCxxRecord->isAnonymousStructOrUnion()
+        && !nestedCxxRecord->isInjectedClassName()) {
+        SgDeclarationStatementPtrList& memberList = parentClassDefinition->get_members();
+        if (std::find(memberList.begin(), memberList.end(), sg_class_decl) == memberList.end()) {
+            parentClassDefinition->append_member(sg_class_decl);
+            sg_class_decl->set_parent(parentClassDefinition);
+        }
+    }
     if (isDefined) {
         SageBuilder::pushScopeStack(sg_class_def);
 
@@ -2755,8 +2789,24 @@ bool ClangToSageTranslator::VisitVarDecl(clang::VarDecl * var_decl, SgNode ** no
    // As Clang does not have concept such as declaration list, we might need revision to handle this in future.
    sg_var_decl->set_isAssociatedWithDeclarationList(true);    
  
-   clang::Expr * init_expr = var_decl->getInit();
-    SgNode * tmp_init = Traverse(init_expr);
+    clang::Expr * init_expr = var_decl->getInit();
+    // Clang can synthesize a CXXConstructExpr for an out-of-class static
+    // record-array definition without a source initializer. Preserve it as an
+    // uninitialized declaration instead of unparsing `T array[N] = T()`.
+    const clang::Type * arrayElementType = NULL;
+    if (const clang::ArrayType * arrayType = llvm::dyn_cast<clang::ArrayType>(var_decl->getType().getTypePtr())) {
+      arrayElementType = arrayType->getElementType().getTypePtr();
+      if (const clang::ElaboratedType * elaboratedType = llvm::dyn_cast<clang::ElaboratedType>(arrayElementType))
+        arrayElementType = elaboratedType->getNamedType().getTypePtr();
+    }
+    if(isStaticDataMember && var_decl->getPreviousDecl() != NULL
+       && arrayElementType != NULL
+       && llvm::isa<clang::RecordType>(arrayElementType)
+       && llvm::isa<clang::CXXConstructExpr>(init_expr))
+    {
+      init_expr = NULL;
+    }
+     SgNode * tmp_init = init_expr != NULL ? Traverse(init_expr) : NULL;
     SgExpression * expr = isSgExpression(tmp_init);
     if (tmp_init != NULL && expr == NULL) {
         logger[WARN] << "Runtime error: not a SgInitializer..." << "\n"; // TODO
@@ -2858,7 +2908,7 @@ bool ClangToSageTranslator::VisitVarDecl(clang::VarDecl * var_decl, SgNode ** no
 
     SgInitializedName * init_name = sg_var_decl->get_variables()[0];
     ROSE_ASSERT(init_name != NULL);
-    if(var_decl->hasInit())
+    if(init != NULL)
     {
        init->set_parent(init_name);
        // (09/29/2023) the scope of SgInitializedName of a static data member
