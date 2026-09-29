@@ -7923,6 +7923,19 @@ SgSymbolTable::find( const SgInitializedName* initializedName) {
     sym = nullptr;
     p_iterator++;
   }
+
+  // Template argument names can change after a symbol is inserted. Since this
+  // overload is an identity query, fall back to the immutable symbol basis.
+  if (sym == nullptr) {
+    for (p_iterator = p_table->begin(); p_iterator != p_table->end(); ++p_iterator) {
+      SgSymbol * candidate = p_iterator->second;
+      ROSE_ASSERT(candidate != nullptr);
+      if (candidate->get_symbol_basis() == initializedName) {
+        sym = candidate;
+        break;
+      }
+    }
+  }
 #if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
   printf ("  sym = %p : %s\n", sym, sym ? sym->class_name().c_str() : "");
 #endif
