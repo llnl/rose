@@ -42,6 +42,13 @@ enum class ValueKind {
     Invalid          // unusable/destroyed/corrupted slot
 };
 
+/** Nullness state of a reference value. */
+enum class Nullness {
+    DefinitelyNull,
+    MaybeNull,
+    DefinitelyNonNull
+};
+
 /** Prints a ValueKind to a string. */
 std::string toString(ValueKind);
 
@@ -75,6 +82,7 @@ public:
 protected:
     size_t width;                               /** Width of the value in bits. Typically (not always) a power of two. */
     ValueKind kind_ = ValueKind::Unknown;       /** Kind of the value type. */
+    Nullness nullness_ = Nullness::MaybeNull;   /** Nullness state for reference-like values. */
     SValuePtr arrayLength_;                     /** Symbolic length of the array if an ArrayReference. */
     std::vector<SValuePtr> arrayDimensions_;    /** Known lengths of nested array dimensions. */
     std::string typeDescriptor_;   /** Description of the type if a Reference, empty means no descriptor. */
@@ -90,6 +98,7 @@ private:
     void serialize(S &s, const unsigned /*version*/) {
         s & BOOST_SERIALIZATION_NVP(width);
         s & BOOST_SERIALIZATION_NVP(kind_);
+        s & BOOST_SERIALIZATION_NVP(nullness_);
         s & BOOST_SERIALIZATION_NVP(arrayLength_);
         s & BOOST_SERIALIZATION_NVP(arrayDimensions_);
         s & BOOST_SERIALIZATION_NVP(typeDescriptor_);
@@ -303,6 +312,13 @@ public:
      *
      *  This is not virtual since it can be implemented in terms of other functions. */
     bool isFalse() const /*final*/;
+
+    /** Property: Nullness.
+     *
+     *  Whether a value is definitely null, definitely non-null, or maybe null.
+     */
+    Nullness nullness() const;
+    void nullness(Nullness value);
 
     /** Property: Comment.
      *

@@ -182,6 +182,16 @@ SValue::isFalse() const {
     return toUnsigned().orElse(1) == 0;
 }
 
+Nullness
+SValue::nullness() const {
+    return nullness_;
+}
+
+void
+SValue::nullness(Nullness value) {
+    nullness_ = value;
+}
+
 std::string
 SValue::comment() const {
     return get_comment();

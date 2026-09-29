@@ -118,7 +118,25 @@ void
 DispatcherCil::CilTypeAnalysis::setNullness(const SValuePtr &v, Nullness n)
    {
      ASSERT_not_null(v);
+
      nullness_[key(v)] = n;
+
+     // Also temporarily mirror the Nullness setting in SValue.h.
+     // DispatcherCil should eventually be modified to use only the
+     // architecturally independent (both CIL and JVM) SValue version.
+     switch (n) {
+       case DefinitelyNull:
+           v->nullness(BaseSemantics::Nullness::DefinitelyNull);
+           break;
+       case MaybeNull:
+       case NullnessUnknown: // NullnessUnknown is redundant; JVM uses MaybeNull for unknown setting.
+           v->nullness(BaseSemantics::Nullness::MaybeNull);
+           break;
+
+       case DefinitelyNonNull:
+           v->nullness(BaseSemantics::Nullness::DefinitelyNonNull);
+           break;
+     }
    }
 
 DispatcherCil::CilTypeAnalysis::Nullness
