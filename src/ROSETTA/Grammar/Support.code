@@ -7891,8 +7891,9 @@ SgSymbolTable::find( const SgInitializedName* initializedName) {
 #if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
   printf ("  name = %s \n",name.str());
 #endif
-  if (isSgTemplateVariableInstantiation(initializedName->get_parent())) {
-    SgTemplateVariableInstantiation * tplinst = (SgTemplateVariableInstantiation *)initializedName->get_parent();
+  SgTemplateVariableInstantiation * tplinst =
+      isSgTemplateVariableInstantiation(initializedName->get_parent());
+  if (tplinst != nullptr) {
     name = SageBuilder::appendTemplateArgumentsToName(name, tplinst->get_templateArguments());
   }
 #if DEBUG_FIND_INITIALIZED_NAME_SYMBOL
@@ -7926,7 +7927,7 @@ SgSymbolTable::find( const SgInitializedName* initializedName) {
 
   // Template argument names can change after a symbol is inserted. Since this
   // overload is an identity query, fall back to the immutable symbol basis.
-  if (sym == nullptr) {
+  if (sym == nullptr && tplinst != nullptr) {
     for (p_iterator = p_table->begin(); p_iterator != p_table->end(); ++p_iterator) {
       SgSymbol * candidate = p_iterator->second;
       ROSE_ASSERT(candidate != nullptr);
