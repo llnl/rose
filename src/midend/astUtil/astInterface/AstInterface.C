@@ -1738,14 +1738,16 @@ IsVariableDecl(const AstNodePtr& _s, AstNodeList* vars, AstNodeList* init, AstLi
   // Sanity checks since we have three lists that need to be coordinated.
   // init may have fewer entries when we are dealing with aggregate initializations.
   assert(vars == 0 || init == 0 || init->size() <= vars->size()); 
-  assert(vars == 0 || designators == 0 || designators->size() <= vars->size()); 
-  assert(init == 0 || designators == 0 || designators->size() == init->size()); 
+  assert(vars == 0 || designators == 0 || designators->size() == vars->size()); 
 
   auto _init_push_back_if_needed_ = [&init,&vars,&designators]() {
-      if (!init->back().is_null()) { 
+      if (init != 0 && (init->empty() || !init->back().is_null())) { 
              init->push_back(AST_NULL); 
-             if (vars != 0) vars->push_back(vars->back()); 
-             if (designators != 0) designators->push_back(designators->back()); 
+             if (vars != 0 && vars->size() < init->size()) {
+                   auto v = (vars->empty()? AST_NULL : vars->back()); vars->push_back(v);
+               }
+             if (designators != 0 && designators->size() < init->size()) 
+               { auto v = (designators->empty()? AST_NULL : designators->back()); designators->push_back(v); }
       }
   };
 
@@ -1804,28 +1806,31 @@ IsVariableDecl(const AstNodePtr& _s, AstNodeList* vars, AstNodeList* init, AstLi
    }
   case V_SgAggregateInitializer: {
       if (init==0 || init->empty()) return false; // No variables; only empty initializations.
+      if (vars!=0 && vars->empty()) return false; // calling initializer without variable.
       DebugDecl([&_s]{return "Finding variable decl:" + AstToString(_s);});
       SgAggregateInitializer* aggr_init = isSgAggregateInitializer(s);
       _init_push_back_if_needed_();
+      init->back() = _s;
       if (designators != 0) {
             auto* t = designators->back().get_ptr();
             assert(t != 0);
             switch (t->variantT()) {
               case V_SgArrayType:
-                init->back() = AST_NULL_ARRAY_INDEX(std::to_string(1));
+                _init_push_back_if_needed_();
+                init->back() = AST_NULL_FIELD_INDEX(std::to_string(1));
                 designators->back() = isSgArrayType(t)->get_base_type();
                 break;
               case V_SgClassType: {
-                init->back() = AST_NULL_FIELD_INDEX(std::to_string(1));
+                // save the current variable and type to be pushed back later.
                 auto* class_def = GetClassDefn(isSgClassDeclaration(isSgClassType(t)->get_declaration()));
                 if (vars != 0) {
-                  // Pop off aggregate entries to match members with elemental initializations.
-                  // Here we assume there is at least one member variable inside class_def.
-                  while (vars->size() > init->size()) vars->pop_back();
+                  auto curv = vars->back(), curd=(designators==0)? AST_NULL : designators->back();
                   for (auto* member :  class_def->get_members()) {  
                      // Here future variables are pushed in.
-                     IsVariableDecl(member, vars, 0, 0);
+                     IsVariableDecl(member, vars, 0, designators);
                   }
+                  vars->push_back(curv);
+                  if (designators != 0) designators->push_back(curd);
                 }
                 break;
                 }
@@ -1851,8 +1856,8 @@ IsVariableDecl(const AstNodePtr& _s, AstNodeList* vars, AstNodeList* init, AstLi
                int index = atoi(cur_init.get_signature().c_str()); 
                assert(index != 0);
                init->push_back(AST_NULL_FIELD_INDEX(std::to_string(index+1)));
-               if (designators != 0) designators->push_back(designators->back());
           }
+          if (vars != 0) DebugDecl([&vars,&init]{return "===>" + AstToString(AstToString(vars->at(init->size()-1)));});
       }
       return true;
      } 

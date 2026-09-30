@@ -134,8 +134,8 @@ ProcessTree( AstInterface &fa, const AstInterface::AstNodePtr& s,
    }
    else if (fa.IsVariableDecl( s, &vars, &args, &designators)) {
       DebugLocalInfoCollect([](){ return "Is variable declaration."; });
-      assert(args.size() == designators.size());
-      assert(vars.size() >= designators.size());
+      assert(args.size() <= designators.size());
+      assert(vars.size() == designators.size());
       AstInterface::AstNodeList::const_iterator pv = vars.begin();
       AstInterface::AstNodeList::const_iterator pt = designators.begin();
       AstInterface::AstNodeList::const_iterator pa = args.begin();

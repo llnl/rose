@@ -170,7 +170,7 @@ void AstUtilInterface::ComputeAstSideEffects(SgNode* ast,
     };
     std::function<bool(const SideEffectAnalysisInterface::SideEffectInfo&)> save_decl = [&collect] (const SideEffectAnalysisInterface::SideEffectInfo& info) {
       auto var = info.first_, init=info.second_, desig=info.third_;
-      DebugAstUtil([&var](){ return "save new decl:" + AstInterface::AstToString(var); });
+      DebugAstUtil([&var,&init,&desig](){ return "save new decl:" + AstInterface::AstToString(var) + ":" + AstInterface::AstToString(init) + ":" + AstInterface::AstToString(desig); });
       if (collect != 0) {
          (*collect)(var, init, OperatorSideEffect(OperatorSideEffect::EnumVariant::Decl, desig.get_ptr()));
       }
