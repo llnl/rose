@@ -884,7 +884,7 @@ NOTES:
     gf->set_parent(fileList);
 
     // Create a JvmClass
-    ByteCode::Namespace::Ptr ns = ByteCode::Namespace::instance();
+    ByteCode::Namespace::Ptr ns = ByteCode::Namespace::instance("");
     ByteCode::JvmClass::Ptr jvmClass = ByteCode::JvmClass::instance(className, ns, jfh);
 
     // Insert the class into the repository
@@ -1316,7 +1316,7 @@ EngineJvm::runPartitionerRecursive(const Partitioner::Ptr &partitioner) {
             auto pool = jfh->get_constant_pool();
             ASSERT_not_null(pool);
 
-            ByteCode::Namespace::Ptr ns = ByteCode::Namespace::instance();
+            ByteCode::Namespace::Ptr ns = ByteCode::Namespace::instance("");
 
             auto classIndex = jfh->get_this_class();
             std::string className = ByteCode::constantPoolEntryName(classIndex, pool);

@@ -1719,10 +1719,10 @@ EngineBinary::partitionCilSections(const Partitioner::Ptr &partitioner) {
       // Don't do post analysis on a dotnet specimen
       settings().partitioner.doingPostAnalysis = false;
 
-      ByteCode::CilContainer cilContainer{mdr};
-      cilContainer.partition(partitioner);
+      ByteCode::CilContainer::Ptr cilContainer = ByteCode::CilContainer::instance("CilContainer", mdr);
+      cilContainer->partition(partitioner);
 
-      auto nss = cilContainer.namespaces();
+      auto nss = cilContainer->namespaces();
       ASSERT_require(nss.size() > 0);
 
       auto ns = nss[0];

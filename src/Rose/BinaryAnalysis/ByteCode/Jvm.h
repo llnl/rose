@@ -152,9 +152,21 @@ class JvmClass final : public Class {
 
 class JvmContainer final : public Container {
   public:
+    /** Shared ownership pointers. */
+    using Ptr = Sawyer::SharedPointer<JvmContainer>;
+
+    /** Allocating constructor. */
+    static Ptr instance(std::string name);
+
+    ~JvmContainer() = default;
+
     std::string name() const override;
     bool isSystemReserved(const std::string &name) const override;
     static bool isJvmSystemReserved(const std::string &name);
+
+  private:
+    JvmContainer() = delete;
+    explicit JvmContainer(std::string name);
 };
 
 /** The string found at the given index into the constant pool. */

@@ -576,6 +576,50 @@ namespace JvmSemantics {
         }
     }
 
+    void execute_invokedynamic(D d, Ops ops, size_t index, SgAsmInstruction *insn) {
+        ASSERT_not_null(ops);
+        ASSERT_not_null(insn);
+
+        auto state = ops->currentState();
+        ASSERT_not_null(state);
+
+        auto callerFrame = state->currentFrame();
+        ASSERT_not_null(callerFrame);
+
+        auto method = callerFrame->method();
+        ASSERT_not_null(method);
+
+        auto jvmMethod = ByteCode::JvmMethod::promote(method);
+        ASSERT_not_null(jvmMethod);
+
+        auto pool = jvmMethod->constant_pool();
+        ASSERT_not_null(pool);
+
+        auto entry = pool->get_entry(index);
+        ASSERT_not_null(entry);
+        ASSERT_require(entry->get_tag() ==  SgAsmJvmConstantPoolEntry::CONSTANT_InvokeDynamic);
+
+        auto nameAndTypeEntry = pool->get_entry(entry->get_name_and_type_index());
+        ASSERT_not_null(nameAndTypeEntry);
+        ASSERT_require(nameAndTypeEntry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_NameAndType);
+
+        const std::string descriptor = pool->get_utf8_string(nameAndTypeEntry->get_descriptor_index());
+        const MethodDescriptor methodDesc = DescriptorParser::parseMethodDescriptor(descriptor);
+
+        // There is no receiver
+        for (size_t i = methodDesc.arguments.size(); i > 0; --i) {
+            ops->popOperand();
+        }
+
+        // External/system/unresolved call: summarize.
+        if (!methodDesc.returnType.isVoid()) {
+            auto result = DispatcherJvm::syntheticValue(state->protoval(), methodDesc.returnType);
+
+            ASSERT_not_null(result);
+            ops->pushOperand(result);
+        }
+    }
+
     enum class LocalKind {
         Integer32,
         Integer64,
@@ -902,10 +946,19 @@ namespace JvmSemantics {
         ASSERT_require(reference->kind() == ValueKind::ObjectReference ||
                        reference->kind() == ValueKind::ArrayReference);
 
-        SValuePtr condition = JvmSemantics::isNullReference(ops, reference);
+        // This semantic model represents the null reference as zero.
+        auto nullRef = JvmSemantics::nullReference(ops);
+        ASSERT_not_null(nullRef);
 
-        if (branchKind == NullBranchKind::IfNonNull) {
-            condition = ops->invert(condition);
+        SValuePtr condition;
+
+        switch (branchKind) {
+            case NullBranchKind::IfNull:
+                condition = ops->isEqual(reference, nullRef);
+                break;
+            case NullBranchKind::IfNonNull:
+                condition = ops->isNotEqual(reference, nullRef);
+                break;
         }
         ASSERT_not_null(condition);
 
@@ -3438,9 +3491,15 @@ struct IP_instanceof: P {
         //   NullPointerException if an instance invocation receiver is null.
         //   Errors from method resolution or class/interface initialization may be observed as specified by the JVM.
 struct IP_invokedynamic: P {
-    void p(D /*d*/, Ops /*ops*/, I insn, Args args) {
+    void p(D d, Ops ops, I insn, Args args) {
         assert_args(insn, args, 3);
-        ASSERT_require2(false, "unimplemented");
+
+        const size_t index = d->asU2(args[0]);
+
+        ASSERT_require(d->asU1(args[1]) == 0);
+        ASSERT_require(d->asU1(args[2]) == 0);
+
+        JvmSemantics::execute_invokedynamic(d, ops, index, insn);
     }
 };
 
@@ -5090,7 +5149,7 @@ DispatcherJvm::initializeDispatchTable() {
     iprocSet(0xb7,  new Jvm::IP_invokespecial);
     iprocSet(0xb8,  new Jvm::IP_invokestatic);
     iprocSet(0xb9,  new Jvm::IP_invokeinterface);
-//  iprocSet(0xba,  new Jvm::IP_invokedynamic);
+    iprocSet(0xba,  new Jvm::IP_invokedynamic);
     iprocSet(0xc0,  new Jvm::IP_checkcast);
     iprocSet(0xc1,  new Jvm::IP_instanceof);
 //  iprocSet(0xc2,  new Jvm::IP_monitorenter);

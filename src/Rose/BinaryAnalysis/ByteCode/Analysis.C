@@ -165,9 +165,19 @@ Class::baseClassName() const {
     return baseClassName_;
 }
 
+std::string
+Class::qualifiedName() const {
+    return name();
+}
+
 Address
 Class::address() const {
     return address_;
+}
+
+NamespacePtr
+Class::nameSpace() const {
+    return namespace_;
 }
 
 const std::vector<Interface::Ptr>&
@@ -491,17 +501,17 @@ void Class::digraph() const {
 // Namespace
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Namespace::Namespace() {}
-Namespace::~Namespace() {}
+Namespace::Namespace(std::string name) : name_{name} {
+}
 
 Namespace::Ptr
-Namespace::instance() {
-    return Ptr(new Namespace());
+Namespace::instance(std::string name) {
+    return Ptr(new Namespace(name));
 }
 
 std::string
 Namespace::name() const {
-    return "NoNamespaceName";
+    return name_;
 }
 
 const std::vector<ByteCode::Class::Ptr>&
@@ -524,11 +534,17 @@ Namespace::partition(const PartitionerPtr& partitioner, std::map<std::string,Add
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Container
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Container::Container(std::string name) : name_{name} {
+}
+
 Address
 Container::nextSystemReservedVa_{static_cast<Address>(-1)};
 
-Container::Container() {}
-Container::~Container() {}
+std::string
+Container::name() const {
+    return name_;
+}
 
 Address
 Container::nextSystemReservedVa() {
@@ -571,15 +587,11 @@ Container::partition(const PartitionerPtr& partitioner) {
             }
         }
     }
-    // partitioner->dumpCfg(std::cout, "Worker:", true, false);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ClassRepository
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-ClassRepository::ClassRepository() {}
-ClassRepository::~ClassRepository() {}
 
 ClassRepository::Ptr
 ClassRepository::instance() {
@@ -594,7 +606,7 @@ ClassRepository::contains(const std::string &name) const {
 bool
 ClassRepository::insert(const ByteCode::ClassPtr &cls) {
     ASSERT_not_null(cls);
-    return classes_.insert({cls->name(), cls}).second;
+    return classes_.insert({cls->qualifiedName(), cls}).second;
 }
 
 ByteCode::ClassPtr

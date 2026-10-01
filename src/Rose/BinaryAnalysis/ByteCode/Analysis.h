@@ -168,10 +168,13 @@ class Class: public Sawyer::SharedObject,
 
     const std::string& name() const;
     const std::string& baseClassName() const;
+
     Address address() const;
+    NamespacePtr nameSpace() const;
 
     ByteCode::Method::Ptr findMethod(const std::string &name, const std::string &descriptor) const;
 
+    virtual std::string qualifiedName() const;
     virtual std::string typeSeparator() const = 0;
     virtual const std::vector<std::string>& strings();
 
@@ -217,10 +220,10 @@ class Namespace: public Sawyer::SharedObject,
     /** Shared ownership pointer. */
     using Ptr = Sawyer::SharedPointer<Namespace>;
 
-    virtual ~Namespace();
+    virtual ~Namespace() = default;
 
     /** Allocating constructor. */
-    static Ptr instance();
+    static Ptr instance(std::string name);
 
     virtual std::string name() const;
     virtual void partition(const PartitionerPtr &partitioner,
@@ -231,8 +234,13 @@ class Namespace: public Sawyer::SharedObject,
     const std::vector<ByteCode::Class::Ptr>& classes() const;
 
   protected:
-    Namespace();
+    Namespace() = delete;
+    explicit Namespace(std::string name);
+
     std::vector<ByteCode::Class::Ptr> classes_;
+
+  private:
+    std::string name_;
 };
 
 /** Base class for ByteCode Container.
@@ -245,23 +253,26 @@ class Container: public Sawyer::SharedObject,
     /** Shared ownership pointer. */
     using Ptr = Sawyer::SharedPointer<Container>;
 
-    virtual ~Container();
+    virtual ~Container() = default;
 
     /* A unique (per container) virtual address for system/library functions */
     static Address nextSystemReservedVa();
 
   public:
-    virtual std::string name() const = 0;
+    virtual std::string name() const;
     virtual bool isSystemReserved(const std::string &name) const = 0;
     virtual void partition(const PartitionerPtr &partitioner);
 
     const std::vector<Namespace::Ptr>& namespaces() const;
 
   protected:
-    Container();
+    Container() = delete;
+    explicit Container(std::string name);
+
     std::vector<Namespace::Ptr> namespaces_;
 
   private:
+    std::string name_;
     static Address nextSystemReservedVa_;
 };
 
@@ -275,7 +286,8 @@ class ClassRepository: public Sawyer::SharedObject,
     /** Shared ownership pointer. */
     using Ptr = Sawyer::SharedPointer<ClassRepository>;
 
-    virtual ~ClassRepository();
+    ClassRepository() = default;
+    virtual ~ClassRepository() = default;
 
   public:
 
@@ -296,9 +308,6 @@ class ClassRepository: public Sawyer::SharedObject,
 
     /** Returns true if a value of the source class can be assigned to the target. */
     bool isAssignableTo(const ClassPtr &source, const ClassPtr &target) const;
-
-  protected:
-    ClassRepository();
 
   private:
     std::map<std::string, ClassPtr> classes_;

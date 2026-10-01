@@ -374,6 +374,15 @@ CilAttribute::name() const {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::string
+CilClass::qualifiedName() const {
+    auto ns = nameSpace();
+    if (ns == nullptr || ns->name().empty()) {
+        return name();
+    }
+    return ns->name() + typeSeparator() + name();
+}
+
+std::string
 CilClass::typeSeparator() const {
     return ".";
 }
@@ -519,25 +528,25 @@ void CilClass::dump() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 CilNamespace::Ptr
-CilNamespace::instance(SgAsmCilMetadataRoot* root, const std::string &name) {
-    return Ptr(new CilNamespace(root, name));
+CilNamespace::instance(const std::string name, SgAsmCilMetadataRoot* mdr) {
+    return Ptr(new CilNamespace(std::move(name), mdr));
 }
 
-CilNamespace::CilNamespace(SgAsmCilMetadataRoot* /*root*/, const std::string &name)
-  : name_{name}
-{
-}
-
-std::string
-CilNamespace::name() const {
-    return name_;
+CilNamespace::CilNamespace(const std::string name, SgAsmCilMetadataRoot* mdr)
+  : Namespace(std::move(name)), mdr_{mdr} {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CilContainer
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-CilContainer::CilContainer(SgAsmCilMetadataRoot* root) : mdr_{root} {
+CilContainer::Ptr
+CilContainer::instance(std::string name, SgAsmCilMetadataRoot* mdr) {
+    return Ptr(new CilContainer(name, mdr));
+}
+
+CilContainer::CilContainer(std::string name, SgAsmCilMetadataRoot* root)
+  : Container(std::move(name)), mdr_{root} {
     SgAsmCilMetadataHeap* metadataHeap = mdr_->get_MetadataHeap();
     ASSERT_not_null(metadataHeap);
   
@@ -556,7 +565,7 @@ CilContainer::CilContainer(SgAsmCilMetadataRoot* root) : mdr_{root} {
     
         thisNamespace = sgTypeDef->get_TypeNamespace_string();
         if (lastNamespace != thisNamespace) {
-            CilNamespace::Ptr ns = CilNamespace::instance(mdr_, utf8ToString(sgTypeDef->get_TypeNamespace_string()));
+            CilNamespace::Ptr ns = CilNamespace::instance(utf8ToString(sgTypeDef->get_TypeNamespace_string()), mdr_);
             namespaces_.push_back(ns);
 
             if (TRACE_CONSTRUCTION) {

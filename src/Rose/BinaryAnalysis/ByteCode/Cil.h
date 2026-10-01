@@ -76,7 +76,9 @@ class CilClass final : public Class {
     static Class::Ptr promote(const Sawyer::SharedPointer<Class>& from);
     static std::string objectName(const SgAsmCilMetadata*, SgAsmCilMetadataRoot*);
 
+    std::string qualifiedName() const override;
     std::string typeSeparator() const override;
+
     void dump() override;
 
     CilClass() = delete;
@@ -93,18 +95,15 @@ public:
     /** Shared ownership pointers. */
     using Ptr = Sawyer::SharedPointer<CilNamespace>;
 
-    std::string name() const override;
-
     /** Allocating constructor. */
-    static Ptr instance(SgAsmCilMetadataRoot*, const std::string &);
+    static Ptr instance(const std::string, SgAsmCilMetadataRoot*);
 
+    ~CilNamespace() = default;
     CilNamespace() = delete;
-    CilNamespace(SgAsmCilMetadataRoot*, const std::string &);
 
 private:
-    //WARNING: not used yet!
-    //SgAsmCilMetadataRoot* mdr_;
-    std::string name_;
+    CilNamespace(const std::string, SgAsmCilMetadataRoot*);
+    [[maybe_unused]] SgAsmCilMetadataRoot* mdr_;
 };
 
 class CilContainer final : public Container {
@@ -112,10 +111,16 @@ class CilContainer final : public Container {
     /** Shared ownership pointer. */
     using Ptr = Sawyer::SharedPointer<CilContainer>;
 
+    /** Allocating constructor. */
+    static Ptr instance(std::string name, SgAsmCilMetadataRoot* mdr);
+
+    ~CilContainer() = default;
+    CilContainer() = delete;
+
   public:
     std::string name() const override;
     bool isSystemReserved(const std::string &name) const override;
-    static  bool isCilSystemReserved(const std::string &name);
+    static bool isCilSystemReserved(const std::string &name);
 
     void printAssemblies(std::ostream& os) const;
     void printMethods(std::ostream& os, size_t beg, size_t lim) const;
@@ -124,10 +129,8 @@ class CilContainer final : public Container {
 
     static SgAsmCilMetadata* resolveToken(SgAsmIntegerValueExpression*, SgAsmCilMetadataRoot*);
 
-    CilContainer() = delete;
-    explicit CilContainer(SgAsmCilMetadataRoot*);
-
   private:
+    explicit CilContainer(std::string name, SgAsmCilMetadataRoot* mdr);
     SgAsmCilMetadataRoot* mdr_;
 };
 

@@ -464,6 +464,15 @@ JvmClass::dump() {
 // JvmContainer
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+JvmContainer::Ptr
+JvmContainer::instance(std::string name) {
+    return Ptr(new JvmContainer(std::move(name)));
+}
+
+JvmContainer::JvmContainer(std::string name)
+  : Container(std::move(name)) {
+}
+
 bool
 JvmContainer::isSystemReserved(const std::string &name) const {
     return isJvmSystemReserved(name);
