@@ -1464,10 +1464,9 @@ bool ClangToSageTranslator::VisitRecordDecl(clang::RecordDecl * record_decl, SgN
         && !nestedCxxRecord->isAnonymousStructOrUnion()
         && !nestedCxxRecord->isInjectedClassName()) {
         SgDeclarationStatementPtrList& memberList = parentClassDefinition->get_members();
-        if (std::find(memberList.begin(), memberList.end(), sg_class_decl) == memberList.end()) {
-            parentClassDefinition->append_member(sg_class_decl);
-            sg_class_decl->set_parent(parentClassDefinition);
-        }
+        assert(std::find(memberList.begin(), memberList.end(), sg_class_decl) == memberList.end());
+        parentClassDefinition->append_member(sg_class_decl);
+        sg_class_decl->set_parent(parentClassDefinition);
     }
     if (isDefined) {
         SageBuilder::pushScopeStack(sg_class_def);
@@ -2793,11 +2792,15 @@ bool ClangToSageTranslator::VisitVarDecl(clang::VarDecl * var_decl, SgNode ** no
     // Clang can synthesize a CXXConstructExpr for an out-of-class static
     // record-array definition without a source initializer. Preserve it as an
     // uninitialized declaration instead of unparsing `T array[N] = T()`.
-    const clang::Type * arrayElementType = NULL;
-    if (const clang::ArrayType * arrayType = llvm::dyn_cast<clang::ArrayType>(var_decl->getType().getTypePtr())) {
-      arrayElementType = arrayType->getElementType().getTypePtr();
-      if (const clang::ElaboratedType * elaboratedType = llvm::dyn_cast<clang::ElaboratedType>(arrayElementType))
-        arrayElementType = elaboratedType->getNamedType().getTypePtr();
+    const clang::Type * arrayElementType = var_decl->getType().getTypePtr();
+    while (true) {
+        if (const clang::ElaboratedType * elaboratedType = llvm::dyn_cast<clang::ElaboratedType>(arrayElementType)) {
+            arrayElementType = elaboratedType->getNamedType().getTypePtr();
+        } else if (const clang::ArrayType * arrayType = llvm::dyn_cast<clang::ArrayType>(arrayElementType)) {
+            arrayElementType = arrayType->getElementType().getTypePtr();
+        } else {
+            break;
+        }
     }
     if(isStaticDataMember && var_decl->getPreviousDecl() != NULL
        && arrayElementType != NULL
