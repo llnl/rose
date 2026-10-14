@@ -1123,6 +1123,22 @@ bool ClangToSageTranslator::VisitTagDecl(clang::TagDecl * tag_decl, SgNode ** no
 #endif
          continue;
        }
+       // 2026-10-12 lin32: Translate using declarations into explicit ROSE
+       // using-declaration nodes before the generic member assertion below.
+       if(llvm::isa<clang::UsingDecl>(tmpDecl))
+       {
+#if DEBUG_VISIT_DECL
+         logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: translating UsingDecl in DeclContext\n";
+#endif
+         SgNode * using_node = Traverse(tmpDecl);
+         SgDeclarationStatement * using_statement = isSgDeclarationStatement(using_node);
+         if(using_statement != NULL && sg_class_def != NULL)
+         {
+           sg_class_def->append_member(using_statement);
+           using_statement->set_parent(sg_class_def);
+         }
+         continue;
+       }
 #if DEBUG_VISIT_DECL
        logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: checking decls in DeclContext\n";
 #endif
@@ -1144,7 +1160,22 @@ bool ClangToSageTranslator::VisitTagDecl(clang::TagDecl * tag_decl, SgNode ** no
          {
 #if DEBUG_VISIT_DECL
             logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a record\n";
-#endif   
+#endif
+         }
+         if(llvm::isa<clang::EnumDecl>(tmpDecl) &&
+            !((clang::EnumDecl *)tmpDecl)->isEmbeddedInDeclarator())
+         {
+#if DEBUG_VISIT_DECL
+            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as an enum\n";
+#endif
+            SgDeclarationStatementPtrList& memberList = sg_class_def->get_members();
+            if(std::find(memberList.begin(), memberList.end(), decl_context) == memberList.end())
+            {
+              sg_class_def->append_member(decl_context);
+              decl_context->set_parent(sg_class_def);
+            }
+            else if(decl_context->get_parent() != sg_class_def)
+              decl_context->set_parent(sg_class_def);
          }
          if(llvm::isa<clang::FriendDecl>(tmpDecl))
          {
@@ -1536,9 +1567,64 @@ bool ClangToSageTranslator::VisitCXXRecordDecl(clang::CXXRecordDecl * cxx_record
     p_decl_translation_map.insert(std::pair<clang::Decl *, SgNode *>(cxx_record_decl, *node));
 
     SageBuilder::pushScopeStack(CxxRecordDeclaration->get_definition());
-    clang::CXXRecordDecl::base_class_iterator it_base;
-    for (it_base = cxx_record_decl->bases_begin(); it_base !=  cxx_record_decl->bases_end(); it_base++) {
-        // TODO add base classes
+    bool has_base_using_decl = false;
+    for (clang::Decl * member : cxx_record_decl->decls()) {
+        clang::UsingDecl * using_decl = llvm::dyn_cast<clang::UsingDecl>(member);
+        if (using_decl == NULL || using_decl->getQualifier() == NULL ||
+            using_decl->getQualifier()->getAsType() == NULL)
+            continue;
+
+        const clang::CXXRecordDecl * qualified_base =
+            using_decl->getQualifier()->getAsType()->getAsCXXRecordDecl();
+        if (qualified_base == NULL)
+            continue;
+
+        for (clang::CXXRecordDecl::base_class_iterator base = cxx_record_decl->bases_begin();
+             base != cxx_record_decl->bases_end(); ++base) {
+            const clang::CXXRecordDecl * direct_base = base->getType()->getAsCXXRecordDecl();
+            if (direct_base != NULL &&
+                qualified_base->getCanonicalDecl() == direct_base->getCanonicalDecl()) {
+                has_base_using_decl = true;
+                break;
+            }
+        }
+        if (has_base_using_decl)
+            break;
+    }
+    if (has_base_using_decl) {
+        // 2026-10-12 lin32: Materialize direct bases only for records whose
+        // using declarations require the base relationship during translation.
+        clang::CXXRecordDecl::base_class_iterator it_base;
+        for (it_base = cxx_record_decl->bases_begin(); it_base != cxx_record_decl->bases_end(); it_base++) {
+            const clang::CXXRecordDecl * base_decl = it_base->getType()->getAsCXXRecordDecl();
+            ROSE_ASSERT(base_decl != NULL);
+
+            SgClassDeclaration * base_class_declaration =
+                isSgClassDeclaration(Traverse(const_cast<clang::CXXRecordDecl *>(base_decl)));
+            ROSE_ASSERT(base_class_declaration != NULL);
+
+            SgBaseClass * base_class = SageBuilder::buildBaseClass(
+                base_class_declaration, CxxRecordDeclaration->get_definition(),
+                it_base->isVirtual(), true);
+            ROSE_ASSERT(base_class != NULL);
+
+            switch (it_base->getAccessSpecifier()) {
+              case clang::AS_public:
+                base_class->get_baseClassModifier()->get_accessModifier().setPublic();
+                break;
+              case clang::AS_protected:
+                base_class->get_baseClassModifier()->get_accessModifier().setProtected();
+                break;
+              case clang::AS_private:
+                base_class->get_baseClassModifier()->get_accessModifier().setPrivate();
+                break;
+              case clang::AS_none:
+                base_class->get_baseClassModifier()->get_accessModifier().setDefault();
+                break;
+              default:
+                ROSE_ABORT();
+            }
+        }
     }
 
     clang::CXXRecordDecl::method_iterator it_method;
@@ -1874,11 +1960,27 @@ bool ClangToSageTranslator::VisitUsingDecl(clang::UsingDecl * using_decl, SgNode
 #if DEBUG_VISIT_DECL
     logger[DEBUG] << "ClangToSageTranslator::VisitUsingDecl" << "\n";
 #endif  
-    bool res = true;
+    // 2026-10-12 lin32: Materialize the Clang using target as a ROSE using
+    // declaration instead of dropping the source construct to bypass G2.
+    SgDeclarationStatement * target_declaration = NULL;
+    SgInitializedName * target_initialized_name = NULL;
+    for (clang::UsingShadowDecl * shadow : using_decl->shadows())
+    {
+      SgNode * target_node = Traverse(shadow->getTargetDecl());
+      target_declaration = isSgDeclarationStatement(target_node);
+      target_initialized_name = isSgInitializedName(target_node);
+      if(target_declaration != NULL || target_initialized_name != NULL)
+        break;
+    }
 
-    ROSE_ASSERT(FAIL_FIXME == 0); // FIXME
-
-    return VisitNamedDecl(using_decl, node) && res;
+    Sg_File_Info * file_info = Sg_File_Info::generateDefaultFileInfoForCompilerGeneratedNode();
+    SgUsingDeclarationStatement * using_statement =
+        new SgUsingDeclarationStatement(file_info, target_declaration, target_initialized_name);
+    using_statement->set_firstNondefiningDeclaration(using_statement);
+    using_statement->set_definingDeclaration(using_statement);
+    using_statement->set_name_qualification_length(1);
+    *node = using_statement;
+    return VisitDecl(using_decl, node);
 }
 
 bool ClangToSageTranslator::VisitUsingDirectiveDecl(clang::UsingDirectiveDecl * using_directive_decl, SgNode ** node) {
