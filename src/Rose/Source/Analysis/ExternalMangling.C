@@ -540,15 +540,15 @@ namespace
 
       std::string mangleInternalLinkage(const SgLocatedNode&);
 
-      std::string mangleInternalLinkageIfStatic(const SgDeclarationStatement&);
-      std::string mangleInternalLinkageIfStatic(const sg::NotNull<SgDeclarationStatement> n)
+      std::string mangleInternalLinkageIfLocalStatic(const SgDeclarationStatement&);
+      std::string mangleInternalLinkageIfLocalStatic(const sg::NotNull<SgDeclarationStatement> n)
       {
-        return mangleInternalLinkageIfStatic(*n);
+        return mangleInternalLinkageIfLocalStatic(*n);
       }
 
-      std::string mangleInternalLinkageIfStaticVariable(const SgVariableDeclaration* n)
+      std::string mangleInternalLinkageIfLocalStaticVariable(const SgVariableDeclaration* n)
       {
-        if (n) return mangleInternalLinkageIfStatic(*n);
+        if (n) return mangleInternalLinkageIfLocalStatic(*n);
 
         return {};
       }
@@ -771,8 +771,11 @@ namespace
 
       void handle(const SgInitializedName& n)
       {
+        if (isSgCtorInitializerList(n.get_parent()))
+          throw std::runtime_error{"cannot mangle constructor-initializer target"};
+
         res = join( scopeQualifiedName(n)
-                  , mangleInternalLinkageIfStaticVariable(isSgVariableDeclaration(n.get_parent()))
+                  , mangleInternalLinkageIfLocalStaticVariable(isSgVariableDeclaration(n.get_parent()))
                   );
       }
 
@@ -827,7 +830,7 @@ namespace
 
       void handle(const SgFunctionDeclaration& n)
       {
-        res = scopeQualifiedName(n, mangleInternalLinkageIfStatic(n));
+        res = scopeQualifiedName(n, mangleInternalLinkageIfLocalStatic(n));
       }
 
       void handle(const SgMemberFunctionDeclaration& n)
@@ -843,7 +846,7 @@ namespace
                   , mangleNodeSequence(n.get_templateArguments(), mglExtendedSep)
                   , mglTemplateArgsDelim
                   , mangleType(n.get_type(), ctx.inclReturnType(Ctx::NO_RETURN_TYPE).arrayDecay())
-                  , mangleInternalLinkageIfStatic(n)
+                  , mangleInternalLinkageIfLocalStatic(n)
                   );
       }
 
@@ -1211,9 +1214,15 @@ namespace
   }
 
   std::string
-  ExternalMangler::mangleInternalLinkageIfStatic(const SgDeclarationStatement& n)
+  ExternalMangler::mangleInternalLinkageIfLocalStatic(const SgDeclarationStatement& n)
   {
-    if (si::isStatic(const_cast<SgDeclarationStatement*>(&n)))
+    SgScopeStatement* const scope = n.get_scope();
+
+    bool const staticLocalLinkage = (  si::isStatic(const_cast<SgDeclarationStatement*>(&n))
+                                    && (isSgGlobal(scope) || isSgNamespaceDefinitionStatement(scope))
+                                    );
+
+    if (staticLocalLinkage)
       return mangleInternalLinkage(n);
 
     return {};
@@ -1523,8 +1532,14 @@ namespace
     if (!scope)
       return simpleName(functionName(n), "fn2");
 
+    // Conversion operators are distinguished by their target type, which
+    // ROSE represents as the function return type.  Ordinary function
+    // overloads cannot differ only by return type, but conversion operators
+    // can, so include it in this one case.
+    bool const includeReturnType = n.get_specialFunctionModifier().isConversion();
+
     return join( joinNames(mangleScope(n.get_scope()), linkage, simpleName(functionName(n), "fun"))
-               , mangleType(n.get_type(), ctx.inclReturnType(Ctx::NO_RETURN_TYPE))
+               , mangleType(n.get_type(), ctx.inclReturnType(includeReturnType))
                );
   }
 
@@ -1562,9 +1577,22 @@ namespace
       const SgInitializedNamePtrList& parms = parmlst->get_args();
       auto const                      beg   = parms.begin();
       std::size_t                     num   = std::distance(beg, std::find(beg, parms.end(), &n));
-      sg::NotNull<const SgNode>       root  = parmlst->get_parent();
+      const SgNode*                   root  = parmlst->get_parent();
+      const SgFunctionDeclaration*    function = isSgFunctionDeclaration(root);
 
-      name = join(mglParameterIdx, std::to_string(num));
+      if (!function) {
+        if (const SgFunctionDefinition* definition = isSgFunctionDefinition(root))
+          function = definition->get_declaration();
+      }
+      if (!function)
+        throw std::runtime_error{"function parameter has no owning function declaration"};
+
+      // The AST scope of a compiler-generated parameter can be global even
+      // though the parameter belongs to a function.  Qualify by the canonical
+      // function declaration, not that incidental lexical scope.  This makes
+      // parameters stable across declarations, definitions, and template AST
+      // forms while retaining their position-based identity.
+      return join(mangleDeclaration(*function), mglParameterIdx, std::to_string(num));
     }
     else if (name.size() == 0)
     {

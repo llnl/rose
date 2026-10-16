@@ -7,7 +7,8 @@ add_library(roseSourceAnalysis OBJECT
   CppHierarchyAnalysis.C
   CppLayoutAnalysis.C
   CppSpecialMemberAnalysis.C
-  ExternalMangling.C)
+  ExternalMangling.C
+  ItaniumMangling.C)
 
 add_dependencies(roseSourceAnalysis rosetta_generated)
 
@@ -19,4 +20,5 @@ install(FILES
   CppLayoutAnalysis.h
   CppSpecialMemberAnalysis.h
   ExternalMangling.h
+  ItaniumMangling.h
   DESTINATION ${INCLUDE_INSTALL_DIR}/Rose/Source/Analysis)

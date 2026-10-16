@@ -77,6 +77,9 @@ check: # $(Checker_Output_Diff_Files)
 endif
 endif
 
+.phony: rose_clean_local
+rose_clean_local:
+
 clean-local: rose_clean_local
 	rm -rf rose_*.C rose_*.cpp rose*.cxx *.diff *.output *.txt *.o *.log
 endif	

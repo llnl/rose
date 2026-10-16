@@ -319,6 +319,7 @@ librose_partial_la_SOURCES =								\
 	Source/Analysis/CppLayoutAnalysis.C					\
 	Source/Analysis/CppSpecialMemberAnalysis.C				\
 	Source/Analysis/ExternalMangling.C						\
+	Source/Analysis/ItaniumMangling.C						\
 	Source/Analysis/Visitor.C								\
 	Source/AST/checker/checker.C								\
 	Source/AST/checker/cmdline.C								\

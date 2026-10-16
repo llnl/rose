@@ -16,5 +16,6 @@ namespace Analysis {}
 #include <Rose/Source/Analysis/CppSpecialMemberAnalysis.h>
 #include <Rose/Source/Analysis/Visitor.h>
 #include <Rose/Source/Analysis/ExternalMangling.h>
+#include <Rose/Source/Analysis/ItaniumMangling.h>
 
 #endif /* ROSE_Source_Analysis_H */

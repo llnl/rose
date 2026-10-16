@@ -555,6 +555,7 @@ nobase_pkginclude_HEADERS=								\
 	Rose/Source/Analysis/CppLayoutAnalysis.h				\
 	Rose/Source/Analysis/CppSpecialMemberAnalysis.h			\
 	Rose/Source/Analysis/ExternalMangling.h					\
+	Rose/Source/Analysis/ItaniumMangling.h					\
 	Rose/Source/Analysis/Visitor.h									\
 	Rose/Source/AST.h									\
 	Rose/Source/AST/Checker.h								\

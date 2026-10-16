@@ -278,6 +278,7 @@ my @extra_words = qw/
     enums
     hexdump			# the name of an established Unix tool reimplemented in ROSE
     i386                        # Intel 80386
+    Itanium                     # C++ ABI named after Intel's Itanium architecture
     linux                       # an operating system kernel
     LLVM                        # the compiler technology
     M68k                        # Motorola 68000
