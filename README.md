@@ -25,7 +25,13 @@ make -j${NUM_PROCESSORS} install
 
 
 # Supported Compilers
-When ROSE is configured with c/c++ support it is required to download an EDG binary. Currently we generate these for GCC 7 through 12. The support for 11 and 12 is in progress, so for fully supported versions use GCC 7 through 10.
+When ROSE is configured with C/C++ support it needs the EDG front end. EDG is open source (Apache-2.0 WITH LLVM-exception); ROSE's patched copy is the git submodule `src/frontend/CxxFrontend/EDG/edg_compiler` (https://github.com/rose-compiler/edg). Either build it from source
+
+```
+git submodule update --init src/frontend/CxxFrontend/EDG/edg_compiler
+```
+
+or, with the autotools build and no submodule, let the build download a precompiled EDG library. Precompiled libraries are currently generated for GCC 7 through 12. The support for 11 and 12 is in progress, so for fully supported versions use GCC 7 through 10. See `src/frontend/CxxFrontend/EDG/README`.
 
 When not using c/c++ support GCC 7 through 13 are supported.
 
