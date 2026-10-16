@@ -1468,33 +1468,14 @@ AC_MSG_NOTICE([CPPFLAGS = "$CPPFLAGS"])
 AC_MSG_NOTICE([subdirs = "$subdirs"])
 AC_CONFIG_SUBDIRS([libltdl])
 
-# This list should be the same as in build (search for Makefile.in)
-
-CLASSPATH_COND_IF([ROSE_HAS_EDG_SOURCE], [test "x$has_edg_source" = "xyes"], [
+# The EDG build glue (src/frontend/CxxFrontend/EDG/{,edg_build,edgRose}/Makefile.am) is part of this repository,
+# so these Makefiles are always generated; whether they are built depends on ROSE_HAS_EDG_SOURCE (see
+# src/frontend/CxxFrontend/Makefile.am), i.e. on whether the edg_compiler submodule is checked out.
 AC_CONFIG_FILES([
 src/frontend/CxxFrontend/EDG/Makefile
-src/frontend/CxxFrontend/EDG/EDG_5.0/Makefile
-src/frontend/CxxFrontend/EDG/EDG_5.0/misc/Makefile
-src/frontend/CxxFrontend/EDG/EDG_5.0/src/Makefile
-src/frontend/CxxFrontend/EDG/EDG_5.0/src/disp/Makefile
-src/frontend/CxxFrontend/EDG/EDG_5.0/lib/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.0/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.0/misc/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.0/src/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.0/src/disp/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.0/lib/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.3/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.3/misc/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.3/src/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.3/src/disp/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.3/lib/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.5/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.5/misc/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.5/src/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.5/src/disp/Makefile
-src/frontend/CxxFrontend/EDG/EDG_6.5/lib/Makefile
+src/frontend/CxxFrontend/EDG/edg_build/Makefile
 src/frontend/CxxFrontend/EDG/edgRose/Makefile
-])], [])
+])
 
 # End macro ROSE_SUPPORT_ROSE_PART_5.
 ]

@@ -1484,9 +1484,10 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
   endif()
 endif() 
 
-if(EDG_VERSION STREQUAL "5.0")
-  set(ROSE_USE_EDG_VERSION_5_0 1) 
-endif() 
+# Per-version macro ROSE_USE_EDG_VERSION_<major>_<minor> (rose_config.h templates exist for the versions ROSE
+# has used; new code should test ROSE_EDG_MAJOR_VERSION_NUMBER / ROSE_EDG_MINOR_VERSION_NUMBER instead).
+string(REPLACE "." "_" edg_version_macro_suffix "${EDG_VERSION}")
+set(ROSE_USE_EDG_VERSION_${edg_version_macro_suffix} 1)
 
 # Don't have appropriate conditional for this 
 set(ROSE_USE_VXWORKS 1) 

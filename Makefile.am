@@ -694,8 +694,7 @@ lcov:
 -d src/frontend/SageIII/includeDirectivesProcessing/.libs \
 -d src/frontend/SageIII/sage_support/.libs \
 -d src/frontend/MatlabFrontend \
--d src/frontend/CxxFrontend/EDG/EDG_4.7/misc \
--d src/frontend/CxxFrontend/EDG/EDG_4.7/src/.libs \
+-d src/frontend/CxxFrontend/EDG/edg_build/.libs \
 -d src/frontend/CxxFrontend/EDG/edgRose/.libs \
 -d src/frontend/OpenFortranParser_SAGE_Connection/.libs \
 -d src/frontend/ECJ_ROSE_Connection/.libs \
@@ -793,7 +792,7 @@ librose-lcov.info: all-lcov.info
         "$(top_srcdir)/src/midend/programAnalysis/OAWrap/*" \
         "$(top_srcdir)/src/midend/programAnalysis/OpenAnalysis/*" \
         "$(top_srcdir)/src/midend/programAnalysis/genericDataflow/*" \
-        "$(top_srcdir)/src/frontend/CxxFrontend/EDG/EDG_6.5/*" \
+        "$(top_srcdir)/src/frontend/CxxFrontend/EDG/edg_compiler/*" \
         "$(top_srcdir)/src/midend/astRewriteMechanism/*" \
         "$(top_srcdir)/src/midend/programAnalysis/dominanceAnalysis/*" \
         "$(top_srcdir)/src/midend/programAnalysis/pointerAnal/*" \

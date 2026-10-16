@@ -2,8 +2,8 @@ include $(top_srcdir)/config/Makefile.for.ROSE.includes.and.libs
 
 libedgSageSources = \
      $(top_builddir)/src/frontend/SageIII/Cxx_Grammar.h \
-     $(top_srcdir)/src/frontend/CxxFrontend/EDG/EDG_@ROSE_EDG_MAJOR_VERSION_NUMBER@.@ROSE_EDG_MINOR_VERSION_NUMBER@/src/cp_gen_be.cc \
-     $(top_srcdir)/src/frontend/CxxFrontend/EDG/EDG_@ROSE_EDG_MAJOR_VERSION_NUMBER@.@ROSE_EDG_MINOR_VERSION_NUMBER@/src/fe_init.cc
+     $(top_srcdir)/src/frontend/CxxFrontend/EDG/edg_compiler/src/cp_gen_be.c \
+     $(top_srcdir)/src/frontend/CxxFrontend/EDG/edg_compiler/src/fe_init.c
 
 noinst_LTLIBRARIES = libnewsage.la
 
@@ -100,8 +100,9 @@ libnewsage_la_CXXFLAGS = \
    $(CXXFLAGS) \
    -DMAKE_FRONT_END_CALLABLE=TRUE \
    $(ROSE_INCLUDES) \
-   -I$(top_srcdir)/src/frontend/CxxFrontend/EDG/EDG_@ROSE_EDG_MAJOR_VERSION_NUMBER@.@ROSE_EDG_MINOR_VERSION_NUMBER@/src \
-   -I../EDG_@ROSE_EDG_MAJOR_VERSION_NUMBER@.@ROSE_EDG_MINOR_VERSION_NUMBER@/src 
+   -I$(top_srcdir)/src/frontend/CxxFrontend/EDG/edg_compiler/src \
+   -I../edg_build \
+   -DUSE_CMAKE_DEFINES
 
 libnewsage_la-SourcePosition_DEPENDENCIES: SourcePosition.C SourcePosition.h
 libnewsage_la-edgRose_DEPENDENCIES: edgRose.C SourcePosition.h

@@ -784,11 +784,24 @@ if(ENABLE_CLANG_FRONTEND)
   execute_process(COMMAND "${CMAKE_SOURCE_DIR}/config/getClangMajorVersionNumber.sh" OUTPUT_VARIABLE CLANG_VERSION_MAJOR)
 endif()
 
-# Default EDG version
-set(EDG_VERSION "6.5" CACHE STRING "major.minor version number for EDG (e.g. 5.0).")
+# EDG version. The EDG source is the git submodule src/frontend/CxxFrontend/EDG/edg_compiler (a public fork of
+# github.com/edgcpp/compiler carrying ROSE's patches). When it is checked out its version is authoritative and is
+# read from src/version.h; otherwise EDG_VERSION selects the precompiled EDG library to download.
+set(EDG_VERSION "6.5" CACHE STRING "major.minor version number for EDG (e.g. 6.5); taken from the edg_compiler submodule when present.")
+set(edg_source_dir "${PROJECT_SOURCE_DIR}/src/frontend/CxxFrontend/EDG/edg_compiler")
+if(EXISTS "${edg_source_dir}/src/version.h")
+  file(STRINGS "${edg_source_dir}/src/version.h" edg_version_line REGEX "^#define VERSION_NUMBER[ \t]+\"")
+  string(REGEX REPLACE ".*\"([0-9]+\\.[0-9]+)[^\"]*\".*" "\\1" edg_version_from_source "${edg_version_line}")
+  if(NOT edg_version_from_source STREQUAL EDG_VERSION)
+    message(STATUS "EDG - source in edg_compiler is version ${edg_version_from_source}; overriding EDG_VERSION=${EDG_VERSION}")
+    set(EDG_VERSION "${edg_version_from_source}" CACHE STRING "major.minor version number for EDG; taken from the edg_compiler submodule." FORCE)
+  endif()
+endif()
+string(REGEX REPLACE "^([0-9]+)\\..*$" "\\1" EDG_MAJOR_VERSION "${EDG_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.([0-9]+).*$" "\\1" EDG_MINOR_VERSION "${EDG_VERSION}")
 
 # Check whether we have the EDG source code. Even if we have it, we might pretend (for testing) that we don't.
-if(EXISTS "${PROJECT_SOURCE_DIR}/src/frontend/CxxFrontend/EDG/CMakeLists.txt")
+if(EXISTS "${edg_source_dir}/src/basics.h")
   if(EDG_COMPILE)
     set(have_EDG_source TRUE)
   else()

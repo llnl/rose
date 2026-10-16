@@ -1,7 +1,7 @@
 include_directories (
   ${ROSE_INCLUDES}
-  ${ROSE_SOURCE_DIR}/src/frontend/CxxFrontend/EDG/EDG_${EDG_VERSION}/src
-  ${ROSE_BINARY_DIR}/src/frontend/CxxFrontend/EDG/EDG_${EDG_VERSION}/src)
+  ${ROSE_SOURCE_DIR}/src/frontend/CxxFrontend/EDG/edg_compiler/src
+  ${ROSE_BINARY_DIR}/src/frontend/CxxFrontend/EDG/edg_build)
 
 add_library (edg_rose OBJECT
   main.C
@@ -101,9 +101,10 @@ if (CMAKE_COMPILER_IS_GNUCXX)
   set (GXX_COMPILER_REPORT "-Wswitch-default")
 endif()
 
-# Let the user choose the flags used for this directory.
+# Let the user choose the flags used for this directory.  USE_CMAKE_DEFINES makes EDG's
+# defines.h include the cmake_defines.h generated in ../edg_build.
 set(EDG_NEWSAGE__CXX_FLAGS
-  "-DMAKE_FRONT_END_CALLABLE=TRUE -DNEED_IL_DISPLAY -DENABLE_CUDA_SUPPORT=1 ${GXX_COMPILER_REPORT}"
+  "-DUSE_CMAKE_DEFINES -DMAKE_FRONT_END_CALLABLE=TRUE -DNEED_IL_DISPLAY -DENABLE_CUDA_SUPPORT=1 ${GXX_COMPILER_REPORT}"
   CACHE STRING
   "Flags to use in directory ${CMAKE_CURRENT_BINARY_DIR}")
 

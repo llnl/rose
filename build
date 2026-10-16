@@ -274,38 +274,9 @@ sed -i~ -e '/^AC_INIT(/ s/^\(AC_INIT *(\[.*\], *\[\).*\(\] *).*\)/\1'"$rose_vers
 # Debugging (esp. for NMI machines)
 [[ -n "$ACLOCAL_INCLUDES" ]] && echo "ACLOCAL_INCLUDES=$ACLOCAL_INCLUDES"
 
-# Automake will expect these files to always exist even if they are in a conditional.  Since we know
-# that they will not be used during the build process itself, we can create zero-length dummy files.
-# This list should be the same as in configure.in (search for CLASSPATH_COND_IF)
-if [[ ! -e src/frontend/CxxFrontend/EDG/Makefile.am ]]; then
-    for file in \
-        src/frontend/CxxFrontend/EDG/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_5.0/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_5.0/misc/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_5.0/src/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_5.0/src/disp/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_5.0/lib/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.0/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.0/misc/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.0/src/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.0/src/disp/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.0/lib/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.3/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.3/misc/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.3/src/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.3/src/disp/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.3/lib/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.5/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.5/misc/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.5/src/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.5/src/disp/Makefile.in \
-        src/frontend/CxxFrontend/EDG/EDG_6.5/lib/Makefile.in \
-        src/frontend/CxxFrontend/EDG/edgRose/Makefile.in
-    do
-        mkdir -p $(dirname $file)
-        touch $file
-    done
-fi
+# The EDG build glue (src/frontend/CxxFrontend/EDG/*/Makefile.am) is part of this repository; only the EDG
+# source itself is a submodule (src/frontend/CxxFrontend/EDG/edg_compiler), and configure decides whether to
+# build it or to download a precompiled EDG library.  No dummy Makefile.in files are needed any more.
 
 # Run all autoconf, indenting their output for readability.  Exit if a tool fails (this is different than the
 # semantics of the original version of this script).  The '-I' switches of aclocal are because some macros may be

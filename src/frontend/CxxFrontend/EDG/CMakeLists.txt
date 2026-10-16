@@ -1,11 +1,16 @@
 remove_definitions(-DROSE_DLL_EXPORTS)
 
+# EDG's "disc_union" macro selects whether the IL's discriminated unions are real unions or
+# structs; structs are easier to inspect in a debugger.
 if(USE_ROSE_EDG_DEBUGGING_SUPPORT)
-  set(EDG__C_FLAGS "${CMAKE_C_FLAGS} -Ddisc_union=struct" CACHE STRING "Flags to use in directory ${CMAKE_CURRENT_BINARY_DIR}")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EDG__C_FLAGS}")
+  set(EDG_DISC_UNION "struct")
+else()
+  set(EDG_DISC_UNION "union")
 endif()
 
-add_subdirectory(EDG_${EDG_VERSION})
+# edg_build compiles the EDG front end from the edg_compiler submodule (object library
+# edg_internal); edgRose, the EDG IL -> SageIII translator, depends on headers generated there.
+add_subdirectory(edg_build)
 add_subdirectory(edgRose)
 
 add_library(RoseSourceCxxFrontendEdg SHARED 
