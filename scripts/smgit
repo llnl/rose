@@ -1685,7 +1685,7 @@ sub is_top_of_rose {
   my($dir) = @_;
   return unless -d $dir && -d "$dir/.git";
   return unless open MODULES, "$dir/.gitmodules";
-  my $has_edg = grep {m(^\[\s*submodule\s+\"src/frontend/CxxFrontend/EDG\"\s*]\s*$)} <MODULES>;
+  my $has_edg = grep {m(^\[\s*submodule\s+\"edg_compiler\"\s*]\s*$)} <MODULES>;
   close MODULES;
   return $has_edg;
 }

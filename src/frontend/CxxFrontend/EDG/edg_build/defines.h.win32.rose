@@ -1,12 +1,14 @@
-/******************************************************************************
-*                                                             \  ___  /       *
-*                                                               /   \         *
-* Edison Design Group C++/C Front End                        - | \^/ | -      *
-*                                                               \   /         *
-* Proprietary information of Edison Design Group Inc.         /  | |  \       *
-* Copyright 1988-2023 Edison Design Group Inc.                   [_]          *
-*                                                                             *
-******************************************************************************/
+/*
+ * defines.h.win32.rose -- ROSE's configuration of the EDG C/C++ front end for Windows
+ * hosts (work in progress; the Linux/macOS build uses defines.h.rose).
+ *
+ * Derived from the Windows configuration template (defines_win32.h) of the EDG Compiler
+ * Project, github.com/edgcpp/compiler, Copyright Edison Design Group Inc., which is licensed
+ * under the Apache License v2.0 with LLVM Exceptions; ROSE's changes are contributed under
+ * the same terms.
+ *
+ * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+ */
 /*
 
 defines.h -- Defines configuration parameters for a given version of the
@@ -1121,13 +1123,3 @@ ones can be created with --dump_legacy_as_target).
 #define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
 
 #endif /* ifndef DEFINES_WIN32_H */
-
-/******************************************************************************
-*                                                             \  ___  /       *
-*                                                               /   \         *
-* Edison Design Group C++/C Front End                        - | \^/ | -      *
-*                                                               \   /         *
-* Proprietary information of Edison Design Group Inc.         /  | |  \       *
-* Copyright 1988-2023 Edison Design Group Inc.                   [_]          *
-*                                                                             *
-******************************************************************************/
