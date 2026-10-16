@@ -1,3 +1,0 @@
-[submodule "src/frontend/CxxFrontend/EDG"]
-	path = src/frontend/CxxFrontend/EDG
-	url = ssh://git@rosecompiler2.llnl.gov:10022/main/rose-compiler/edg.git
