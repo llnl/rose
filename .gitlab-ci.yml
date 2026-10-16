@@ -55,7 +55,6 @@ stages:
     - Develop-Tests
     - Release-Tests
     - Status-Tests
-    - EDG
     - Deploy
 
 
@@ -194,9 +193,6 @@ Libadalang:
 Libadalang-CMake:
     extends: .develop-base
 
-EDG-Binary-Test:
-    extends: .develop-base
-
 Language-Test:
     extends: .develop-base
     parallel:
@@ -315,31 +311,6 @@ Failure-Cleanup:
         - git fetch origin staging-backup
         - git push -f $SSH_ORIGIN origin/staging-backup:refs/heads/staging-rc
         
-#jobs to release edg binaries ------------------------------------------------------------------------------------------------------------------------------------
-
-EDG-Binaries:
-    rules:
-        - if: $PIPE_TYPE == "release" && $CI_COMMIT_BRANCH == "weekly"
-          when: on_success
-        - when: never
-    stage: EDG
-    tags:
-        - workpool
-    parallel:
-        matrix:
-            - COMPILER: 
-                - gcc7
-                - gcc8
-                - gcc9
-                - gcc10
-                - gcc11
-                - gcc12
-                - gcc13
-    before_script:
-        - if [ -d $TEST_DIRECTORY ] ; then cd $TEST_DIRECTORY ; git pull origin master ; cd .. ; else git clone -b $TEST_SCRIPTS_BRANCH $TEST_SCRIPTS $TEST_DIRECTORY ; fi
-    script:
-        - ./$TEST_DIRECTORY/edg_launcher.sh $COMPILER
-
 #job to create the weekly commit and push to weekly. The release tests will then run.
 Push-Weekly:
     rules:
@@ -375,9 +346,6 @@ Push-Weekly:
 Clang-Frontend:
     extends: .release-base
 
-EDG-Binary-Build:
-    extends: .release-base
-
 NPB-OMP:
     extends: .release-base
 
@@ -392,10 +360,7 @@ Project:
     
 32Bit:
     extends: .release-base
-    
-Offline-Build:
-    extends: .release-base
-    
+
 RMC2-Install:
     extends: .release-base
     
@@ -509,17 +474,3 @@ Push-Weekly-Generated:
       - job: Create-Generated
     script:
         - ./$TEST_DIRECTORY/util/push_weekly_generated.sh
-
-Ubuntu-EDG-Binary:
-    extends: .release-base
-
-Deploy-EDG:
-    extends: .release-base
-    stage: Deploy
-    tags:
-        - network
-    resource_group: deployment
-    needs:
-      - job: EDG-Binaries
-    script:
-        - ./$TEST_DIRECTORY/util/push_edg_binaries.sh

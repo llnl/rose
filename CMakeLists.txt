@@ -784,64 +784,35 @@ if(ENABLE_CLANG_FRONTEND)
   execute_process(COMMAND "${CMAKE_SOURCE_DIR}/config/getClangMajorVersionNumber.sh" OUTPUT_VARIABLE CLANG_VERSION_MAJOR)
 endif()
 
-# EDG version. The EDG source is the git submodule src/frontend/CxxFrontend/EDG/edg_compiler (a public fork of
-# github.com/edgcpp/compiler carrying ROSE's patches). When it is checked out its version is authoritative and is
-# read from src/version.h; otherwise EDG_VERSION selects the precompiled EDG library to download.
-set(EDG_VERSION "6.5" CACHE STRING "major.minor version number for EDG (e.g. 6.5); taken from the edg_compiler submodule when present.")
+# EDG version, read from the git submodule src/frontend/CxxFrontend/EDG/edg_compiler (a public fork of
+# github.com/edgcpp/compiler carrying ROSE's patches). EDG is always compiled from that source; there is no
+# precompiled EDG library any more.
 set(edg_source_dir "${PROJECT_SOURCE_DIR}/src/frontend/CxxFrontend/EDG/edg_compiler")
+set(EDG_VERSION "" CACHE STRING "major.minor version of EDG; read from the edg_compiler submodule, do not set.")
 if(EXISTS "${edg_source_dir}/src/version.h")
   file(STRINGS "${edg_source_dir}/src/version.h" edg_version_line REGEX "^#define VERSION_NUMBER[ \t]+\"")
   string(REGEX REPLACE ".*\"([0-9]+\\.[0-9]+)[^\"]*\".*" "\\1" edg_version_from_source "${edg_version_line}")
   if(NOT edg_version_from_source STREQUAL EDG_VERSION)
-    message(STATUS "EDG - source in edg_compiler is version ${edg_version_from_source}; overriding EDG_VERSION=${EDG_VERSION}")
-    set(EDG_VERSION "${edg_version_from_source}" CACHE STRING "major.minor version number for EDG; taken from the edg_compiler submodule." FORCE)
+    set(EDG_VERSION "${edg_version_from_source}" CACHE STRING "major.minor version of EDG; read from the edg_compiler submodule." FORCE)
   endif()
 endif()
 string(REGEX REPLACE "^([0-9]+)\\..*$" "\\1" EDG_MAJOR_VERSION "${EDG_VERSION}")
 string(REGEX REPLACE "^[0-9]+\\.([0-9]+).*$" "\\1" EDG_MINOR_VERSION "${EDG_VERSION}")
 
-# Check whether we have the EDG source code. Even if we have it, we might pretend (for testing) that we don't.
-if(EXISTS "${edg_source_dir}/src/basics.h")
-  if(EDG_COMPILE)
-    set(have_EDG_source TRUE)
-  else()
-    set(have_EDG_source FALSE)
-  endif()
+# Do we have the EDG source? It is required whenever C/C++ analysis is enabled and the Clang frontend is not.
+if(EXISTS "${edg_source_dir}/src/basics.h" AND EDG_COMPILE)
+  set(have_EDG_source TRUE)
+  message(STATUS "EDG - will compile EDG-${EDG_VERSION} source code from src/frontend/CxxFrontend/EDG/edg_compiler")
 else()
   set(have_EDG_source FALSE)
-  set(EDG_COMPILE FALSE)
-endif()
-
-# Check if we should download the EDG binary tarball. We only need to download it if we're not compiling the
-# EDG source code and ROSE is configured to analyze C (and C++).
-if(NOT have_EDG_source AND NOT ENABLE_CLANG_FRONTEND)
-  set(BINARY_EDG 0)
-  if(ENABLE_C)
-    set(BINARY_EDG 1)
-    if(NOT WIN32)
-      message(FATAL_ERROR "EDG binary download not yet supported, please use EDG git submodule if in ROSE team, otherwise use autotools")
-      message(STATUS "EDG - downloading EDG-${EDG_VERSION} binary tar file")
-      if(EXISTS "${PROJECT_BINARY_DIR}/src/frontend/CxxFrontend/EDG.tar.gz")
-        execute_process(COMMAND "tar" "-zxvf" "-C" "${PROJECT_BINARY_DIR}/src/frontend/CxxFrontend/EDG")
-      else()
-      # no need to display this message after the file has been downloaded
-      if(NOT EXISTS "${PROJECT_BINARY_DIR}/src/frontend/CxxFrontend/EDG/.libs")
-        message(WARNING "At build time, CMake will attempt to download a required library tarball.\n"
-                        "Please note that EDG binary tarballs are available for only certain configurations.")
-      endif()
-      include(${PROJECT_SOURCE_DIR}/cmake/DownloadEDG.cmake)
-      endif()
-    endif()
+  if(ENABLE_C AND NOT ENABLE_CLANG_FRONTEND)
+    message(FATAL_ERROR
+      "C/C++ analysis needs the EDG front end, but its source is not present in\n"
+      "  ${edg_source_dir}\n"
+      "Check out the submodule:  git submodule update --init src/frontend/CxxFrontend/EDG/edg_compiler\n"
+      "or configure without C/C++ support, or with -DENABLE_CLANG_FRONTEND=ON.")
   endif()
-endif()
-
-set(edg_lib EDG) # the compiled library, the downloaded library, or the dummy library
-if(have_EDG_source)
-  message(STATUS "EDG - will compile EDG-${EDG_VERSION} source code")
-elseif(BINARY_EDG)
-  message(STATUS "EDG - will use EDG-${EDG_VERSION} binary release (download)")
-else()
-  message(STATUS "EDG - not needed; using a nearly empty dummy library")
+  message(STATUS "EDG - not needed")
 endif()
 
 ########################################################################################################################

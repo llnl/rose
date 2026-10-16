@@ -28,11 +28,10 @@ Getting the EDG source
 
     git submodule update --init src/frontend/CxxFrontend/EDG/edg_compiler
 
-Without the submodule, the autotools build downloads a precompiled EDG library
-(roseBinaryEDG-<major>-<minor>-...tar.gz) as before; see src/frontend/CxxFrontend/Makefile.am
-and scripts/edg-generate-sig. The EDG version ROSE builds against is read from
-edg_compiler/src/version.h; --enable-edg-version / -DEDG_VERSION only matter for the
-download case.
+The submodule is required whenever ROSE is configured with C/C++ support and without the Clang
+frontend; configure and CMake stop with that instruction if it is missing. The EDG version ROSE
+builds against is read from edg_compiler/src/version.h. (Earlier ROSE releases downloaded a
+precompiled EDG library instead; that mechanism no longer exists.)
 
 Upgrading EDG
 -------------

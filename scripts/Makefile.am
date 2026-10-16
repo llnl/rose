@@ -13,8 +13,6 @@ distributedScripts =				 \
 	dotgen2					 \
 	dotgenLetterPDF				 \
 	dotgenLetterPNG				 \
-	edg-generate-sig			 \
-	edg-unused-versions			 \
 	generateDirectoryGraph			 \
 	libtoolcp				 \
 	lsdot					 \

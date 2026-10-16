@@ -87,7 +87,6 @@ AC_DEFUN([ROSE_SUPPORT_SUMMARY],[
         ROSE_SUMMARY_HEADING([C/C++ analysis support])
 	echo "    frontend C++ parser              EDG-${edg_major_version_number}.${edg_minor_version_number}"
 	echo "    compiling EDG from source        $has_edg_source"
-	echo "    generating EDG binary tarball    $binary_edg_tarball_enabled"
 	echo "    backend C++ compiler             ${BACKEND_CXX_COMPILER_COMMAND:-none}"
 	echo "    C++ vendor                       ${BACKEND_CXX_COMPILER_VENDOR:-unknown}"
 	echo "    C++ version                      ${BACKEND_CXX_VERSION_TRIPLET:-unknown}"

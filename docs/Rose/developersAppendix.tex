@@ -1003,62 +1003,17 @@ Unparse_ExprStmt::unparseVarArgOp(SgExpression* expr, SgUnparse_Info& info)
 
 %}}}
 
-\section{Separation of EDG Source Code from ROSE Distribution}%{{{
+\section{EDG Source Code in the ROSE Distribution}%{{{
 
-    The EDG research license restricts the distribution of their source code.
-Working with EDG is still possible within an open source project such as ROSE because 
-EDG permits binaries of their work to be freely distributed (protecting their source 
-code).  As ROSE matured, we designed the autoconf/automake distribution mechanism
-to build distributions that exclude the EDG source code and alternatively distribute
-a Linux-based binary version of their code.
+   The EDG C/C++ front end is open source (Apache License v2.0 with LLVM Exceptions,
+\url{https://github.com/edgcpp/compiler}). ROSE compiles it from the git submodule
+{\tt src/frontend/CxxFrontend/EDG/edg\_compiler}, a public fork carrying ROSE\textquotesingle s patches
+(\url{https://github.com/rose-compiler/edg}); see {\tt src/frontend/CxxFrontend/EDG/README}.
 
-   All releases of ROSE, starting with 0.8.4a, are done without the EDG source code
-by default.  An optional configure command line option is implemented to allow
-the construction of a distribution of ROSE which includes the EDG source code
-(see {\tt configure --help} for the {\tt --with-edg\_source\_code} option).
-
-   The default options for configure will build a distribution that contains
-no EDG source code (no source files or header files).  This is not a problem 
-for ROSE because it can still exist as an almost entirely open source project
-using only the ROSE source and the EDG binary version of the library.
-
-  Within this default configuration, ROSE can be freely distributed on the Web
-(eventually).  Importantly, this simplifies how we work with many different 
-research groups and avoid the requirement for a special research license from
-EDG for the use of their C and C++ front-end.  Our goal has been to simplify
-the use of ROSE.
-
-   Only the following command to configure with EDG source code is accepted:
-{\indent
-{\mySmallFontSize
-\begin{verbatim}
-     configure --with-edg_source_code=true
-\end{verbatim} 
-}}
-This particularly restrictive syntax is used to prevent it from ever being used
-by accident.  Note that the following will not work. They are equivalent to 
-not having specified the option at all:
-{\indent
-{\mySmallFontSize
-\begin{verbatim}
-     configure --with-edg_source_code
-     configure --with-edg_source_code=false
-     configure --with-edg_source_code=True
-     configure --with-edg_source_code=TRUE
-     configure --with-edg_source_code=xyz
-     configure 
-\end{verbatim} 
-}}
-
-To see how any configuration is set up, type {\tt make testEdgSourceRule}
-in the {\tt ROSE/src/frontend/CxxFrontend/EDG\_3.3/src} directory.
-
-To build a distribution without EDG source code:
-\begin{enumerate}
-   \item Configure to use the EDG source code and build normally, 
-   \item Then rerun configure to not use the EDG source code, and
-   \item Run {\tt make dist}.
-\end{enumerate}
+   Historically EDG was a proprietary research license, ROSE distributions excluded the EDG source,
+   and users downloaded a precompiled EDG library matching their compiler. That mechanism
+   ({\tt make binary\_edg\_tarball}, the binary compatibility signature, the download in
+   {\tt src/frontend/CxxFrontend/Makefile.am}) has been removed.
 %}}}
 
 \section{How to Deprecate ROSE Features}%{{{
@@ -1261,50 +1216,8 @@ Details: \\
 
 \section{How To Build a ROSE Distribution with EDG Binaries}%{{{
 
-%Updated by Liao on 4/27/2009
-
-   The construction of a binary distribution is done as part of making
-ROSE available externally on the web to users who do not have an EDG
-license.  We make only the EDG part of ROSE available as a binary (library) 
-and the rest is left as source code (just as in an all source distribution).
-
-This step is automated in our daily regression test script in {\tt
-rose/script/roseFreshTest} and is turned on by a flag
-{\tt ENABLE\_BUILD\_BINARY\_EDG}. A simplified excerpt of the script is shown below:
-\begin{verbatim}
-if [ 0$ENABLE_BUILD_BINARY_EDG -ne 0 ]; then
-  cd ${ROSE_TOP}/build
-  make binary_edg_tarball || exit 1
-  ${ROSE_TOP}/sourcetree/scripts/copy_binary_edg_tarball_to_source_tree_svn 
-  ${ROSE_TOP}/sourcetree/scripts/copy_binary_edg_tarball_to_source_tree ${ROSE_TOP}/sourcetree 
-make $MAKEFLAGS source_with_binary_edg_dist DOT_SVNREV=-${svnversion}
-echo "############ make source_with_binary_edg_dist done"
-fi
-\end{verbatim}
-
-% DQ (7/11/2009): Added '$' so get the coloring correct in my emacs (an annoying issue).
-
-As shown in the script above, the steps to build a binary distribution of ROSE are:
-\begin{enumerate}
-   \item Configure and build ROSE normally, using configure (use all options that you
-    require in the binary distribution).  
-    \item Run {\tt make binary\_edg\_tarball}. This will make a binary tar
-    ball from EDG and EDG-SAGE connection source files. 
-    \item Copy the binary to the svn repository: {\tt copy\_binary\_edg\_tarball\_to\_source\_tree\_svn} 
-    \item Copy the binary to your local copy: {\tt copy\_binary\_edg\_tarball\_to\_source\_tree}
-     \item Make the ROSE distribution with EDG binaries: {\tt make source\_with\_binary\_edg\_dist}
-%   \item (optional) Run {\tt make dist}, this will build an {\em all source distribution} of ROSE.
-%   \item Rerun configure without the {\tt --with-edg\_source\_code=true} option.
-%   \item Run {\tt make dist}, this will build a binary distribution using the 
-%    binary libraries build in step one.
-\end{enumerate}
-To make sure the binaries are up to date for different platforms, 
-we generate a hash number from the source files within the EDG and EDG-SAGE connection source tree and 
-treat the number as a signature for the binary package. 
-Please see the makefile target {\tt rose\_binary\_compatibility\_signature} in {\tt rose/Makefile.am} for details.
-Our regression test script will check for the availability and consistency of the binaries for all supported platforms 
-before making an external ROSE release with EDG binaries.
-%-----------------------------------------------------------------------
+   Obsolete: EDG is open source and compiled from the {\tt edg\_compiler} submodule, so ROSE
+   distributions no longer carry or download precompiled EDG libraries. See the previous section.
 %}}}
 
 \section{Avoiding Nightly Backups of Unrequired ROSE Files at LLNL}%{{{

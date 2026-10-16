@@ -1059,10 +1059,9 @@ else()
   set(LINK_FILES ${CMAKE_DL_LIBS})
 endif()
 
-# ???
-if(NOT BINARY_EDG)
-  add_definitions(-DUSE_FAKE_EDG)
-endif()
+# EDG is always compiled from the edg_compiler submodule (never a prebuilt library), so ROSE's fake-EDG
+# interface header is always in use here, as it was when BINARY_EDG was never set.
+add_definitions(-DUSE_FAKE_EDG)
 
 
 # Link language frontend dependencies as PRIVATE

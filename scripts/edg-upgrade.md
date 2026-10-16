@@ -61,8 +61,7 @@ cd - && git add src/frontend/CxxFrontend/EDG/edg_compiler
 * If the new version should have a `ROSE_USE_EDG_VERSION_<M>_<m>` macro, add it to the `AS_CASE` in
   `config/support-edg.m4` (CMake derives it from `EDG_VERSION`).
 * Build and run rose-tests (`check-smoke`, `CompileTests/C_tests`, `CompileTests/Cxx_tests`) with both
-  CMake and autotools; `make binary_edg_tarball` must still produce
-  `roseBinaryEDG-<M>-<m>-<triplet>-<compiler>-<signature>.tar.gz`.
+  CMake and autotools.
 * The submodule pointer change needs EDG-maintainer approval in the MR (`testing-scripts/util/policy_check.sh`).
 
 ## 3. Upstreaming

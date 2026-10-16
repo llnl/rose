@@ -19,11 +19,6 @@ if AXXPXX_SPECIFIC_TESTS
 else
 	@echo "Automake conditional AXXPXX_SPECIFIC_TESTS: NOT defined"
 endif
-if BINARY_EDG_TARBALL_ENABLED
-	@echo "Automake conditional BINARY_EDG_TARBALL_ENABLED: DEFINED"
-else
-	@echo "Automake conditional BINARY_EDG_TARBALL_ENABLED: NOT defined"
-endif
 if CONVENIENCE_LTDL
 	@echo "Automake conditional CONVENIENCE_LTDL: DEFINED"
 else

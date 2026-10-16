@@ -228,15 +228,6 @@ check-policies: enforce_policies
 EXTRA_DIST += cmake CMakeLists.txt rose_config.h.in.cmake stamp-h.in stamp-h1.in COPYRIGHT \
              LicenseInformation build
 
-# The bincompat-sig file contains the SHA1 part of the EDG binary tarball name and must be generated anew
-# each time we make a distribution because we don't want to distribute stale information.
-EXTRA_DIST += bincompat-sig
-.PHONY: cleanSig
-cleanSig:
-	rm -rf bincompat-sig
-bincompat-sig: cleanSig
-	$(srcdir)/scripts/edg-generate-sig > $@
-
 # At some point we want to put tals into the distribution (likely just PDF files, but not yet).
 # ROSE_Talks
 
@@ -397,7 +388,7 @@ distcheck-after:
 	@$(MAKE) rename_distribution
 
 # CLEANFILES = rose_binary_compatibility_signature rose_binary_compatibility_signature_src
-CLEANFILES = rose_binary_compatibility_signature bincompat-sig
+CLEANFILES = rose_binary_compatibility_signature
 
 find_rose_lock_files:
 #	du -a | grep rose_performance_report_lockfile
@@ -421,17 +412,6 @@ docs: FORCE_DOCS_TO_BE_MADE
 	   echo "Please look at the ROSE web site for documentation (www.roseCompiler.org)"; \
 	fi
 
-if ROSE_HAS_EDG_SOURCE
-
-# 1
-# This rule generates the simple binary tarball for the directories: EDG and EDG_SAGE_Connection
-binary_edg_tarball:
-	$(MAKE) -C src/frontend/CxxFrontend binary_edg_tarball
-
-upload_edg_binary:
-	$(MAKE) -C src/frontend/CxxFrontend upload_edg_binary
-
-endif
 
 # Makefile rule to test the Hudson runTest script (used for all Hudson tests).
 # Note that empty ROSE_TEST_BUILD_STYLE maps to a minimal build.
@@ -596,11 +576,6 @@ ProblemAreas:
 	grep -rl CXX_IS_ROSE_CODE_GENERATION $(top_srcdir) | grep "\.C"
 #	echo "Files where ROSE does not analyze some amount of code (test of CXX_IS_ROSE_TRANSLATOR in each ROSE source file)."
 #	grep -rl CXX_IS_ROSE_TRANSLATOR $(top_srcdir) | grep "\.C"
-
-release_binary_compatibility_signature=$(shell ${top_srcdir}/scripts/bincompat-sig)
-
-PrintBinaryCompatibilitySignature:
-	@echo "release_binary_compatibility_signature = ${release_binary_compatibility_signature}"
 
 # Generate public version of rose_config.h, which is triggered by the AC_CONFIG_COMMANDS macro near the end
 # of config/support-rose.m4 whenever config.status runs.

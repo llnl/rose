@@ -275,8 +275,8 @@ sed -i~ -e '/^AC_INIT(/ s/^\(AC_INIT *(\[.*\], *\[\).*\(\] *).*\)/\1'"$rose_vers
 [[ -n "$ACLOCAL_INCLUDES" ]] && echo "ACLOCAL_INCLUDES=$ACLOCAL_INCLUDES"
 
 # The EDG build glue (src/frontend/CxxFrontend/EDG/*/Makefile.am) is part of this repository; only the EDG
-# source itself is a submodule (src/frontend/CxxFrontend/EDG/edg_compiler), and configure decides whether to
-# build it or to download a precompiled EDG library.  No dummy Makefile.in files are needed any more.
+# source itself is a submodule (src/frontend/CxxFrontend/EDG/edg_compiler), which configure requires whenever
+# C/C++ support is enabled without the Clang frontend.  No dummy Makefile.in files are needed any more.
 
 # Run all autoconf, indenting their output for readability.  Exit if a tool fails (this is different than the
 # semantics of the original version of this script).  The '-I' switches of aclocal are because some macros may be

@@ -14,7 +14,8 @@ Date: 2026-10-16. ROSE 2.19.3 (develop) was the last layout with the private sub
 | generated `EDG_6.5/src/defines.h` (= `defines.h.rose` + `dettarg.out`) | generated `edg_build/cmake_defines.h`, picked up by EDG's own `defines.h` through `-DUSE_CMAKE_DEFINES` |
 | `EDG/edgRose/` | unchanged path, history kept |
 | `EDG/edg-migration.sh` (copy a new EDG release tarball in, re-apply patches) | `scripts/edg-upgrade.md` (rebase the `rose/<ver>` branch of the fork onto the new upstream tag) |
-| `--enable-edg-version=5.0|6.0|6.3|6.5` chooses a directory | version read from `edg_compiler/src/version.h`; the switch only matters without the submodule (binary download) |
+| `--enable-edg-version=5.0|6.0|6.3|6.5` chooses a directory | version read from `edg_compiler/src/version.h`; the switch is only an assertion |
+| `--enable-edg-compile=maybe|yes|no`, precompiled `roseBinaryEDG` tarballs (generation, upload, download) | removed; the submodule is required for C/C++ support without Clang |
 | `EDG_6.5/lib/predefined_macros.txt`, `EDG_6.5/src/disp` (IL display program) | dropped: not used by ROSE |
 
 ## History
@@ -42,9 +43,11 @@ Date: 2026-10-16. ROSE 2.19.3 (develop) was the last layout with the private sub
 
 ## Building
 
-* With the submodule: `git submodule update --init src/frontend/CxxFrontend/EDG/edg_compiler`,
-  then configure as usual (autotools or CMake). EDG is compiled into `libroseEDG` /
-  `RoseSourceCxxFrontendEdg` exactly as before.
-* Without the submodule: autotools downloads the precompiled `roseBinaryEDG-<major>-<minor>-...`
-  tarball as before (`--enable-edg-compile=maybe`, the default). The tarball name and the
-  compatibility signature (`scripts/edg-generate-sig`) are unchanged.
+* `git submodule update --init src/frontend/CxxFrontend/EDG/edg_compiler`, then configure as usual
+  (autotools or CMake). EDG is compiled into `libroseEDG` / `RoseSourceCxxFrontendEdg` exactly as
+  before.
+* The precompiled EDG library (`roseBinaryEDG-*.tar.gz`: generation with `make binary_edg_tarball`,
+  upload to S3, download by the autotools build when the source was absent, the
+  `scripts/edg-generate-sig` compatibility signature, the `EDG_VERSION` file and the `EDG-Binary*`
+  CI jobs) was removed together with this change. Configure and CMake now fail with the submodule
+  instruction when C/C++ support is requested without the EDG source and without the Clang frontend.

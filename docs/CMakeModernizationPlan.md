@@ -759,7 +759,8 @@ provided:
 
 1. **No C/C++ analysis**: EDG not needed
 2. **Precompiled EDG binary**: EDG library is downloaded and linked separately, no source target exists
-3. **EDG source code**: EDG source is compiled (proprietary Git submodule), creating the `RoseSourceCxxFrontendEdg` target
+   (historical: precompiled EDG libraries no longer exist, EDG is always compiled from the `edg_compiler` submodule)
+3. **EDG source code**: EDG source is compiled (the open-source `src/frontend/CxxFrontend/EDG/edg_compiler` submodule), creating the `RoseSourceCxxFrontendEdg` target
 
 The unconditional reference causes CMake export errors: `install(EXPORT "RoseTargets" ...) includes target "ROSE_DLL" which requires
 target "RoseSourceCxxFrontendEdg" that is not in any export set.`

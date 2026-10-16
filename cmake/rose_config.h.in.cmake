@@ -291,9 +291,6 @@
 /* Controls if EDG Union/Struct debugging support is to be used. */
 #cmakedefine01 USE_ROSE_EDG_DEBUGGING_SUPPORT
 
-/* Defined if we're using a prebuilt EDG library */
-#cmakedefine BINARY_EDG
-
 /* Internal EDG specific consistency tests. */
 //AS FIXME
 #define CHECKING 1
