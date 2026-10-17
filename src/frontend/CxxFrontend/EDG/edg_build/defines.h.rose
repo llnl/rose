@@ -401,12 +401,14 @@ This is the version for ROSE Compiler. It is meant to be used by Linux, MacOS, a
   #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
 #endif
 
-#define PRINTF_FORMAT_FOR_SIGNED_INTEGER_VALUE   "%lld"
-#define PRINTF_FORMAT_FOR_UNSIGNED_INTEGER_VALUE "%llu"
-#define PRINTF_FORMAT_FOR_HEX_INTEGER_VALUE      "%llx"
 #define MAX_INTEGER_VALUE 9223372036854775807LL
 #define MIN_INTEGER_VALUE (-MAX_INTEGER_VALUE-1)
 #define MAX_UNSIGNED_INTEGER_VALUE 18446744073709551615ULL
+
+/* EDG 7.0 features ROSE does not use (upstream's configuration enables them; left undefined they
+   would read as 0 anyway, this makes the choice explicit). */
+#define REFLECTION_ENABLING_POSSIBLE 0
+#define RISCV_VECTOR_BUILTINS_ENABLED 0
 
 #define LITERALS_AS_STRINGS_SUPPORT 1
 #define FLOAT_SUPPORT_MAX_SIZE_OF_FLOAT_LEXEMES 128

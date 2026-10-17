@@ -26,6 +26,7 @@ endif()
 #------------------------------------------------------------------------------------------
 set(EDG_FRONTEND_SOURCES
   attribute.c
+  cfe_daemon.c
   class_decl.c
   cmd_line.c
   const_ints.c
@@ -54,6 +55,9 @@ set(EDG_FRONTEND_SOURCES
   ifc_map_functions_acc.c
   ifc_map_functions_val.c
   ifc_map_functions_dbg.c
+  ifc_map_functions_mut.c
+  ifc_modules_read.c
+  ifc_modules_write.c
   il.c
   il_alloc.c
   il_display.c
@@ -91,7 +95,8 @@ set(EDG_FRONTEND_SOURCES
   trans_copy.c
   trans_corresp.c
   trans_unit.c
-  types.c)
+  types.c
+  unicode_name_fsm.c)
 list(TRANSFORM EDG_FRONTEND_SOURCES PREPEND "${EDG_SOURCE_DIR}/src/")
 
 set(EDG_DETTARG_SOURCE    "${EDG_SOURCE_DIR}/util/dettarg.c")

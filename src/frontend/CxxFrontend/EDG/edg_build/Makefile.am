@@ -93,6 +93,7 @@ err_data.h: err_codes.h
 #------------------------------------------------------------------------------------------
 nodist_libedg_la_SOURCES = \
    $(EDG_SRC)/src/attribute.c \
+   $(EDG_SRC)/src/cfe_daemon.c \
    $(EDG_SRC)/src/class_decl.c \
    $(EDG_SRC)/src/cmd_line.c \
    $(EDG_SRC)/src/const_ints.c \
@@ -121,6 +122,9 @@ nodist_libedg_la_SOURCES = \
    $(EDG_SRC)/src/ifc_map_functions_acc.c \
    $(EDG_SRC)/src/ifc_map_functions_val.c \
    $(EDG_SRC)/src/ifc_map_functions_dbg.c \
+   $(EDG_SRC)/src/ifc_map_functions_mut.c \
+   $(EDG_SRC)/src/ifc_modules_read.c \
+   $(EDG_SRC)/src/ifc_modules_write.c \
    $(EDG_SRC)/src/il.c \
    $(EDG_SRC)/src/il_alloc.c \
    $(EDG_SRC)/src/il_display.c \
@@ -158,7 +162,8 @@ nodist_libedg_la_SOURCES = \
    $(EDG_SRC)/src/trans_copy.c \
    $(EDG_SRC)/src/trans_corresp.c \
    $(EDG_SRC)/src/trans_unit.c \
-   $(EDG_SRC)/src/types.c
+   $(EDG_SRC)/src/types.c \
+   $(EDG_SRC)/src/unicode_name_fsm.c
 
 $(libedg_la_OBJECTS): cmake_defines.h err_codes.h err_data.h
 
