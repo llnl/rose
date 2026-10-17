@@ -432,5 +432,24 @@ This is the version for ROSE Compiler. It is meant to be used by Linux, MacOS, a
 
 #define ALLOW_HOST_FP_TOO_SMALL_FOR_LARGEST_FIXED_POINT_TYPE 1
 
+/* Host long double representation (see floating.h). EDG 7.0's float_pt_init() needs exactly one
+   of these when USE_FLOAT128_FOR_HOST_FP_VALUE is set; upstream's defines_linux.h chooses by
+   architecture, we use the compiler's description of long double and fall back to that. The Apple
+   arm64 section above has already chosen FP_LONG_DOUBLE_IS_BINARY64. */
+#if !defined(FP_LONG_DOUBLE_IS_80BIT_EXTENDED) && !defined(FP_LONG_DOUBLE_IS_BINARY128) && \
+    !defined(FP_LONG_DOUBLE_IS_BINARY64)
+  #if defined(__LDBL_MANT_DIG__) && __LDBL_MANT_DIG__ == 64
+    #define FP_LONG_DOUBLE_IS_80BIT_EXTENDED 1
+  #elif defined(__LDBL_MANT_DIG__) && __LDBL_MANT_DIG__ == 113
+    #define FP_LONG_DOUBLE_IS_BINARY128 1
+  #elif defined(__LDBL_MANT_DIG__) && __LDBL_MANT_DIG__ == 53
+    #define FP_LONG_DOUBLE_IS_BINARY64 1
+  #elif defined(__aarch64__) || defined(__riscv)
+    #define FP_LONG_DOUBLE_IS_BINARY128 1
+  #else
+    #define FP_LONG_DOUBLE_IS_80BIT_EXTENDED 1
+  #endif
+#endif
+
 #endif /* ifndef DEFINES_ROSE_H */
 
