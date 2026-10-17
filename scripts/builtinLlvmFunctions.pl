@@ -143,10 +143,14 @@ sub parseAttributes {
 
     s/([nrctFfe]|[pPsS]:\d+:)/$1,/g; # split individual specs into a comma-separated list
 
-    # Translate the letters into __attribute__ arguments
+    # Translate the letters into __attribute__ arguments.
+    # The N in LLVM's p:N:/P:N:/s:N:/S:N: is a 0-based argument index (e.g. __builtin_printf is "Fp:0:"),
+    # whereas GCC's format(archetype, string-index, first-to-check) is 1-based; clang itself adds one when
+    # it turns these into format attributes.  EDG 6.5 ignored the resulting off-by-one; EDG 7.0 rejects it
+    # ("format argument does not have string type"), so convert here.
     $_ = join " ", map { exists $translation{$_} ? $translation{$_} : "ERROR('$_')" } split //;
-    s/FORMAT,FORMAT_PLUS_1\)\s*:\s*(\d+)\s*:\s*/"$1,".($1+1).")"/ge;
-    s/FORMAT,0\)\s*:\s*(\d+)\s*:\s*/$1,0)/g;
+    s/FORMAT,FORMAT_PLUS_1\)\s*:\s*(\d+)\s*:\s*/($1+1).",".($1+2).")"/ge;
+    s/FORMAT,0\)\s*:\s*(\d+)\s*:\s*/($1+1).",0)"/ge;
 
     # Create the entire __attribute__((...)) string or the empty string
     my($attr_args) = join ", ", grep {$_} split /\s*,\s*/;
