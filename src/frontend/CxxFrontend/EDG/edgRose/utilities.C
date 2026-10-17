@@ -4215,7 +4215,8 @@ void process_possible_typeof_expression_arguments( a_scope_ptr scope )
                ROSE_ASSERT(local_expr_node_ref_ptr->expr != NULL);
 
             // DQ (5/20/2015): Found case of hidden expression to typeof operator.
-               if (local_expr_node_ref_ptr->kind == lerk_typeof)
+            // EDG 7.0: typeof is represented as lerk_decltype (lerk_typeof no longer exists).
+               if (local_expr_node_ref_ptr->kind == lerk_decltype)
                   {
                  // Note that we want to process the EDG expression in local_expr_node_ref_ptr->expr to build 
                  // the ROSE SgExpression subtree to be used in the typeof operator, but we wnat to use the key 

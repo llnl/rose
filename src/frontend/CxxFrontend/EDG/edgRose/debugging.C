@@ -1923,8 +1923,8 @@ summarize_type ( a_type *tp )
                     printf ("             extra_info: anonymous_union_kind                   = %d \n",extra_info->anonymous_union_kind);
                     printf ("             extra_info: anonymous_union_field                  = %p \n",extra_info->anonymous_union_field);
                     printf ("             extra_info: befriending_classes                    = %p \n",extra_info->befriending_classes);
-                    printf ("             extra_info: friend_routines                        = %p \n",extra_info->friend_routines);
-                    printf ("             extra_info: friend_classes                         = %p \n",extra_info->friend_classes);
+                 // EDG 7.0: friend_routines and friend_classes merged into one list.
+                    printf ("             extra_info: friends                                = %p \n",extra_info->friends);
                     printf ("             extra_info: assoc_scope                            = %p \n",extra_info->assoc_scope);
 #if 1
                  // DQ (3/17/2015): Adding support to optionally output the scope to find hidden types.
@@ -2732,7 +2732,8 @@ summarize_variable ( a_variable_ptr ptr )
      printf ("   embedded_source_sequence_entries    = %s \n",ptr->embedded_source_sequence_entries ? "true" : "false");
 #endif /* GENERATE_SOURCE_SEQUENCE_LISTS */
      printf ("   declared_using_type_without_linkage = %s \n",ptr->declared_using_type_without_linkage ? "true" : "false");
-     printf ("   is_parameter_pack                   = %s \n",ptr->is_parameter_pack ? "true" : "false");
+  // EDG 7.0: a_variable::is_parameter_pack was renamed is_pack.
+     printf ("   is_pack                             = %s \n",ptr->is_pack ? "true" : "false");
      printf ("   is_pack_element                     = %s \n",ptr->is_pack_element ? "true" : "false");
 #if MICROSOFT_EXTENSIONS_ALLOWED
      printf ("   is_initonly                         = %s \n",ptr->is_initonly ? "true" : "false");
@@ -4130,7 +4131,8 @@ summarize_local_expr_node_ref_string(a_local_expr_node_ref_kind kind)
      switch (kind)
         {
           case lerk_none:            returnString = "lerk_none";            break;
-          case lerk_typeof:          returnString = "lerk_typeof";          break;
+       // EDG 7.0: lerk_typeof removed (typeof is lerk_decltype); lerk_scoped_expr added.
+          case lerk_scoped_expr:     returnString = "lerk_scoped_expr";     break;
 #if PROTOTYPE_INSTANTIATIONS_IN_IL
           case lerk_generic_sizeof:  returnString = "lerk_generic_sizeof";  break;
 #endif
