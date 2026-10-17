@@ -18,8 +18,7 @@
 #   5. mk_errinfo       EDG's error-table generator                           (util/mk_errinfo.c)
 #   6. err_codes.h, err_data.h  from src/error_msg.txt and src/error_tag.txt
 #   7. libedg.la        from src/*.c (all front-end sources except the stand-alone drivers
-#                       cfe.c and c_gen_be.c, and floating.c, which is only for hosts
-#                       without native floating point)
+#                       cfe.c and c_gen_be.c; upstream's CORE_FRONT_END_SOURCE_FILES list)
 #
 # The same list of EDG sources is kept in CMakeLists.txt; update both when EDG adds a file.
 
@@ -113,6 +112,7 @@ nodist_libedg_la_SOURCES = \
    $(EDG_SRC)/src/fe_wrapup.c \
    $(EDG_SRC)/src/fixed_pt.c \
    $(EDG_SRC)/src/float_pt.c \
+   $(EDG_SRC)/src/floating.c \
    $(EDG_SRC)/src/folding.c \
    $(EDG_SRC)/src/func_def.c \
    $(EDG_SRC)/src/host_envir.c \

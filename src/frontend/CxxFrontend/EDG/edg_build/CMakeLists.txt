@@ -21,8 +21,8 @@ if(NOT DEFINED EDG_DISC_UNION)
 endif()
 
 #------------------------------------------------------------------------------------------
-# Sources: every front-end file in src/ except the stand-alone drivers cfe.c and c_gen_be.c,
-# and floating.c (software floating point for hosts without native FP).
+# Sources: every front-end file in src/ except the stand-alone drivers cfe.c and c_gen_be.c
+# (upstream's CORE_FRONT_END_SOURCE_FILES list in src/CMakeLists.txt).
 #------------------------------------------------------------------------------------------
 set(EDG_FRONTEND_SOURCES
   attribute.c
@@ -46,6 +46,7 @@ set(EDG_FRONTEND_SOURCES
   fe_wrapup.c
   fixed_pt.c
   float_pt.c
+  floating.c
   folding.c
   func_def.c
   host_envir.c
