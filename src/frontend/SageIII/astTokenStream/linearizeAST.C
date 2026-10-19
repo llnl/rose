@@ -141,6 +141,18 @@ mustBeInherited=X.mustBeInherited;
 
 
 
+// PL (10/19/2026): This is not ROSE-generated from the original source file!
+// This is added in by hand to silence a warning about deprecated implicit operator=.
+// I have done my best to match the formatting that ROSE generates.
+LinearizeInheritedAttribute &
+LinearizeInheritedAttribute::operator= ( const LinearizeInheritedAttribute & X ) 
+{
+mustBeInherited=X.mustBeInherited;
+return *this;
+};
+
+
+
 LinearizeAST::LinearizeAST()
 {
  

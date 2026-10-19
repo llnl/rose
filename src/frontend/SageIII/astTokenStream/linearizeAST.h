@@ -13,6 +13,7 @@ class LinearizeInheritedAttribute
        bool mustBeInherited;
           LinearizeInheritedAttribute ();
           LinearizeInheritedAttribute ( const LinearizeInheritedAttribute & X );
+          LinearizeInheritedAttribute & operator= ( const LinearizeInheritedAttribute & X );
    };
 
 
