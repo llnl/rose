@@ -23,6 +23,9 @@ into ROSE's SageIII AST. This directory holds everything ROSE adds around EDG:
 
   MIGRATION.md    how this directory relates to the former private EDG submodule.
 
+  MACOS-STATUS.md state of the macOS / Apple Silicon port (EDG 7.0, Apple clang, libc++):
+                  what works, what fails and why, pending issues and next tasks.
+
 Getting the EDG source
 ----------------------
 
