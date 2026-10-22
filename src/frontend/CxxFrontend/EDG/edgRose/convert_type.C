@@ -1473,22 +1473,29 @@ EDG_ROSE_Translation::convert_type2(a_type_ptr p, bool withNondeducedTypes, bool
                            case trk_is_underlying_type:           kind = e_modifier_type_reference;       break;
                            case trk_bases:                ROSE_ABORT();
                            case trk_direct_bases:         ROSE_ABORT();
-                           case trk_add_lvalue_reference: ROSE_ABORT();
-                           case trk_add_pointer:          ROSE_ABORT();
-                           case trk_add_rvalue_reference: ROSE_ABORT();
-                           case trk_decay:                ROSE_ABORT();
-                           case trk_make_signed:          ROSE_ABORT();
-                           case trk_make_unsigned:        ROSE_ABORT();
-                           case trk_remove_all_extents:   ROSE_ABORT();
-                           case trk_remove_const:         ROSE_ABORT();
-                           case trk_remove_cv:            ROSE_ABORT();
-                           case trk_remove_cvref:         ROSE_ABORT();
-                           case trk_remove_extent:        ROSE_ABORT();
-                           case trk_remove_pointer:       ROSE_ABORT();
-                           case trk_remove_reference_t:   ROSE_ABORT();
-                           case trk_remove_restrict:      ROSE_ABORT();
-                           case trk_remove_volatile:      ROSE_ABORT();
-                           case trk_remove_reference:     ROSE_ABORT();
+                        // Clang's type-returning type traits (__remove_reference_t(T), __add_pointer(T), ...; GCC 13
+                        // has __remove_reference) appear as typerefs around the operand type while the operand is
+                        // template-dependent; libc++ builds its <type_traits> on them. ROSE has no IR node for a type
+                        // transform, so they are handled like __underlying_type above: a modifier type reference whose
+                        // frontend_type_reference points back at this typeref (see e_modifier_type_reference below).
+                        // This is lossy for the dependent library-internal type but keeps the translation going;
+                        // a dedicated SgType is the proper follow-up.
+                           case trk_add_lvalue_reference:
+                           case trk_add_pointer:
+                           case trk_add_rvalue_reference:
+                           case trk_decay:
+                           case trk_make_signed:
+                           case trk_make_unsigned:
+                           case trk_remove_all_extents:
+                           case trk_remove_const:
+                           case trk_remove_cv:
+                           case trk_remove_cvref:
+                           case trk_remove_extent:
+                           case trk_remove_pointer:
+                           case trk_remove_reference_t:
+                           case trk_remove_restrict:
+                           case trk_remove_volatile:
+                           case trk_remove_reference:     kind = e_modifier_type_reference;       break;
 #if ROSE_EDG_MAJOR_VERSION_NUMBER >= 7
                         // EDG 7.0 keeps the nested-name-specifier and the template argument list as written in
                         // typerefs around the actual type (its own C++ back end skips over them, cp_gen_be.c).

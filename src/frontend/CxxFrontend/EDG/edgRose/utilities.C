@@ -2190,9 +2190,19 @@ std::string builtin_operation_function_name(a_builtin_operation_kind kind)
                ROSE_ABORT();
                break;
           default:
-               printf ("Error: builtin_operation_function_name(): kind = %" PRIuPTR " \n",(size_t)kind);
-               s = (char*)"**BAD operation kind**";
-               ROSE_ABORT();
+            // Every case above returns EDG's own spelling of the operation (its builtin_operation_names[]
+            // table, indexed by kind). EDG 7.0 has well over a hundred kinds (clang-style type traits such
+            // as __is_reference, used throughout libc++), so fall back to that table instead of aborting.
+               if ((size_t)kind < (size_t)bok_last && builtin_operation_names[kind] != NULL)
+                  {
+                    s = (char*)builtin_operation_names[kind];
+                  }
+                 else
+                  {
+                    printf ("Error: builtin_operation_function_name(): kind = %" PRIuPTR " \n",(size_t)kind);
+                    s = (char*)"**BAD operation kind**";
+                    ROSE_ABORT();
+                  }
         }
 
      return s;

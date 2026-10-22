@@ -96,6 +96,10 @@ EDG_ROSE_Translation::parse_enumerators(SourceSequenceList& sse, SgEnumDeclarati
 
                case iek_macro: ++sse; break; // FIXME: do something else?
 
+            // A "#pragma" inside an enum body (e.g. "#pragma clang diagnostic ..." in libc++ headers).
+            // There is no place for a SgPragmaDeclaration among enumerators, so it is skipped.
+               case iek_pragma: ++sse; break;
+
                case iek_src_seq_end_of_construct:
                   {
                  // DQ (10/29/2012): This logic may be effected by the additional complexity of compiler 
@@ -251,7 +255,6 @@ EDG_ROSE_Translation::parse_enumerators(SourceSequenceList& sse, SgEnumDeclarati
                case iek_src_seq_sublist:
                case iek_instantiation_directive:
                case iek_scope_orphaned_list_header:
-               case iek_pragma:
                case iek_template:
                case iek_decl_position_supplement:
                case iek_template_decl:
@@ -272,6 +275,8 @@ EDG_ROSE_Translation::parse_enumerators(SourceSequenceList& sse, SgEnumDeclarati
                   {
                  // printf ("Case not handled! \n");
                     printf ("Case not handled! kind = %s \n",summarize_entry_kind_in_string_kind(kind));
+                 // Advance so that a build without assertions cannot loop forever on this entry.
+                    ++sse;
                     ROSE_ASSERT(false);
                     break;
                   }
