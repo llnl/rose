@@ -26,7 +26,7 @@ case "$compilerVendorName" in
   # g++*|gcc*|icpc|icc|mpiicpc|mpiicc|mpicc|mpic++|mpiCC|mpicxx|cc|c++|xt-xcc|xt-xc++|clang|clang++)
     gnu|intel|clang|appleclang)
 
-         $1 -v -E -x $language /dev/null 2>&1 | sed -n '/^#include </,/^End/p' | sed '/^#include </d; /^End/d; /\/usr\/include$/d; /\/Library\/Frameworks$/d; /[(]framework directory[)]$/d'
+         $1 -v -E -x $language /dev/null 2>&1 | sed -n '/^#include </,/^End/p' | sed '/^#include </d; /^End/d; /^\/usr\/include$/d; /\/Library\/Frameworks$/d; /[(]framework directory[)]$/d'
          ;;
 
   # Support for compiling ROSE with ROSE (must use translator named: "roseTranslator"
@@ -34,8 +34,8 @@ case "$compilerVendorName" in
     rose)
          tmpFile="/tmp/tmp`uname -n`$$.C"
          echo "int main(int argc, char **argv){return 0;}" > "$tmpFile"
-         #$1 -v -E $tmpFile 2>&1 # | sed -n '/^#include </,/^End/p' | sed '/^#include </d; /^End/d; /\/usr\/include$/d'"
-         $1 -v -E $tmpFile 2>&1 | sed -n '/^#include </,/^End/p' | sed '/^#include </d; /^End/d; /\/usr\/include$/d; /\/Library\/Frameworks$/d; /[(]framework directory[)]$/d'
+         #$1 -v -E $tmpFile 2>&1 # | sed -n '/^#include </,/^End/p' | sed '/^#include </d; /^End/d; /^\/usr\/include$/d'"
+         $1 -v -E $tmpFile 2>&1 | sed -n '/^#include </,/^End/p' | sed '/^#include </d; /^End/d; /^\/usr\/include$/d; /\/Library\/Frameworks$/d; /[(]framework directory[)]$/d'
          ;;
 
   # DQ (2/2/2016): Added case for unknown compiler vendor (m4 macro will return this value).

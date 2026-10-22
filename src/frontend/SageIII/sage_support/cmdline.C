@@ -5764,22 +5764,15 @@ SgFile::build_EDG_CommandLine ( vector<string> & inputCommandLine, vector<string
   // DQ (4/26/2019): NOTE: this option appears to be incompatable with use of gnu_version.
      if (get_strict_language_handling() == false)
         {
-#ifdef BACKEND_CXX_IS_INTEL_COMPILER
+       // The version number pushed below belongs to exactly one of these options. A clang backend gets
+       // "--clang --clang_version N"; everything else (GNU, Intel, and the CMake case where no
+       // BACKEND_CXX_IS_*_COMPILER macro is defined) gets "--gnu_version N". Pushing both, as the
+       // CMake build on macOS did, left --gnu_version without a value ("invalid number: --clang").
+#if defined(BACKEND_CXX_IS_CLANG_COMPILER)
+          commandLine.push_back("--clang");
+          commandLine.push_back("--clang_version");
+#elif defined(BACKEND_CXX_IS_GNU_COMPILER) || defined(BACKEND_CXX_IS_INTEL_COMPILER) || defined(USE_CMAKE)
           commandLine.push_back("--gnu_version");
-#endif
-
-#ifdef BACKEND_CXX_IS_GNU_COMPILER
-          commandLine.push_back("--gnu_version");
-#else
-   #ifdef USE_CMAKE
-       // DQ (4/20/2016): When using CMAKE the BACKEND_CXX_IS_GNU_COMPILER is not defiled.
-          commandLine.push_back("--gnu_version");
-   #endif
-#endif
-
-#ifdef BACKEND_CXX_IS_CLANG_COMPILER
-     commandLine.push_back("--clang");
-     commandLine.push_back("--clang_version");
 #endif
           commandLine.push_back(StringUtility::numberToString(emulate_backend_compiler_version_number));
         }

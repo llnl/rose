@@ -221,6 +221,26 @@ if("${CMAKE_Fortran_COMPILER}"  MATCHES ".*gfortran.*$")
   endif()
 endif()
 
+# Values of __GNUC__, __GNUC_MINOR__ and __GNUC_PATCHLEVEL__ exactly as the backend compiler predefines them;
+# rose_config.h hands them to EDG (CXX_SPEC_DEF). For GCC these equal its version; clang (and AppleClang)
+# reports 4.2.1 and the system headers rely on that, so the compiler is asked rather than assumed.
+if(ENABLE_CPP)
+  execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dM -E -x c++ /dev/null
+                  OUTPUT_VARIABLE _rose_backend_predefines ERROR_QUIET)
+  foreach(_m MAJOR:__GNUC__ MINOR:__GNUC_MINOR__ PATCH:__GNUC_PATCHLEVEL__)
+    string(REGEX REPLACE ":.*" "" _which "${_m}")
+    string(REGEX REPLACE ".*:" "" _macro "${_m}")
+    string(REGEX MATCH "#define ${_macro} ([0-9]+)" _unused "${_rose_backend_predefines}")
+    set(ROSE_BACKEND_GNUC_${_which} "${CMAKE_MATCH_1}")
+  endforeach()
+  if(NOT ROSE_BACKEND_GNUC_MAJOR)   # fall back to the compiler's version number (previous behaviour)
+    set(ROSE_BACKEND_GNUC_MAJOR "${BACKEND_C_COMPILER_MAJOR_VERSION_NUMBER}")
+    set(ROSE_BACKEND_GNUC_MINOR "${BACKEND_C_COMPILER_MINOR_VERSION_NUMBER}")
+    set(ROSE_BACKEND_GNUC_PATCH "${BACKEND_C_COMPILER_PATCH_LEVEL_NUMBER}")
+  endif()
+  message(STATUS "Backend predefines __GNUC__ ${ROSE_BACKEND_GNUC_MAJOR}.${ROSE_BACKEND_GNUC_MINOR}.${ROSE_BACKEND_GNUC_PATCH}")
+endif()
+
 # Set BACKEND_CXX_IS_<>_COMPILER macro for rose_config.h 
 if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
   # using Clang or AppleClang

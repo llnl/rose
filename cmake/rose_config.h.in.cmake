@@ -296,7 +296,7 @@
 #define CHECKING 1
 
 /* -D options to hand to EDG C++ front-end. */
-#define CXX_SPEC_DEF {"-D__GNUG__=${BACKEND_CXX_COMPILER_MAJOR_VERSION_NUMBER}", "-D__GNUC__=${BACKEND_C_COMPILER_MAJOR_VERSION_NUMBER}", "-D__GNUC_MINOR__=${BACKEND_C_COMPILER_MINOR_VERSION_NUMBER}", "-D__GNUC_PATCHLEVEL__=${BACKEND_C_COMPILER_PATCH_LEVEL_NUMBER}", "--preinclude", "rose_edg_required_macros_and_functions.h"}
+#define CXX_SPEC_DEF {"-D__GNUG__=${ROSE_BACKEND_GNUC_MAJOR}", "-D__GNUC__=${ROSE_BACKEND_GNUC_MAJOR}", "-D__GNUC_MINOR__=${ROSE_BACKEND_GNUC_MINOR}", "-D__GNUC_PATCHLEVEL__=${ROSE_BACKEND_GNUC_PATCH}", "--preinclude", "rose_edg_required_macros_and_functions.h"}
 
 /* Defined if we're building using CMake */
 #cmakedefine USE_CMAKE @USE_CMAKE@

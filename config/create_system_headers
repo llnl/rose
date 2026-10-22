@@ -400,6 +400,12 @@ iDir=0
 sh "$roseHome/config/get_compiler_header_dirs" "$1" "$language" "$compilerVendorName" | while read dirName
    do
         iDir=`expr "$iDir" + 1 `
+      # PL (10/22/2026): an SDK's usr/include (macOS: .../MacOSX.sdk/usr/include) is the platform's system header
+      # directory, the counterpart of /usr/include on Linux: it is searched directly (see the include lists in
+      # rose_config.h) and is not mirrored/edited here.
+        case "$dirName" in
+          */usr/include) continue ;;
+        esac
         [ -n "$VERBOSE" ] && echo "processing header file compiler name = $1 directory = $dirName to be mapped to $mainTargetDir/hdrs${iDir} roseHome = $roseHome compilerVendorName = $compilerVendorName"
 
       # DQ (1/14/2007): Added "&" so that this would happen in parallel (to improve performance of configure on multi-core machines). 

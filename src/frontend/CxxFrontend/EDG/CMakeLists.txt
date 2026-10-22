@@ -18,6 +18,13 @@ add_library(RoseSourceCxxFrontendEdg SHARED
     $<TARGET_OBJECTS:edg_internal>
     $<TARGET_OBJECTS:edg_rose>)
 
+# edgRose calls into SageIII, which lives in librose, and librose in turn links this library. The Mach-O linker
+# resolves every symbol of a shared library at link time (ELF does not), so on macOS let the unresolved SageIII
+# symbols be looked up dynamically when librose loads this library.
+if(APPLE)
+  target_link_options(RoseSourceCxxFrontendEdg PRIVATE "LINKER:-undefined,dynamic_lookup")
+endif()
+
 set_target_properties(RoseSourceCxxFrontendEdg PROPERTIES
     INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH FALSE

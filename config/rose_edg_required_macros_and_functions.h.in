@@ -264,11 +264,11 @@ typedef float _Float16;
 #  undef ROSE_DECLARE_FLOAT16
 #endif
 #if defined(ROSE_DECLARE_FLOAT128)
-#  if !defined(_MSC_VER)
+#  if !defined(_MSC_VER) && (defined(__SIZEOF_FLOAT128__) || !defined(__clang__))
 /* GCC requires _Float128 to be equal to __float128 per the <bits/floatn.h> header */
 typedef __float128 _Float128;
 #  else
-/* MSVC does not have __float128 so we instead define it as `long double` */
+/* MSVC, and clang on targets without __float128 (Apple arm64), have no __float128: use `long double` */
 typedef long double _Float128;
 #  endif
 #  undef ROSE_DECLARE_FLOAT128
