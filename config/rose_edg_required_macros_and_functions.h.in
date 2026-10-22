@@ -171,7 +171,10 @@
 // DQ (4/26/2019): Only use the ROSE_GNUATTR() featur for non-ansi code use. Might also 
 // need to combine this with turning off the optimization flag that triggers use of builtins.
 // Define away the GNU specific attribute mechanism (not supported by Microsoft compilers).
-#if defined(ROSE_MICROSOFT_EXTENSIONS) || defined(__STRICT_ANSI__)
+// Not for a clang backend: clang's headers (libc++, the macOS SDK) rely on __attribute__ even in
+// strict modes, e.g. __enable_if__ to select the const/non-const overloads of strchr; erasing the
+// attribute leaves overloads "distinguished by return type only".
+#if defined(ROSE_MICROSOFT_EXTENSIONS) || (defined(__STRICT_ANSI__) && !defined(__clang__))
 #  define ROSE_GNUATTR(X) 
 #  define __attribute__(X) 
 #else
@@ -606,6 +609,35 @@ typedef long double __float128;
     __c11_atomic_fetch_xor
 */
 
+/* PL (10/22/2026): clang backend (libc++ 22 / macOS SDK 27). ROSE builds EDG without its builtin
+   function table and defines the GNU atomic builtins away (see the __atomic_* macros below); libc++
+   on clang selects the C11 atomic implementation (__c11_atomic_*) and a few newer clang builtins.
+   Handle them the same way: atomics read/write the object directly, the rest map onto what EDG
+   does provide. This is sufficient for analysis and unparsing; the generated code is compiled by
+   the real clang afterwards. */
+#if defined(__clang__)
+   #define __c11_atomic_init(ptr, val)                       (void)(*(ptr) = (val))
+   #define __c11_atomic_thread_fence(order)                  (void)0
+   #define __c11_atomic_signal_fence(order)                  (void)0
+   #define __c11_atomic_is_lock_free(size)                   true
+   #define __atomic_always_lock_free(size, ptr)              true
+   #define __c11_atomic_store(ptr, val, order)               (void)(*(ptr) = (val))
+   #define __c11_atomic_load(ptr, order)                     (*(ptr))
+   #define __c11_atomic_exchange(ptr, val, order)            (*(ptr))
+   #define __c11_atomic_compare_exchange_strong(ptr, expected, desired, success, failure) false
+   #define __c11_atomic_compare_exchange_weak(ptr, expected, desired, success, failure)   false
+   #define __c11_atomic_fetch_add(ptr, val, order)           (*(ptr))
+   #define __c11_atomic_fetch_sub(ptr, val, order)           (*(ptr))
+   #define __c11_atomic_fetch_and(ptr, val, order)           (*(ptr))
+   #define __c11_atomic_fetch_or(ptr, val, order)            (*(ptr))
+   #define __c11_atomic_fetch_xor(ptr, val, order)           (*(ptr))
+   #define __c11_atomic_fetch_max(ptr, val, order)           (*(ptr))
+   #define __c11_atomic_fetch_min(ptr, val, order)           (*(ptr))
+   #define __builtin_operator_new(...)                       ::operator new(__VA_ARGS__)
+   #define __builtin_operator_delete(...)                    ::operator delete(__VA_ARGS__)
+   #define __builtin_assume_aligned(ptr, ...)                (ptr)
+#endif
+
 // DQ (1/16/2017): Note that we cannot seem to reset the value of the _GNUC_VER macro value.
 // So the best solution is to make a copy of the Mac specifi hdrs1/atomic header file.
 
@@ -615,9 +647,8 @@ typedef long double __float128;
 //    #warning _GNUC_VER greater then 407
 // #endif
 
-#if __cplusplus
-bool __c11_atomic_is_lock_free(__SIZE_TYPE__ x);
-#endif
+/* __c11_atomic_is_lock_free is handled by the clang builtin macros above (it must be usable in constant
+   expressions, which a declared function is not). */
 
 void __atomic_thread_fence (int memorder);
 void __atomic_signal_fence (int memorder);
@@ -633,11 +664,9 @@ int __builtin_arm_stlex(T val, volatile T *addr);
 void __builtin_arm_clrex(void);
 */
 
-#ifdef __aarch64__
-      #define _LIBCPP_HAS_NO_INT128 1
-      typedef long long int __int128_t;
-      typedef unsigned long long int __uint128_t;
-#endif
+/* PL (10/22/2026): __int128 is enabled in EDG for the clang backend on arm64 (defines.h.rose), so the
+   former long-long stand-ins for __int128_t/__uint128_t and _LIBCPP_HAS_NO_INT128 are gone; libc++
+   specialises on __int128_t and EDG provides the real type. */
 
 
 #endif //#ifdef __APPLE__
@@ -8430,4 +8459,28 @@ int __frontend_specific_variable_to_provide_header_file_path;
 
 /* matching endif for SKIP_ROSE_BUILTIN_DECLARATIONS */
 #endif
+#endif
+
+/* PL (10/22/2026): clang backend, continued (placed after the __builtin_clz/ctz declarations above,
+   which these templates call). */
+#if defined(__clang__)
+   #ifdef __cplusplus
+   /* Type-generic count-leading/trailing-zeros (clang 19): map onto the sized builtins ROSE declares. */
+   template <class __rose_T> constexpr int __rose_builtin_clzg(__rose_T __x)
+      { return __x == 0 ? (int)(sizeof(__rose_T) * 8)
+             : sizeof(__rose_T) <= sizeof(unsigned int)  ? __builtin_clz((unsigned int)__x) - (int)(8 * (sizeof(unsigned int) - sizeof(__rose_T)))
+             : sizeof(__rose_T) <= sizeof(unsigned long) ? __builtin_clzl((unsigned long)__x)
+             : __builtin_clzll((unsigned long long)__x); }
+   template <class __rose_T> constexpr int __rose_builtin_clzg(__rose_T __x, int __fallback)
+      { return __x == 0 ? __fallback : __rose_builtin_clzg(__x); }
+   template <class __rose_T> constexpr int __rose_builtin_ctzg(__rose_T __x)
+      { return __x == 0 ? (int)(sizeof(__rose_T) * 8)
+             : sizeof(__rose_T) <= sizeof(unsigned int)  ? __builtin_ctz((unsigned int)__x)
+             : sizeof(__rose_T) <= sizeof(unsigned long) ? __builtin_ctzl((unsigned long)__x)
+             : __builtin_ctzll((unsigned long long)__x); }
+   template <class __rose_T> constexpr int __rose_builtin_ctzg(__rose_T __x, int __fallback)
+      { return __x == 0 ? __fallback : __rose_builtin_ctzg(__x); }
+   #define __builtin_clzg(...) __rose_builtin_clzg(__VA_ARGS__)
+   #define __builtin_ctzg(...) __rose_builtin_ctzg(__VA_ARGS__)
+   #endif
 #endif

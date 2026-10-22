@@ -403,8 +403,13 @@ sh "$roseHome/config/get_compiler_header_dirs" "$1" "$language" "$compilerVendor
       # PL (10/22/2026): an SDK's usr/include (macOS: .../MacOSX.sdk/usr/include) is the platform's system header
       # directory, the counterpart of /usr/include on Linux: it is searched directly (see the include lists in
       # rose_config.h) and is not mirrored/edited here.
+      # PL (10/22/2026): clang's resource directory (.../lib/clang/<ver>/include) is not mirrored either: its
+      # stdint.h/stddef.h are #include_next wrappers around the system headers, and a copy placed ahead of the
+      # original in the search list makes include_next land on the guarded original instead of the SDK header
+      # (uint64_t undefined). It is searched directly, like the SDK directory.
         case "$dirName" in
           */usr/include) continue ;;
+          */lib/clang/*/include) continue ;;
         esac
         [ -n "$VERBOSE" ] && echo "processing header file compiler name = $1 directory = $dirName to be mapped to $mainTargetDir/hdrs${iDir} roseHome = $roseHome compilerVendorName = $compilerVendorName"
 
