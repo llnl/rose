@@ -132,6 +132,10 @@ EDG_ROSE_Translation::parse_statement(SourceSequenceList& sse, SgBasicBlock* exi
                          printf ("In parse_statement(): case of iek_statement: case of stmk_if: Calling summarize_statement() \n");
                          summarize_statement(p);
 #endif
+                      // C++17 "if (init; cond)" (EDG 7.0): convert the init-statement into an enclosing block first
+                      // (NULL when there is none); see parse_condition_init_statement.C.
+                         SgBasicBlock* initBlock = parse_condition_init_statement(p->expr,sse);
+
                       // DQ (2/13/2012): Build the "if" scope first, so that we can use the correct scope (if the test contains a variable declaration).
                       // SgIfStmt* ifs = buildIfStmt_nfi(NULL,NULL,NULL);
                          SgIfStmt* ifs = new SgIfStmt((SgStatement*)NULL,(SgStatement*)NULL,(SgStatement*)NULL);
@@ -269,7 +273,7 @@ EDG_ROSE_Translation::parse_statement(SourceSequenceList& sse, SgBasicBlock* exi
                          popScopeStack();
 
                          set_file_info_for_stmt(ifs, p);
-                         result.push_back(ifs);
+                         result.push_back(finish_condition_init_statement(initBlock,ifs));
 #if DEBUG_IF_STATEMENT
                          printf ("DONE: In parse_statement(): case stmk_if: p = %p ifs = %p \n",p,ifs);
 #endif
@@ -289,6 +293,10 @@ EDG_ROSE_Translation::parse_statement(SourceSequenceList& sse, SgBasicBlock* exi
                          printf ("In parse_statement(): case of iek_statement: case of stmk_constexpr_if: Calling summarize_statement() \n");
                          summarize_statement(p);
 #endif
+                      // C++17 "if constexpr (init; cond)" (EDG 7.0): convert the init-statement into an enclosing block first
+                      // (NULL when there is none); see parse_condition_init_statement.C.
+                         SgBasicBlock* initBlock = parse_condition_init_statement(p->expr,sse);
+
                       // DQ (2/13/2012): Build the "if" scope first, so that we can use the correct scope (if the test contains a variable declaration).
                       // SgIfStmt* ifs = buildIfStmt_nfi(NULL,NULL,NULL);
                          SgIfStmt* ifs = new SgIfStmt((SgStatement*)NULL,(SgStatement*)NULL,(SgStatement*)NULL);
@@ -432,7 +440,7 @@ EDG_ROSE_Translation::parse_statement(SourceSequenceList& sse, SgBasicBlock* exi
                          popScopeStack();
 
                          set_file_info_for_stmt(ifs, p);
-                         result.push_back(ifs);
+                         result.push_back(finish_condition_init_statement(initBlock,ifs));
 
 #if DEBUG_CONSTEXPR_IF_STATEMENT
                          printf ("In parse_statement(): case stmk_constexpr_if: value_known = %s \n",p->variant.constexpr_if->value_known ? "true" : "false");
@@ -598,6 +606,10 @@ EDG_ROSE_Translation::parse_statement(SourceSequenceList& sse, SgBasicBlock* exi
                          indent_line(); debug_print("switch statement p = %p\n",p);
                          ScopedIndent si(indent);
 #endif
+                      // C++17 "switch (init; cond)" (EDG 7.0): convert the init-statement into an enclosing block first
+                      // (NULL when there is none); see parse_condition_init_statement.C.
+                         SgBasicBlock* initBlock = parse_condition_init_statement(p->expr,sse);
+
                       // DQ (2/15/2012): Build the "switch" scope first, so that we can use the correct scope (if the test contains a variable declaration).
                          SgSwitchStatement* sw = new SgSwitchStatement((SgStatement*)NULL,(SgStatement*)NULL);
                          ROSE_ASSERT(sw != NULL);
@@ -656,14 +668,17 @@ EDG_ROSE_Translation::parse_statement(SourceSequenceList& sse, SgBasicBlock* exi
 
                          ROSE_ASSERT (sw->get_body() != NULL);
 
-                      // Put the switch statement into the ROSE AST with source position information.
-                         result.push_back(set_file_info_for_stmt(sw, p));
+                      // Set the source position information of the switch statement.
+                         set_file_info_for_stmt(sw, p);
 
 #if DEBUG_POP_SCOPE
                          printf ("In parse_statement(): case stmk_switch: (pop SgSwitchStatement) calling popScopeStack() \n");
 #endif
                       // Now pop the scope so that the normal mechanism can handle the scope stack.
                          popScopeStack();
+
+                      // Put the switch statement (or the block holding the C++17 init-statement and the switch) into the ROSE AST.
+                         result.push_back(finish_condition_init_statement(initBlock,sw));
 
 #else
                       // DQ (11/22/2017): Old version of code, make this a command line option to use this older version 

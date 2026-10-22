@@ -470,6 +470,14 @@ std::vector<SgStatement*> processEntriesRelatedToConditional( SourceSequenceList
                                         SgBasicBlock* existingBasicBlock = NULL;
                                         vector<SgStatement*> statement_list = parse_statement( sse, existingBasicBlock);
 
+                                     // A declaration statement (stmk_decl) yields no SgStatement: its declared entities are
+                                     // separate source sequence entries handled by the following iterations.  parse_statement()
+                                     // has advanced sse, so skip the "++sse" at the end of the loop body.
+                                        if (statement_list.empty() == true && edg_statement->kind == stmk_decl)
+                                           {
+                                             continue;
+                                           }
+
 #if 0
                                         printf ("In processEntriesRelatedToConditional(): case iek_statement: Output statement_list: size = %zu \n",statement_list.size());
                                         for (size_t i = 0; i < statement_list.size(); i++)

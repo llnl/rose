@@ -2748,6 +2748,13 @@ SgScopeStatement* getDeclarationScope ( a_source_correspondence & scp , bool exp
                                              scopeOfDeclaration = topScopeStack();
                                            }
                                           else
+                                           if (isSgBasicBlock(scope) != NULL)
+                                           {
+                                          // The declaration of a C++17 init-statement ("if (int x = f(); x)") also lives in the EDG condition
+                                          // scope; it is converted into the enclosing generated block built by parse_condition_init_statement().
+                                             scopeOfDeclaration = scope;
+                                           }
+                                          else
                                            {
                                              printf ("In getDeclarationScope(): (scp.parent_scope->kind == sck_condition): But not a recognized scope for a conditional test, so exit as a test! scope = %p = %s \n",scope,scope->class_name().c_str());
 

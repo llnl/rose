@@ -63,6 +63,7 @@ add_library (edg_rose OBJECT
   convert_variable_use.C
   convert_var_initializer.C
   parse_asm.C
+  parse_condition_init_statement.C
   parse_enumerators.C
   parse_field_declaration.C
   parse_for_initializer.C

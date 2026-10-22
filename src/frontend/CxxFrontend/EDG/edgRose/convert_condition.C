@@ -10,6 +10,16 @@ SgStatement* EDG_ROSE_Translation::convert_condition(an_expr_node_ptr e, SourceS
 
      an_expr_node_kind kind = (an_expr_node_kind)(e->kind);
 
+  // EDG 7.0: a C++17 selection statement with an init-statement ("if (init; cond)") has an enk_condition
+  // node even when the condition itself declares nothing.  The init-statement was already converted by
+  // parse_condition_init_statement(); dynamic_init is NULL and the controlling expression is in expr.
+     if (kind == enk_condition && e->variant.condition->dynamic_init == NULL)
+        {
+          ROSE_ASSERT(e->variant.condition->expr != NULL);
+          e = e->variant.condition->expr;
+          kind = (an_expr_node_kind)(e->kind);
+        }
+
 #define DEBUG_CONVERT_CONDITION 0
 
   // DQ (9/23/2020): I think we can assert this (this fails for a switch statement (see Cxx11_tests/test2020_103.C).

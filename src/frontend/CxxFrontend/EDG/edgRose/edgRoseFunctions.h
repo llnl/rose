@@ -419,6 +419,9 @@ namespace EDG_ROSE_Translation {
      void set_special_function_modifier(SgSpecialFunctionModifier & modifier, a_special_function_kind kind);
      void set_function_modifier(SgFunctionModifier & modifier, a_routine_ptr p);
      SgForInitStatement* parse_for_initializer(SourceSequenceList& sse);
+  // C++17 "if (init; cond)" / "switch (init; cond)" (EDG 7.0): see parse_condition_init_statement.C.
+     SgBasicBlock* parse_condition_init_statement(an_expr_node_ptr e, SourceSequenceList& sse);
+     SgStatement* finish_condition_init_statement(SgBasicBlock* initBlock, SgStatement* selection_statement);
      SgStatement* build_basic_block_if_multiple_statements(const std::vector<SgStatement*>& stmts);
 
      std::vector<SgStatement*> parse_statement(SourceSequenceList& sse, SgBasicBlock* existingBasicBlock = NULL);
