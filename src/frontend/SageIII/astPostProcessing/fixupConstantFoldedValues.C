@@ -33,20 +33,36 @@
 /// \param node     the node to be deleted
 /// \param safeMode if set, node types that could lead to dangling pointers
 ///                 are not deleted in constant folding.
+/// \param owner    the node from which \p node was reached (NULL for the root
+///                 of the deletion); a node whose parent is a different node is
+///                 shared with another part of the AST and is left alone.
 /// \todo safeMode only patches over the underlying cause, where nodes
 ///       that continue being referenced are deleted.
 /// \details
 ///   More info on the dangling pointer issue is described under Issue #907.
-static void deleteExpressionAndOriginalExpressionTree(SgNode * node, bool safeMode = false) {
+static void deleteExpressionAndOriginalExpressionTree(SgNode * node, bool safeMode = false, SgNode * owner = NULL) {
   // Skip node that have already been deleted
   if (node->get_freepointer() != AST_FileIO::IS_VALID_POINTER()) return;
 
   if (safeMode && isSgTypeTraitBuiltinOperator(node)) return;
 
+  // EDG 7.0 attaches original expression trees that reuse subtrees of the live AST
+  // (seen with libc++: the folded value of an expression keeps a child that is still
+  // the child of another expression).  Deleting such a node leaves a dangling pointer
+  // in the AST, so only delete nodes that are owned by the tree being deleted.
+  if (owner != NULL && node->get_parent() != NULL && node->get_parent() != owner) {
+#if ROSE_DIAGNOSE_FIXUP_CONSTANT_FOLDING
+    std::cerr << "fixupConstantFoldedValues: not deleting shared node " << node << " (" << node->class_name()
+              << ") reached from " << owner << " (" << owner->class_name() << "), its parent is " << node->get_parent()
+              << " (" << node->get_parent()->class_name() << ")" << std::endl;
+#endif
+    return;
+  }
+
   // If it is an expression delete the associated original expression tree
   SgExpression * exp = isSgExpression(node);
   if (exp != NULL && exp->get_originalExpressionTree() != NULL) {
-    deleteExpressionAndOriginalExpressionTree(exp->get_originalExpressionTree(), safeMode);
+    deleteExpressionAndOriginalExpressionTree(exp->get_originalExpressionTree(), safeMode, node);
   }
 
   // Traverse the AST and delete successors
@@ -56,7 +72,7 @@ static void deleteExpressionAndOriginalExpressionTree(SgNode * node, bool safeMo
   std::vector<SgNode*> successors = node->get_traversalSuccessorContainer();
   for (std::vector<SgNode*>::iterator n = successors.begin(); n != successors.end(); ++n) {
     if (*n != NULL ) {
-      deleteExpressionAndOriginalExpressionTree(*n, safeMode);
+      deleteExpressionAndOriginalExpressionTree(*n, safeMode, node);
     }
   }
 

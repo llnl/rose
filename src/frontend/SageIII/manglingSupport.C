@@ -1574,6 +1574,16 @@ mangleExpression (const SgExpression* expr)
           mangled_name << "_bNewExpr_" << std::hex << e << "_eNewExpr_";
           break;
         }
+        case V_SgDeleteExp: {
+          // libc++ uses delete-expressions inside decltype in template arguments
+          // (e.g. decltype(delete declval<_Tp>())); mangle the operand like a unary op.
+          const SgDeleteExp* e = isSgDeleteExp (expr);
+          mangled_name << (e->get_is_array() ? "_bDeleteArrayExp_" : "_bDeleteExp_");
+          if (e->get_variable() != NULL)
+            mangled_name << mangleExpression(e->get_variable());
+          mangled_name << "_eDeleteExp_";
+          break;
+        }
         case V_SgFunctionParameterRefExp: {
           const SgFunctionParameterRefExp* e = isSgFunctionParameterRefExp (expr);
           mangled_name << "_bFunctionParameterRefExp_" << std::hex << e << "_eFunctionParameterRefExp_";
