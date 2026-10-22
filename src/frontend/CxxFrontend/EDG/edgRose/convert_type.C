@@ -1452,6 +1452,8 @@ EDG_ROSE_Translation::convert_type2(a_type_ptr p, bool withNondeducedTypes, bool
 
                               e_deduce_auto_type,
                               e_decltype_auto_type_reference,
+                              e_as_written_type_reference,     // EDG 7.0: records how the type was written (name qualifier,
+                                                               // template argument list); semantically the referenced type.
                               e_last_type_reference            // Error condition
                             };
 
@@ -1487,6 +1489,15 @@ EDG_ROSE_Translation::convert_type2(a_type_ptr p, bool withNondeducedTypes, bool
                            case trk_remove_restrict:      ROSE_ABORT();
                            case trk_remove_volatile:      ROSE_ABORT();
                            case trk_remove_reference:     ROSE_ABORT();
+#if ROSE_EDG_MAJOR_VERSION_NUMBER >= 7
+                        // EDG 7.0 keeps the nested-name-specifier and the template argument list as written in
+                        // typerefs around the actual type (its own C++ back end skips over them, cp_gen_be.c).
+                        // ROSE computes name qualification itself, so these are transparent here.
+                           case trk_name_qualifier:       kind = e_as_written_type_reference; break;
+                           case trk_template_arg_list:    kind = e_as_written_type_reference; break;
+                           case trk_is_splice:            ROSE_ABORT();   // C++26 reflection
+                           case trk_pack_index:           ROSE_ABORT();   // C++26 pack indexing
+#endif
                            default:
                                ROSE_ABORT();
                          }
@@ -1501,6 +1512,7 @@ EDG_ROSE_Translation::convert_type2(a_type_ptr p, bool withNondeducedTypes, bool
 
                               case e_modifier_type_reference:
                               case e_deduce_auto_type:
+                              case e_as_written_type_reference:
                                  {
                                    a_bit_field qualifiers = p->variant.typeref.qualifiers;
 
