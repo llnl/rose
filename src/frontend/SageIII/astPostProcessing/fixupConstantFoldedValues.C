@@ -2,6 +2,7 @@
 #include "sage3basic.h"
 
 #include "Rose/AST/Utility.h"
+#include "sageBuilder.h"
 #include "Rose/Diagnostics.h"
 
 #if !defined(ROSE_PEDANTIC_FIXUP_CONSTANT_FOLDING)
@@ -168,6 +169,22 @@ inline SgExpression * get_parent_if_folded_in(SgExpression * expr) {
   }
 }
 
+/// EDG 7.0 constant-folds copies of empty class objects (e.g. the member initializer
+/// "m_title(title)" with an empty class QCString), so the folded expression can be an
+/// SgInitializer whose original expression tree is a plain expression.  An initializer slot
+/// must stay an initializer, so wrap such a replacement in an SgAssignInitializer.
+static SgExpression*
+replacementFor(SgExpression* folded, SgExpression* child)
+{
+  if (isSgInitializer(folded) && !isSgInitializer(child)) {
+    SgAssignInitializer* wrapper = SageBuilder::buildAssignInitializer_nfi(child, child->get_type());
+    wrapper->set_parent(folded->get_parent());
+    return wrapper;
+  }
+  child->set_parent(folded->get_parent()); // prevent replacement from creating self loop if child is direct descendant of folded
+  return child;
+}
+
 /// checks if the original expression tree \p child can replace
 ///   the folded expression \p folded.
 /// \param folded the folded expression
@@ -270,9 +287,7 @@ void removeConstantFoldedValue(SgProject* /*project*/) {
       bool const replace_folded_by_child = exprIsUnfoldable(folded, child, delete_set);
 
       if (replace_folded_by_child) {
-        child->set_parent(folded->get_parent()); // prevent replacement from creating self loop if child is direct descendant of folded
-
-        replace_map[folded] = child;
+        replace_map[folded] = replacementFor(folded, child);
         
         delete_set.insert(folded);
       } else if (!isSgTypeTraitBuiltinOperator(child)) {
@@ -352,9 +367,7 @@ void preserveConstantFoldedValue(SgProject* /*project*/) {
       bool const replace_folded_by_child = exprIsUnfoldable(folded, child, delete_set);
 
       if (replace_folded_by_child) {
-        child->set_parent(folded->get_parent()); // prevent replacement from creating self loop if child is direct descendant of folded
-
-        replace_map[folded] = child;
+        replace_map[folded] = replacementFor(folded, child);
         folded_mapping.emplace_back(child, folded_value);
 
         SgExpression* tmp2 = get_parent_if_folded_in(folded_value);
