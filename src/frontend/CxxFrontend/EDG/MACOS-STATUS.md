@@ -93,6 +93,14 @@ The runner, lists and failure lists are kept outside the repo
    (`hash_combine` with `uint64_t`, no OpenMP).
 5. Autotools build untested on macOS (autotools is being deprecated in ROSE).
 6. Linux regression on these branches not yet run.
+7. **`-std=c++17` and later with libc++**: libc++ then enables its SIMD-vectorized algorithms
+   (`__algorithm/simd_utils.h`), which use clang's vector builtins (`__builtin_reduce_or`,
+   `__builtin_convertvector`, `ext_vector_type` arithmetic). EDG rejects `__builtin_reduce_or`
+   ("identifier is undefined") as soon as `<string>`/`<iostream>` are included, so the hello-world
+   fails with `-std=c++17` although it passes with ROSE's default standard (which is what the test
+   suites use). Needs prototypes/macros for the reduce builtins in
+   `rose_edg_required_macros_and_functions.h.in` and edgRose support for the vector operations
+   (`eok_vector_*`), or `_LIBCPP_HAS_NO_VECTOR_EXTENSION`-style configuration of libc++.
 
 ## Suggested next tasks (in order)
 
