@@ -171,11 +171,24 @@ SgStatement* EDG_ROSE_Translation::convert_condition(an_expr_node_ptr e, SourceS
                SgDotExp* dotExp = isSgDotExp(dot_or_arrow_expr);
                ROSE_ASSERT(dotExp != NULL);
 
-               SgVarRefExp* varRefExp = isSgVarRefExp(dotExp->get_lhs_operand());
-               ROSE_ASSERT(varRefExp != NULL);
+            // EDG 7.0 marks const condition variables as constant_valued and may hand us the object expression
+            // wrapped in a cast or as a folded constant carrying the variable reference as its original
+            // expression; look through those to find the variable.
+               SgExpression* object_expr = dotExp->get_lhs_operand();
+               SgVarRefExp* varRefExp = isSgVarRefExp(object_expr);
+               while (varRefExp == NULL && object_expr != NULL)
+                  {
+                    if (SgCastExp* cast = isSgCastExp(object_expr))
+                         object_expr = cast->get_operand();
+                    else if (object_expr->get_originalExpressionTree() != NULL)
+                         object_expr = object_expr->get_originalExpressionTree();
+                    else
+                         object_expr = NULL;
+                    varRefExp = isSgVarRefExp(object_expr);
+                  }
 
                SgMemberFunctionRefExp* memberFunctionRefExp = isSgMemberFunctionRefExp(dotExp->get_rhs_operand());
-               if (memberFunctionRefExp != NULL)
+               if (memberFunctionRefExp != NULL && varRefExp != NULL)
                   {
                     name = varRefExp->get_symbol()->get_name();
 
@@ -308,6 +321,20 @@ SgStatement* EDG_ROSE_Translation::convert_condition(an_expr_node_ptr e, SourceS
                            // DQ (10/20/2016): This case happens only with EDG 4.11 and later on test2016_88.C.
                               ROSE_ASSERT(edg_constant_expression->variant.operation.operands->kind == enk_constant);
                               ROSE_ASSERT(edg_constant_expression->variant.operation.operands->variant.constant.ptr != NULL);
+
+                           // EDG 7.0: "while (const int x = 42)" folds the reference to x (a constant_valued variable)
+                           // into a constant whose original expression is the variable itself.  That is still a
+                           // declaration of x, not an expression statement (test2012_260.C).
+                              a_constant_ptr inner_constant = edg_constant_expression->variant.operation.operands->variant.constant.ptr;
+                              if (inner_constant->expr != NULL && inner_constant->expr->kind == enk_variable)
+                                 {
+                                   edg_variable = inner_constant->expr->variant.variable.ptr;
+                                   ROSE_ASSERT(edg_variable != NULL);
+                                   ROSE_ASSERT(edg_variable->source_corresp.name != NULL);
+                                   name = edg_variable->source_corresp.name;
+                                 }
+                                else
+                                 {
 #if DEBUG_CONVERT_CONDITION
                               printf ("edg_constant_expression->variant.operation.operands->variant.constant.ptr->kind = %s \n",
                                    summarize_expr_kind(edg_constant_expression->variant.operation.operands->variant.constant.ptr->kind));
@@ -320,6 +347,7 @@ SgStatement* EDG_ROSE_Translation::convert_condition(an_expr_node_ptr e, SourceS
 
                            // Setup the statement as a expression statement here and it will not be setup as a variable declaration below.
                               statement = set_basic_file_info_for_expr(tmp_statement, e);
+                                 }
                             }
                        }
                       else

@@ -528,6 +528,68 @@ SgExpression* EDG_ROSE_Translation::convert_constant_template_parameter( a_const
                break;
              }
 
+#if ROSE_EDG_MAJOR_VERSION_NUMBER >= 7
+          case tpck_dependent_constant:
+             {
+            // EDG 7.0: a non-dependent constant wrapped so that it is treated as template-dependent
+            // (seen in libstdc++'s <tr1/memory> with GCC 11). Convert the wrapped constant.
+               a_constant_ptr wrapped = e->variant.template_param.variant.constant;
+               ROSE_ASSERT(wrapped != NULL);
+               result = convert_constant(wrapped);
+               ROSE_ASSERT(result != NULL);
+               result = set_file_info_for_corresp(result,e->source_corresp);
+               break;
+             }
+
+          case tpck_concat_string_literals:
+             {
+            // EDG 7.0: concatenation of string literals of which at least one is dependent. ROSE has no
+            // node for the concatenation; join the pieces that are plain string literals.
+               std::string joined;
+               bool all_strings = true;
+               SgExpression* first = NULL;
+               for (a_constant_ptr piece = e->variant.template_param.variant.string_literal_list; piece != NULL; piece = piece->next)
+                  {
+                    SgExpression* piece_expr = convert_constant(piece);
+                    ROSE_ASSERT(piece_expr != NULL);
+                    if (first == NULL) first = piece_expr;
+                    if (SgStringVal* sv = isSgStringVal(piece_expr))
+                         joined += sv->get_value();
+                    else
+                         all_strings = false;
+                  }
+               ROSE_ASSERT(first != NULL);
+               if (all_strings)
+                    result = buildStringVal_nfi(joined);
+               else
+                  {
+                    printf ("WARNING: In convert_constant_template_parameter(): tpck_concat_string_literals with a non-literal piece; using the first piece \n");
+                    result = first;
+                  }
+               result = set_file_info_for_corresp(result,e->source_corresp);
+               break;
+             }
+
+          case tpck_datasizeof:
+             {
+            // EDG 7.0: __datasizeof (size without tail padding). ROSE has no such operator; represent it as
+            // sizeof of the same type or expression (the only difference is for types with tail padding).
+               if (e->variant.template_param.variant.templ_sizeof.type != NULL)
+                  {
+                    SgType* type = convert_type(e->variant.template_param.variant.templ_sizeof.type);
+                    ROSE_ASSERT(type != NULL);
+                    result = set_file_info_for_corresp(buildSizeOfOp_nfi(type),e->source_corresp);
+                  }
+                 else
+                  {
+                    SgExpression* expr = convert_expression(e->variant.template_param.variant.templ_sizeof.expr);
+                    ROSE_ASSERT(expr != NULL);
+                    result = set_file_info_for_corresp(buildSizeOfOp_nfi(expr),e->source_corresp);
+                  }
+               break;
+             }
+#endif
+
           default:
              {
                printf ("Error: default reached template_parameter_kind = %d \n",template_parameter_kind);
