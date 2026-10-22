@@ -912,7 +912,7 @@ target_link_libraries(ROSE_DLL
     Boost::program_options
     Boost::random
     Boost::regex
-    Boost::system
+    ${ROSE_BOOST_SYSTEM_LINK}
     Boost::wave
     Boost::thread
     Boost::serialization

@@ -70,7 +70,7 @@ if(ENABLE_C)
     endif() # end GNU for C 
   
   # Set With and Without Path for Clang
-  elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")   # Clang and AppleClang
     # Set BACKEND_C_COMPILER_WITH_PATH for Clang
     if(NOT DEFINED BACKEND_C_COMPILER_NAME_WITH_PATH)
       find_program(CLANG_PATH NAMES clang HINTS ENV PATH)
@@ -149,7 +149,7 @@ if(ENABLE_CPP)
     endif() # end GNU for CXX  
 
   # Set With and Without Path for Clang++ 
-  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")   # Clang and AppleClang
     # Set BACKEND_CXX_COMPILER_WITH_PATH for Clang++
     if(NOT DEFINED BACKEND_CXX_COMPILER_NAME_WITH_PATH)
       find_program(CLANGXX_PATH NAMES clang++ HINTS ENV PATH)
@@ -222,8 +222,8 @@ if("${CMAKE_Fortran_COMPILER}"  MATCHES ".*gfortran.*$")
 endif()
 
 # Set BACKEND_CXX_IS_<>_COMPILER macro for rose_config.h 
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  # using Clang
+if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+  # using Clang or AppleClang
   set(BACKEND_CXX_IS_CLANG_COMPILER 1)
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   # using GCC

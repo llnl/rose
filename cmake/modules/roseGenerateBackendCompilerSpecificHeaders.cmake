@@ -118,7 +118,15 @@ else()
               ${CMAKE_BINARY_DIR}/include-staging/${BACKEND_CXX_COMPILER_NAME_WITHOUT_PATH}_HEADERS/rose_generated_builtin_functions.h)
 endif()
 
-execute_process(
-  COMMAND sed -i
-  "/REPLACE_ME_WITH_GENERATED_BUILTIN_FUNCTIONS/r${CMAKE_BINARY_DIR}/include-staging/${BACKEND_CXX_COMPILER_NAME_WITHOUT_PATH}_HEADERS/rose_generated_builtin_functions.h"
-  ${CMAKE_BINARY_DIR}/include-staging/${BACKEND_CXX_COMPILER_NAME_WITHOUT_PATH}_HEADERS/rose_edg_required_macros_and_functions.h)
+# Insert the generated builtin prototypes after the REPLACE_ME_WITH_GENERATED_BUILTIN_FUNCTIONS marker line
+# (done in CMake rather than with "sed -i", whose in-place syntax differs between GNU and BSD/macOS sed).
+set(_rose_req_hdr "${CMAKE_BINARY_DIR}/include-staging/${BACKEND_CXX_COMPILER_NAME_WITHOUT_PATH}_HEADERS/rose_edg_required_macros_and_functions.h")
+set(_rose_gen_hdr "${CMAKE_BINARY_DIR}/include-staging/${BACKEND_CXX_COMPILER_NAME_WITHOUT_PATH}_HEADERS/rose_generated_builtin_functions.h")
+if(EXISTS "${_rose_req_hdr}" AND EXISTS "${_rose_gen_hdr}")
+  file(READ "${_rose_req_hdr}" _rose_req_text)
+  file(READ "${_rose_gen_hdr}" _rose_gen_text)
+  string(REGEX REPLACE "(REPLACE_ME_WITH_GENERATED_BUILTIN_FUNCTIONS[^\n]*\n)" "\\1${_rose_gen_text}" _rose_req_text "${_rose_req_text}")
+  file(WRITE "${_rose_req_hdr}" "${_rose_req_text}")
+else()
+  message(WARNING "builtin prototypes not merged: ${_rose_req_hdr} or ${_rose_gen_hdr} missing")
+endif()

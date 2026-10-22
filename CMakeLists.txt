@@ -295,7 +295,18 @@ endif()
 # REQUIRED clause after the first one has succeeded.  That way the first clause checks for requires components, and the
 # second can check again including optional components.  If the version of cmake is high enough you can use an
 # OPTIONAL_COMPONENTS clause instead, but that wasn't introduced until 3.11."
-find_package(Boost REQUIRED COMPONENTS chrono date_time filesystem iostreams program_options random regex system wave thread serialization)
+# Boost.System has been header-only since Boost 1.69 and recent releases (1.90) no longer ship a libboost_system
+# at all, so it cannot be a required component. Look for it first, on its own (every find_package(Boost) call
+# resets Boost_LIBRARIES to the components of that call, so this must precede the call that defines the real
+# library list), and link Boost::system only where the target exists (older Boost).
+find_package(Boost QUIET COMPONENTS system)
+if(TARGET Boost::system)
+  set(ROSE_BOOST_SYSTEM_LINK Boost::system)
+else()
+  set(ROSE_BOOST_SYSTEM_LINK "")
+endif()
+find_package(Boost REQUIRED COMPONENTS chrono date_time filesystem iostreams program_options random regex wave thread serialization)
+set(Boost_SYSTEM_FOUND TRUE)   # header-only or linked above: the functionality is present either way
 if(WIN32) 
   set(BOOST_LIBRARYDIR ${Boost_LIBRARY_DIRS})
   set(BOOST_INCLUDEDIR ${Boost_INCLUDE_DIRS}/)
@@ -317,7 +328,7 @@ if(Boost_VERSION VERSION_GREATER_EQUAL "1.78.0")
 endif()
 
 # Boost compiler-specific flags
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang") 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang") 
   # Do not supress boost warnings in debug mode  
   if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug") 
     # Compiler specific commands, not to be used with MSVC 
@@ -1062,7 +1073,7 @@ if(ENABLE_LCOV)
       VERBATIM
       DEPENDS rose-compiler
       COMMENT "Create coverage analysis webpages from *.gcda files in the build tree")
-  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     message(WARNING "LCOV with Clang backend is NYI")
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     message(FATAL_ERROR "Intel compilers don't support lcov tools")

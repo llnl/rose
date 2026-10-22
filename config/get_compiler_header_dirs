@@ -24,7 +24,7 @@ case "$compilerVendorName" in
   # DQ (3/21/2014): Added support for the MPI versions of the Intel compiler (as named on LC machines).
   # Support for compiling ROSE with GNU g++ compiler
   # g++*|gcc*|icpc|icc|mpiicpc|mpiicc|mpicc|mpic++|mpiCC|mpicxx|cc|c++|xt-xcc|xt-xc++|clang|clang++)
-    gnu|intel|clang)
+    gnu|intel|clang|appleclang)
 
          $1 -v -E -x $language /dev/null 2>&1 | sed -n '/^#include </,/^End/p' | sed '/^#include </d; /^End/d; /\/usr\/include$/d; /\/Library\/Frameworks$/d; /[(]framework directory[)]$/d'
          ;;
