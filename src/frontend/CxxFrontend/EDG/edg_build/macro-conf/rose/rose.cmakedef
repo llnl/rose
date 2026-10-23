@@ -1,0 +1,4 @@
+# Per-target definitions of the "rose" macro configuration set (the second argument of
+# edg_add_frontend_library(edg_frontend rose) in ../../../CMakeLists.txt).  ROSE puts its
+# whole configuration into base.cmakedef / host.cmakedef, so there is nothing here; EDG's
+# own sets use this file for the differences between its cpfe and cpfe-cp executables.

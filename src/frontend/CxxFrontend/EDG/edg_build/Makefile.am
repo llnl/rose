@@ -1,3 +1,8 @@
+# DEPRECATED (2026-10): the autotools build of EDG is no longer maintained.  The CMake build
+# lets EDG's own CMake project build the front end as a library, configured by
+# macro-conf/rose/*.cmakedef (see CMakeLists.txt here and ../README); defines.h.rose and the
+# source list below are kept only so that this file keeps working as long as it does.
+#
 # Build the EDG C/C++ front end from the edg_compiler submodule (upstream layout) as the
 # libtool convenience library libedg.la, configured for ROSE.
 #

@@ -46,6 +46,15 @@ Date: 2026-10-16. ROSE 2.19.3 (develop) was the last layout with the private sub
 * `git submodule update --init src/frontend/CxxFrontend/EDG/edg_compiler`, then configure as usual
   (autotools or CMake). EDG is compiled into `libroseEDG` / `RoseSourceCxxFrontendEdg` exactly as
   before.
+* 2026-10-23: the CMake build no longer compiles EDG itself. EDG's own CMake project is added as a
+  subdirectory and builds the front end as the static library `edg_frontend`
+  (`edg_add_frontend_library`, see `edg_compiler/cmake/frontend-library.cmake` and
+  `ROSE-PATCHES.md` there), configured by ROSE's macro configuration set
+  `edg_build/macro-conf/rose/*.cmakedef` plus the host part that `edg_build/CMakeLists.txt`
+  generates (it runs EDG's `dettarg` at configure time). `defines.h.rose`, the source list and the
+  helper scripts in `edg_build/` now serve only the autotools build, which is deprecated and no
+  longer maintained. The CMake build needs CMake 3.19 (EDG's minimum) and `python3` on the PATH
+  (EDG's `dev_tools/bin/edg-cmakedef`).
 * The precompiled EDG library (`roseBinaryEDG-*.tar.gz`: generation with `make binary_edg_tarball`,
   upload to S3, download by the autotools build when the source was absent, the
   `scripts/edg-generate-sig` compatibility signature, the `EDG_VERSION` file and the `EDG-Binary*`

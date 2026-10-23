@@ -11,15 +11,19 @@ into ROSE's SageIII AST. This directory holds everything ROSE adds around EDG:
                   ROSE-PATCHES.md inside it. Upstream layout: src/*.c (compiled as C++),
                   util/, include_c++/ ...
 
-  edg_build/      ROSE's build of EDG (autotools and CMake): compiles edg_compiler/src/*.c
-                  into libedg.la / the edg_internal object library, configured through
-                  defines.h.rose (ROSE's EDG configuration) plus EDG's dettarg target
-                  description, concatenated into the generated cmake_defines.h that EDG's own
-                  defines.h includes when USE_CMAKE_DEFINES is defined.
+  edg_build/      ROSE's configuration of EDG for the CMake build: macro-conf/rose/*.cmakedef
+                  (EDG's own configuration format) plus CMakeLists.txt, which generates the
+                  host-dependent part and the dettarg target description into the build tree.
+                  EDG's CMake project (edg_compiler/CMakeLists.txt, added as a subdirectory by
+                  CMakeLists.txt here) turns that set into cmake_defines.h and builds the front
+                  end as the static library edg_frontend (edg_add_frontend_library, see
+                  edg_compiler/cmake/frontend-library.cmake); no source list lives in ROSE.
+                  Makefile.am, defines.h.rose and the *.sh helpers are the deprecated autotools
+                  build of the same thing (not maintained; the cmakedef set is authoritative).
 
   edgRose/        the EDG IL -> SageIII translator (ROSE code). Compiled into libnewsage.la /
-                  the edg_rose object library; both go into libroseEDG (autotools) or
-                  RoseSourceCxxFrontendEdg (CMake).
+                  the edg_rose object library, which links edg_frontend; both go into
+                  libroseEDG (autotools) or RoseSourceCxxFrontendEdg (CMake).
 
   MIGRATION.md    how this directory relates to the former private EDG submodule.
 
