@@ -287,9 +287,11 @@ endif()
 
 #------------------------------------------------------------------------------------------
 # Target description from EDG's dettarg utility, run on the host at configure time (it used
-# to run at build time, before the two files were concatenated).  dettarg only needs to know
-# whether the host has "long long" (SIZEOF_LONG_LONG from cmake/ConfigureChecks.cmake) and
-# whether ROSE targets Microsoft extensions.
+# to run at build time, before the two files were concatenated).  Besides whether the host has
+# "long long" (SIZEOF_LONG_LONG from cmake/ConfigureChecks.cmake), ROSE's dettarg patch reads
+# ROSE_USE_MICROSOFT_EXTENSIONS and, for HOST_ALIGNMENT_REQUIRED, the backend compiler's
+# identity and version; it used to get them from rose_config.h, which does not exist yet at
+# this point, so pass exactly what rose_config.h.in.cmake would define.
 #------------------------------------------------------------------------------------------
 if(SIZEOF_LONG_LONG STREQUAL "")
   set(edg_have_long_long 0)
@@ -300,6 +302,16 @@ set(dettarg_definitions -DHAVE_LONG_LONG=${edg_have_long_long})
 if(ROSE_USE_MICROSOFT_EXTENSIONS)
   list(APPEND dettarg_definitions -DROSE_USE_MICROSOFT_EXTENSIONS)
 endif()
+foreach(var BACKEND_CXX_IS_GNU_COMPILER BACKEND_CXX_IS_CLANG_COMPILER BACKEND_CXX_IS_INTEL_COMPILER)
+  if(${var})                                                    # #cmakedefine X @X@
+    list(APPEND dettarg_definitions "-D${var}=${${var}}")
+  endif()
+endforeach()
+foreach(var BACKEND_CXX_COMPILER_MAJOR_VERSION_NUMBER BACKEND_CXX_COMPILER_MINOR_VERSION_NUMBER)
+  if(DEFINED ${var} AND NOT "${${var}}" STREQUAL "")             # #define X @X@
+    list(APPEND dettarg_definitions "-D${var}=${${var}}")
+  endif()
+endforeach()
 # dettarg.c is C++ like the rest of EDG; give it a .cc name so try_run compiles it as such.
 configure_file("${EDG_SOURCE_DIR}/util/dettarg.c" "${CMAKE_CURRENT_BINARY_DIR}/dettarg.cc" COPYONLY)
 try_run(dettarg_run_result dettarg_compile_result
