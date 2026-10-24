@@ -1080,6 +1080,9 @@ bool ClangToSageTranslator::VisitTagDecl(clang::TagDecl * tag_decl, SgNode ** no
 
     bool res = true;
 
+#if DEBUG_VISIT_DECL
+    logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: casting to DeclContext" << "\n";
+#endif
     assert(llvm::isa<clang::DeclContext>(tag_decl));
     clang::DeclContext* decl_context = static_cast<clang::DeclContext*>(tag_decl);
 
@@ -1095,117 +1098,111 @@ bool ClangToSageTranslator::VisitTagDecl(clang::TagDecl * tag_decl, SgNode ** no
        }
     }
 
-#if DEBUG_VISIT_DECL
-    logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: casting to DeclContext" << "\n";
-#endif
-    for (clang::Decl* tmpDecl : decl_context->decls()) {
-       // CXXMethodDecl is processed under VisitCXXRecordDecl. Need to check how to merge to here.
-       if(llvm::isa<clang::CXXMethodDecl>(tmpDecl))
-       {
-#if DEBUG_VISIT_DECL
-         logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: skipping CXXMethodDecl in DeclContext\n";
-#endif
-         continue;
-       }
-       // skip for now.
-       if(tmpDecl->isImplicit())
-       {
-#if DEBUG_VISIT_DECL
-         logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: skipping implicit in DeclContext\n";
-#endif
-         continue;
-       }
-       // ROSE doesn't seem to need to support AccessSpecDecl
-       if(llvm::isa<clang::AccessSpecDecl>(tmpDecl))
-       {
-#if DEBUG_VISIT_DECL
-         logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: skipping AccessSpecDecl in DeclContext\n";
-#endif
-         continue;
-       }
-       // 2026-10-12 lin32: Translate using declarations into explicit ROSE
-       // using-declaration nodes before the generic member assertion below.
-       if(llvm::isa<clang::UsingDecl>(tmpDecl))
-       {
-#if DEBUG_VISIT_DECL
-         logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: translating UsingDecl in DeclContext\n";
-#endif
-         SgNode * using_node = Traverse(tmpDecl);
-         ASSERT_not_null(using_node);
-         SgDeclarationStatement * using_statement = isSgDeclarationStatement(using_node);
-         ASSERT_not_null(using_statement);
-         ASSERT_not_null(sg_class_def);
-         sg_class_def->append_member(using_statement);
-         using_statement->set_parent(sg_class_def);
-         continue;
-       }
-#if DEBUG_VISIT_DECL
-       logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: checking decls in DeclContext\n";
-#endif
-       SgNode * tmp_context = Traverse(tmpDecl);
-       SgDeclarationStatement * rose_decl_context = isSgDeclarationStatement(tmp_context);
-       ROSE_ASSERT(rose_decl_context != NULL);
-
-       if(sg_class_def)
-       {
-         if(llvm::isa<clang::FieldDecl>(tmpDecl))
-         {
-#if DEBUG_VISIT_DECL
-            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a field\n";
-#endif   
-            sg_class_def->append_member(rose_decl_context);
-            rose_decl_context->set_parent(sg_class_def);
-         }
-         if(llvm::isa<clang::RecordDecl>(tmpDecl))
-         {
-#if DEBUG_VISIT_DECL
-            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a record\n";
-#endif
-         }
-         if(llvm::isa<clang::EnumDecl>(tmpDecl) &&
-            !((clang::EnumDecl *)tmpDecl)->isEmbeddedInDeclarator())
-         {
-#if DEBUG_VISIT_DECL
-            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as an enum\n";
-#endif
-            SgDeclarationStatementPtrList& memberList = sg_class_def->get_members();
-            if(std::find(memberList.begin(), memberList.end(), rose_decl_context) == memberList.end())
-            {
-              sg_class_def->append_member(rose_decl_context);
-              rose_decl_context->set_parent(sg_class_def);
-            }
-            else if(rose_decl_context->get_parent() != sg_class_def)
-              rose_decl_context->set_parent(sg_class_def);
-         }
-         if(llvm::isa<clang::FriendDecl>(tmpDecl))
-         {
-#if DEBUG_VISIT_DECL
-            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a friend decl\n";
-#endif   
-            sg_class_def->append_member(rose_decl_context);
-            rose_decl_context->set_parent(sg_class_def);
-         }
-         if(llvm::isa<clang::VarDecl>(tmpDecl))
-         {
-#if DEBUG_VISIT_DECL
-            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a var decl\n";
-#endif   
-            clang::VarDecl* varDecl = (clang::VarDecl*)tmpDecl;
-            if(varDecl->isStaticDataMember())
-            {
-              sg_class_def->append_member(rose_decl_context);
-              rose_decl_context->set_parent(sg_class_def);
-            }
-            else
-            {
-              logger[WARN] << "Other clang::VarDecl in the rose_decl_context is not handled";
-            }
-         }
-       }
-
-    }
     if(sg_class_def)
-      SageBuilder::popScopeStack();
+    { 
+       for (clang::Decl* tmpDecl : decl_context->decls()) {
+          // CXXMethodDecl is processed under VisitCXXRecordDecl. Need to check how to merge to here.
+          if(llvm::isa<clang::CXXMethodDecl>(tmpDecl))
+          {
+#if DEBUG_VISIT_DECL
+            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: skipping CXXMethodDecl in DeclContext\n";
+#endif
+            continue;
+          }
+          // skip for now.
+          if(tmpDecl->isImplicit())
+          {
+#if DEBUG_VISIT_DECL
+            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: skipping implicit in DeclContext\n";
+#endif
+            continue;
+          }
+          // ROSE doesn't seem to need to support AccessSpecDecl
+          if(llvm::isa<clang::AccessSpecDecl>(tmpDecl))
+          {
+#if DEBUG_VISIT_DECL
+            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: skipping AccessSpecDecl in DeclContext\n";
+#endif
+            continue;
+          }
+          // 2026-10-12 lin32: Translate using declarations into explicit ROSE
+          // using-declaration nodes before the generic member assertion below.
+          if(llvm::isa<clang::UsingDecl>(tmpDecl))
+          {
+#if DEBUG_VISIT_DECL
+            logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: translating UsingDecl in DeclContext\n";
+#endif
+            SgNode * using_node = Traverse(tmpDecl);
+            ASSERT_not_null(using_node);
+            SgDeclarationStatement * using_statement = isSgDeclarationStatement(using_node);
+            ASSERT_not_null(using_statement);
+            sg_class_def->append_member(using_statement);
+            using_statement->set_parent(sg_class_def);
+            continue;
+          }
+#if DEBUG_VISIT_DECL
+          logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: checking decls in DeclContext\n";
+#endif
+          SgNode * tmp_context = Traverse(tmpDecl);
+          SgDeclarationStatement * rose_decl_context = isSgDeclarationStatement(tmp_context);
+          ROSE_ASSERT(rose_decl_context != NULL);
+   
+          if(llvm::isa<clang::FieldDecl>(tmpDecl))
+          {
+#if DEBUG_VISIT_DECL
+             logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a field\n";
+#endif   
+             sg_class_def->append_member(rose_decl_context);
+             rose_decl_context->set_parent(sg_class_def);
+          }
+          if(llvm::isa<clang::RecordDecl>(tmpDecl))
+          {
+#if DEBUG_VISIT_DECL
+             logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a record\n";
+#endif
+          }
+          if(llvm::isa<clang::EnumDecl>(tmpDecl) &&
+             !((clang::EnumDecl *)tmpDecl)->isEmbeddedInDeclarator())
+          {
+#if DEBUG_VISIT_DECL
+             logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as an enum\n";
+#endif
+             SgDeclarationStatementPtrList& memberList = sg_class_def->get_members();
+             if(std::find(memberList.begin(), memberList.end(), rose_decl_context) == memberList.end())
+             {
+               sg_class_def->append_member(rose_decl_context);
+               rose_decl_context->set_parent(sg_class_def);
+             }
+             else if(rose_decl_context->get_parent() != sg_class_def)
+               rose_decl_context->set_parent(sg_class_def);
+          }
+          if(llvm::isa<clang::FriendDecl>(tmpDecl))
+          {
+#if DEBUG_VISIT_DECL
+             logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a friend decl\n";
+#endif   
+             sg_class_def->append_member(rose_decl_context);
+             rose_decl_context->set_parent(sg_class_def);
+          }
+          if(llvm::isa<clang::VarDecl>(tmpDecl))
+          {
+#if DEBUG_VISIT_DECL
+             logger[DEBUG] << "ClangToSageTranslator::VisitTagDecl: processing decl as a var decl\n";
+#endif   
+             clang::VarDecl* varDecl = (clang::VarDecl*)tmpDecl;
+             if(varDecl->isStaticDataMember())
+             {
+               sg_class_def->append_member(rose_decl_context);
+               rose_decl_context->set_parent(sg_class_def);
+             }
+             else
+             {
+               logger[WARN] << "Other clang::VarDecl in the rose_decl_context is not handled";
+             }
+          }
+       }
+       SageBuilder::popScopeStack();
+    }
 
     return VisitTypeDecl(tag_decl, node) && res;
 }
