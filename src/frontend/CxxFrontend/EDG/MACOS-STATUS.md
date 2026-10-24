@@ -103,8 +103,9 @@ The EDG configuration that build generated (`cmake_defines.h`) is macro for macr
    disabled or fixed: PortabilityTesting (Boost.Process v1 API gone in Boost 1.90), CodeThorn
    (`hash_combine` with `uint64_t`, no OpenMP).
 5. Autotools build untested on macOS (autotools is being deprecated in ROSE).
-6. Linux regression of the unified branch not yet run (`Claude_test/handoff/HANDOFF-70-unified.md`;
-   the macOS edgRose / SageIII / configuration commits have never been compiled on Linux).
+6. ~~Linux regression of the unified branch not yet run.~~ Done 2026-10-24 (tux433, GCC 11, x86_64):
+   CMake build/install, EDG macro set identical to the previous Linux configuration, check-smoke,
+   C_tests 618, Cxx_tests 1986, stand-alone cpfe. The branch is verified on both platforms.
 7. **`-std=c++17` and later with libc++**: libc++ then enables its SIMD-vectorized algorithms
    (`__algorithm/simd_utils.h`), which use clang's vector builtins (`__builtin_reduce_or`,
    `__builtin_convertvector`, `ext_vector_type` arithmetic). EDG rejects `__builtin_reduce_or`
@@ -116,9 +117,9 @@ The EDG configuration that build generated (`cmake_defines.h`) is macro for macr
 
 ## Suggested next tasks (in order)
 
-1. Linux regression round on `lin32/edg-oss-70-cmake-lib-mac` + `rose/7.0-cmake-lib-mac` (must stay
-   at C 618 / C++ 1986 and keep the EDG macro set identical to round 8); then the older branches
-   (`lin32/edg-oss-70-cmake-lib`, `edg-oss-70-Mac`, `rose/7.0-cmake-lib`, `rose/7.0-Mac`) are superseded.
+1. ~~Linux regression round on the unified branch.~~ Passed 2026-10-24 (C 618 / C++ 1986, macro set
+   identical); the older branches (`lin32/edg-oss-70-cmake-lib`, `edg-oss-70-Mac`, `rose/7.0-cmake-lib`,
+   `rose/7.0-Mac`) are superseded.
 2. Unparse `__restrict__` instead of `restrict` for a clang backend (7 C++ tests).
 3. Diagnose and fix the dangling nodes behind `std::cout` (pending issue 1).
 4. `test2013_304.C`, `test2025_01.C`, `test2015_104/105.c`.
