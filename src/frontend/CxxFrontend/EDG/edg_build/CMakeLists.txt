@@ -155,7 +155,7 @@ elseif(rose_edg_arch STREQUAL arm64 AND APPLE)
   rose_edg_define(TARG_ALIGNOF_POINTER 8)
   rose_edg_define(TARG_ALIGNOF_DOUBLE 8)
   rose_edg_define(TARG_WCHAR_T_INT_KIND "((an_integer_kind)ik_int)")
-  rose_edg_define(HOST_ALIGNMENT_REQUIRED 8)
+  rose_edg_define(HOST_ALIGNMENT_REQUIRED 16)   # host integer type is __int128, see "Integer value representation"
   rose_edg_define(TARG_ALIGNOF_LONG_LONG 8)
   rose_edg_define(TARG_SIZEOF_LONG_DOUBLE 8)
   rose_edg_define(TARG_ALIGNOF_LONG_DOUBLE 8)
@@ -237,7 +237,11 @@ elseif(BACKEND_CXX_IS_GNU_COMPILER OR BACKEND_CXX_IS_INTEL_COMPILER)
     set(int128_allowed 1)
   endif()
 elseif(BACKEND_CXX_IS_CLANG_COMPILER)
-  if(NOT rose_edg_arch STREQUAL arm64)                          # TARG_SUPPORTS_ARM64 != 1
+  # Apple arm64 (macOS): clang has __int128 on every 64-bit target and ROSE's compiler macro
+  # headers predefine __SIZEOF_INT128__ for clang, so libc++ specialises on __int128_t; with
+  # INT128 disabled EDG maps that to long long and the specialisations collide.  Other arm64
+  # hosts (Linux) keep the previous, Linux-verified configuration without __int128.
+  if(NOT rose_edg_arch STREQUAL arm64 OR APPLE)                 # TARG_SUPPORTS_ARM64 != 1 || __APPLE__
     set(int_value_type "unsigned __int128")
     set(signed_int_value_type "__int128")
     set(int128_allowed 1)

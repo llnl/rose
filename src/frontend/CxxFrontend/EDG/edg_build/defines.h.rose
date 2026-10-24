@@ -383,13 +383,20 @@ This is the version for ROSE Compiler. It is meant to be used by Linux, MacOS, a
       #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
     #endif
   #elif defined(BACKEND_CXX_IS_CLANG_COMPILER)
-    /* clang has __int128 on every 64-bit target, including Apple arm64 (upstream EDG's own macOS arm64
-       configuration enables INT128 too). ROSE's compiler macro headers predefine __SIZEOF_INT128__ for
+    /* Apple arm64 (macOS): clang has __int128 on every 64-bit target, and upstream EDG's own macOS arm64
+       configuration enables INT128 too. ROSE's compiler macro headers predefine __SIZEOF_INT128__ for
        clang, so libc++ specialises on __int128_t; with INT128 disabled EDG maps that to long long and
-       the specialisations collide ("has already been defined"). */
-    #define TYPE_FOR_AN_INTEGER_VALUE unsigned __int128
-    #define TYPE_FOR_A_SIGNED_INTEGER_VALUE __int128
-    #define INT128_EXTENSIONS_ALLOWED 1
+       the specialisations collide ("has already been defined"). Other arm64 hosts (Linux) keep the
+       previous, Linux-verified configuration without __int128. */
+    #if (TARG_SUPPORTS_ARM64 != 1) || defined(__APPLE__)
+      #define TYPE_FOR_AN_INTEGER_VALUE unsigned __int128
+      #define TYPE_FOR_A_SIGNED_INTEGER_VALUE __int128
+      #define INT128_EXTENSIONS_ALLOWED 1
+    #else
+      #define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
+      #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
+      #define INT128_EXTENSIONS_ALLOWED 0
+    #endif
   #else
     #define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
     #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
