@@ -16,7 +16,18 @@ static const char *gDescription =
 #include <Rose/CommandLine.h>
 #include <rose_getline.h>
 #include <boost/algorithm/string/trim.hpp>
+// Boost.Process v2 became the default in boost-1.86.0 and <boost/process.hpp> no longer provides
+// the v1 API (child, ipstream, std_out) used below; v1 is still available, header-only, under
+// <boost/process/v1/>.
+#if BOOST_VERSION >= 108600
+#include <boost/process/v1/child.hpp>
+#include <boost/process/v1/io.hpp>
+#include <boost/process/v1/pipe.hpp>
+namespace bp = boost::process::v1;
+#else
 #include <boost/process.hpp>
+namespace bp = boost::process;
+#endif
 
 using namespace Rose;
 using namespace Sawyer::Message::Common;
@@ -144,8 +155,8 @@ getUserName() {
     if (const char *s = getenv("LOGNAME"))
         return s;
 
-    boost::process::ipstream pipe_stream;
-    boost::process::child c("whoami", boost::process::std_out > pipe_stream);
+    bp::ipstream pipe_stream;
+    bp::child c("whoami", bp::std_out > pipe_stream);
     std::string str;
     if (pipe_stream && std::getline(pipe_stream, str) && !str.empty())
         return boost::trim_copy(str);
