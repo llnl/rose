@@ -17,7 +17,7 @@ is tracked in `Claude_test/handoff/HANDOFF-70-unified.md`.
 | Machine | macOS 26.7.1, arm64 (Apple M-series) |
 | Backend compiler | Apple clang 21 (predefines `__GNUC__` 4.2.1), libc++ 22, SDK headers under `<SDK>/usr/include` |
 | Build | CMake 4.4.3, Release, `-DENABLE-C=ON`, Fortran/Java/OpenCL/PHP/binary analysis OFF, `-DDWARF_ROOT=no`, `-DBOOST_ROOT=<boost 1.90>` |
-| Running | `DYLD_LIBRARY_PATH=<build>/lib:<boost>/lib <build>/bin/rose-compiler ...` (no `make install` yet, see below) |
+| Running | `DYLD_LIBRARY_PATH=<build or prefix>/lib:<boost>/lib <build or prefix>/bin/rose-compiler ...`; `make install` works since 2026-10-24 (installed `rose-compiler` round-trips the hello-worlds) |
 
 ## What works
 
@@ -83,6 +83,11 @@ The EDG configuration that build generated (`cmake_defines.h`) is macro for macr
   body is skipped; condition-scope declarations may live in the generated block.
 - SageIII: `SgDeleteExp` mangling (libc++ uses `decltype(delete p)`); the constant-folding
   cleanup no longer deletes subtrees that are still owned by another part of the AST.
+- Tools, so that the default build target and `make install` work on macOS (2026-10-24):
+  CodeThorn is skipped entirely when OpenMP is not available (its libraries, not only its tools,
+  call the OpenMP runtime, and Mach-O resolves shared-library symbols at link time); its
+  `hashCombine` hashes through a `std::size_t`; PortabilityTesting's `matrix-test-result` uses the
+  Boost.Process v1 headers with Boost >= 1.86. Linux with OpenMP and Boost 1.75 is unchanged.
 
 ## Pending issues
 
@@ -99,9 +104,8 @@ The EDG configuration that build generated (`cmake_defines.h`) is macro for macr
 3. C11 atomics and `__builtin_operator_new/delete` are macro-erased for the frontend: fine for
    compiling, wrong for analyses that care about them.
 4. No rose-tests harness run yet (`testTranslator` adds AST consistency checks and the `.passed`
-   bookkeeping). It needs `make install`, which needs the tool builds that fail on this Mac to be
-   disabled or fixed: PortabilityTesting (Boost.Process v1 API gone in Boost 1.90), CodeThorn
-   (`hash_combine` with `uint64_t`, no OpenMP).
+   bookkeeping). `make install` works since 2026-10-24 (default build target and install complete
+   with CodeThorn skipped), so the harness run is now possible.
 5. Autotools build untested on macOS (autotools is being deprecated in ROSE).
 6. ~~Linux regression of the unified branch not yet run.~~ Done 2026-10-24 (tux433, GCC 11, x86_64):
    CMake build/install, EDG macro set identical to the previous Linux configuration, check-smoke,
@@ -123,7 +127,6 @@ The EDG configuration that build generated (`cmake_defines.h`) is macro for macr
 2. Unparse `__restrict__` instead of `restrict` for a clang backend (7 C++ tests).
 3. Diagnose and fix the dangling nodes behind `std::cout` (pending issue 1).
 4. `test2013_304.C`, `test2025_01.C`, `test2015_104/105.c`.
-5. `make install` on the Mac (tool builds disabled or fixed) and the rose-tests harness:
-   `check-smoke`, then the two suites with `make -k`, to confirm the counts above with
-   `testTranslator`.
+5. The rose-tests harness against the installed tree: `check-smoke`, then the two suites with
+   `make -k`, to confirm the counts above with `testTranslator`.
 6. Upstream pull request for the keyword-aware `__has_builtin` (edgcpp/compiler).
