@@ -5,7 +5,10 @@
 #
 option(ENABLE_CODETHORN "Enable CodeThorn program analysis and verification" TRUE)
 if(NOT WIN32 AND ENABLE_CODETHORN AND NOT ENABLE_CLANG_FRONTEND AND ENABLE_C)
-  # Codethorn tools require OpenMP
+  # CodeThorn requires OpenMP: not only the tools, the libraries too (libcodethorn and libltlthorn
+  # call omp_set_num_threads / omp_get_thread_num and use "#pragma omp" without guards).  Without
+  # OpenMP they cannot be linked on platforms that resolve shared-library symbols at link time
+  # (macOS) and would fail to load elsewhere, so build nothing in that case.
   set(_CODETHORN_HAS_OPENMP FALSE)
   if(ENABLE_OPENMP)
     set(_CODETHORN_HAS_OPENMP TRUE)
@@ -14,9 +17,11 @@ if(NOT WIN32 AND ENABLE_CODETHORN AND NOT ENABLE_CLANG_FRONTEND AND ENABLE_C)
     find_package(OpenMP QUIET)
     if(OpenMP_FOUND)
       set(_CODETHORN_HAS_OPENMP TRUE)
-    else()
-      message(WARNING "CodeThorn tools (codethorn, thorn2, thorn4) require OpenMP which was not found. Only building libraries.")
     endif()
+  endif()
+  if(NOT _CODETHORN_HAS_OPENMP)
+    message(STATUS "CodeThorn disabled: it needs OpenMP (libcodethorn/libltlthorn call the OpenMP runtime), which was not found")
+    return()
   endif()
 
   # all targets include these directories
@@ -68,43 +73,38 @@ if(NOT WIN32 AND ENABLE_CODETHORN AND NOT ENABLE_CLANG_FRONTEND AND ENABLE_C)
   install(TARGETS ltlthorn LIBRARY DESTINATION lib)
 
   # ##########################################################################
-  # TOOLS: Build only if OpenMP is available
+  # TOOLS
   # ##########################################################################
-  if(_CODETHORN_HAS_OPENMP)
-    # ########################################################################
-    # TOOL: CODETHORN
-    # ########################################################################
-    add_executable(codethorn1 CodeThornCommandLineOptions.C codethorn.C)
-    set_target_properties(codethorn1 PROPERTIES OUTPUT_NAME "codethorn")
-    target_link_libraries(
-      codethorn1 PRIVATE codethorn ltlthorn ROSE_DLL OpenMP::OpenMP_C)
+  # ########################################################################
+  # TOOL: CODETHORN
+  # ########################################################################
+  add_executable(codethorn1 CodeThornCommandLineOptions.C codethorn.C)
+  set_target_properties(codethorn1 PROPERTIES OUTPUT_NAME "codethorn")
+  target_link_libraries(
+    codethorn1 PRIVATE codethorn ltlthorn ROSE_DLL OpenMP::OpenMP_C)
 
-    install(TARGETS codethorn1 RUNTIME DESTINATION bin)
+  install(TARGETS codethorn1 RUNTIME DESTINATION bin)
 
-    # ########################################################################
-    # TOOL: THORN2
-    # ########################################################################
+  # ########################################################################
+  # TOOL: THORN2
+  # ########################################################################
 
-    add_executable(thorn2 CodeThornCommandLineOptions.C thorn2.C)
-    target_link_libraries(thorn2 PRIVATE codethorn OpenMP::OpenMP_C)
-    install(TARGETS thorn2 RUNTIME DESTINATION bin)
+  add_executable(thorn2 CodeThornCommandLineOptions.C thorn2.C)
+  target_link_libraries(thorn2 PRIVATE codethorn OpenMP::OpenMP_C)
+  install(TARGETS thorn2 RUNTIME DESTINATION bin)
 
-    # ########################################################################
-    # TOOL: THORN4
-    # ########################################################################
+  # ########################################################################
+  # TOOL: THORN4
+  # ########################################################################
 
-    add_executable(thorn4 Thorn4CommandLineParser.C thorn4.C)
-    target_link_libraries(thorn4 PRIVATE codethorn OpenMP::OpenMP_C)
-    install(TARGETS thorn4 RUNTIME DESTINATION bin)
+  add_executable(thorn4 Thorn4CommandLineParser.C thorn4.C)
+  target_link_libraries(thorn4 PRIVATE codethorn OpenMP::OpenMP_C)
+  install(TARGETS thorn4 RUNTIME DESTINATION bin)
 
-    # ########################################################################
-    # TOOL: LTLTHORN
-    # ########################################################################
-    # Now add these targets to the tools build target.
-    add_dependencies(tools codethorn ltlthorn codethorn1)
-  else()
-    # Only add library targets to tools if OpenMP is not available
-    add_dependencies(tools codethorn ltlthorn)
-  endif()
+  # ########################################################################
+  # TOOL: LTLTHORN
+  # ########################################################################
+  # Now add these targets to the tools build target.
+  add_dependencies(tools codethorn ltlthorn codethorn1)
 
 endif()
