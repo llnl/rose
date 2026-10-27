@@ -21,8 +21,8 @@
 #endif
 
 namespace si = SageInterface;
-namespace ga = Rose::Common::Analysis;
-namespace source = Rose::Source::Analysis;
+namespace rca = Rose::Common::Analysis;
+namespace rsa = Rose::Source::Analysis;
 
 namespace Rose::Source::Analysis
 {
@@ -31,64 +31,64 @@ namespace Rose::Source::Analysis
 constexpr unsigned char STRIP_MODIFIER_ALIAS =
   SgType::STRIP_MODIFIER_TYPE | SgType::STRIP_TYPEDEF_TYPE;
 
-SgProject* keyToRoot(ga::ASTRootType key)
+SgProject* keyToRoot(rca::ASTRootType key)
 {
   return reinterpret_cast<SgProject*>(key.key);
 }
 
-ga::ASTRootType rootToKey(SgProject* n)
+rca::ASTRootType rootToKey(const SgProject* n)
 {
-  return ga::ASTRootType{reinterpret_cast<std::uintptr_t>(n)};
+  return rca::ASTRootType{reinterpret_cast<std::uintptr_t>(n)};
 }
 
-SgClassDefinition* keyToClass(ga::ClassKeyType key)
+SgClassDefinition* keyToClass(rca::ClassKeyType key)
 {
   return reinterpret_cast<SgClassDefinition*>(key.key);
 }
 
-ga::ClassKeyType classToKey(const SgClassDefinition* n)
+rca::ClassKeyType classToKey(const SgClassDefinition* n)
 {
-  return ga::ClassKeyType{reinterpret_cast<std::uintptr_t>(n)};
+  return rca::ClassKeyType{reinterpret_cast<std::uintptr_t>(n)};
 }
 
-SgFunctionDeclaration* keyToFunction(ga::FunctionKeyType key)
+SgFunctionDeclaration* keyToFunction(rca::FunctionKeyType key)
 {
   return reinterpret_cast<SgFunctionDeclaration*>(key.key);
 }
 
-ga::FunctionKeyType functionToKey(const SgFunctionDeclaration* n)
+rca::FunctionKeyType functionToKey(const SgFunctionDeclaration* n)
 {
-  return ga::FunctionKeyType{reinterpret_cast<std::uintptr_t>(n)};
+  return rca::FunctionKeyType{reinterpret_cast<std::uintptr_t>(n)};
 }
 
-SgInitializedName* keyToVariable(ga::VariableKeyType key)
+SgInitializedName* keyToVariable(rca::VariableKeyType key)
 {
   return reinterpret_cast<SgInitializedName*>(key.key);
 }
 
-ga::VariableKeyType variableToKey(const SgInitializedName* n)
+rca::VariableKeyType variableToKey(const SgInitializedName* n)
 {
-  return ga::VariableKeyType{reinterpret_cast<std::uintptr_t>(n)};
+  return rca::VariableKeyType{reinterpret_cast<std::uintptr_t>(n)};
 }
 
-SgFunctionType* keyToFunctionType(ga::FunctionTypeKeyType key)
+SgFunctionType* keyToFunctionType(rca::FunctionTypeKeyType key)
 {
   return reinterpret_cast<SgFunctionType*>(key.key);
 }
 
-ga::FunctionTypeKeyType functionTypeToKey(const SgFunctionType* n)
+rca::FunctionTypeKeyType functionTypeToKey(const SgFunctionType* n)
 {
-  return ga::FunctionTypeKeyType{reinterpret_cast<std::uintptr_t>(n)};
+  return rca::FunctionTypeKeyType{reinterpret_cast<std::uintptr_t>(n)};
 }
 
-SgType* keyToType(ga::TypeKeyType key)
+SgType* keyToType(rca::TypeKeyType key)
 {
   return reinterpret_cast<SgType*>(key.key);
 }
 
-ga::TypeKeyType typeToKey(const SgType* n)
+rca::TypeKeyType typeToKey(const SgType* n)
 {
-  return ga::TypeKeyType{reinterpret_cast<std::uintptr_t>(n)};
+  return rca::TypeKeyType{reinterpret_cast<std::uintptr_t>(n)};
 }
 
 } // namespace Rose::Source::Analysis
@@ -172,7 +172,7 @@ namespace
     if (!ty)
       return nullptr;
 
-    const unsigned char stripFlags = Rose::Source::Analysis::STRIP_MODIFIER_ALIAS
+    const unsigned char stripFlags = rsa::STRIP_MODIFIER_ALIAS
                                    | SgType::STRIP_REFERENCE_TYPE
                                    | SgType::STRIP_RVALUE_REFERENCE_TYPE
                                    | otherStrips;
@@ -193,7 +193,7 @@ namespace
     if (!classTy)
       return nullptr;
 
-    return Rose::Source::Analysis::getClassDefOpt(*classTy);
+    return rsa::getClassDefOpt(*classTy);
   }
 
   std::string typeSignature(const SgType* ty, bool arrayDecay)
@@ -257,20 +257,20 @@ namespace
     return const_cast<SgFunctionDeclaration*>(fn);
   }
 
-  void collectMembers(ga::ClassAnalysis::value_type& entry)
+  void collectMembers(rca::ClassAnalysis::value_type& entry)
   {
-    SgClassDefinition* clsdef = Rose::Source::Analysis::keyToClass(entry.first);
+    SgClassDefinition* clsdef = rsa::keyToClass(entry.first);
     if (!clsdef)
       return;
 
     const SgDeclarationStatementPtrList& members = clsdef->get_members();
-    Rose::Source::Analysis::CppCompatibility compat;
+    rsa::CppCompatibility compat;
 
     for (SgDeclarationStatement* member : members)
     {
       if (SgMemberFunctionDeclaration* memfun = isSgMemberFunctionDeclaration(member))
       {
-        ga::FunctionKeyType mfnKey = compat.functionId(memfun);
+        rca::FunctionKeyType mfnKey = compat.functionId(memfun);
         if (isVirtual(*memfun))
           entry.second.virtualFunctions().emplace_back(mfnKey);
       }
@@ -285,32 +285,33 @@ namespace
     }
   }
 
-  void collectMembers(ga::ClassAnalysis& classes)
+  void collectMembers(rca::ClassAnalysis& classes)
   {
-    for (ga::ClassAnalysis::value_type& entry : classes)
+    for (rca::ClassAnalysis::value_type& entry : classes)
       collectMembers(entry);
   }
 
-  void addClassDefinition(ga::ClassAnalysis& classes, SgClassDefinition* classDef)
+  void addClassDefinition(rca::ClassAnalysis& classes, SgClassDefinition* classDef)
   {
     if (!classDef || templated(classDef) || isSecondaryClassDefinition(*classDef))
       return;
 
-    auto emplaced = classes.emplace(Rose::Source::Analysis::classToKey(classDef), ga::ClassData{});
+    auto emplaced = classes.emplace(rsa::classToKey(classDef), rca::ClassData{});
     emplaced.first->second.abstractClass(classDef->get_isAbstract());
   }
 
-  ga::ClassKeyType classKeyFromDeclaration(const SgClassDeclaration* dcl)
+  rca::ClassKeyType
+  classKeyFromDeclaration(const SgClassDeclaration* dcl)
   {
     if (!dcl)
-      return ga::ClassKeyType{};
+      return rca::ClassKeyType{};
 
     SgDeclarationStatement* defdcl = dcl->get_definingDeclaration();
     SgClassDeclaration* clsdef = isSgClassDeclaration(defdcl);
     if (!clsdef || !clsdef->get_definition())
-      return ga::ClassKeyType{};
+      return rca::ClassKeyType{};
 
-    return Rose::Source::Analysis::classToKey(clsdef->get_definition());
+    return rsa::classToKey(clsdef->get_definition());
   }
 
   struct ConstSymbolTableIterator
@@ -424,7 +425,7 @@ namespace
   };
 
   ParameterTypeDesc
-  specialMemberFunctionParameter(const SgMemberFunctionDeclaration& mfn, ga::ClassKeyType clkey)
+  specialMemberFunctionParameter(const SgMemberFunctionDeclaration& mfn, rca::ClassKeyType clkey)
   {
     const SgFunctionParameterList* paramList = mfn.get_parameterList();
     if (!paramList || paramList->get_args().empty())
@@ -443,7 +444,7 @@ namespace
     CvQualification unCvTy = removeCvQual(afterRefTy);
     const SgClassType* paramClassTy = isSgClassType(unCvTy.type());
 
-    if (!paramClassTy || Rose::Source::Analysis::classToKey(Rose::Source::Analysis::getClassDefOpt(*paramClassTy)) != clkey)
+    if (!paramClassTy || rsa::classToKey(rsa::getClassDefOpt(*paramClassTy)) != clkey)
       return {};
 
     return {true, hasRef, hasRValueRef, unCvTy.hasConst(), unCvTy.hasVolatile()};
@@ -451,7 +452,7 @@ namespace
 
   ParameterTypeDesc specialMemberFunctionParameter(const SgMemberFunctionDeclaration& mfn)
   {
-    return specialMemberFunctionParameter(mfn, Rose::Source::Analysis::classToKey(&Rose::Source::Analysis::getClassDefForFunction(mfn)));
+    return specialMemberFunctionParameter(mfn, rsa::classToKey(&rsa::getClassDefForFunction(mfn)));
   }
 
   bool isMoveParameterType(ParameterTypeDesc parm)
@@ -488,7 +489,7 @@ namespace
   }
 
   bool hasDefaultAssignType(const SgMemberFunctionDeclaration& mfn,
-                            ga::ClassKeyType clkey,
+                            rca::ClassKeyType clkey,
                             std::function<bool(ParameterTypeDesc)> pred)
   {
     std::size_t minargs = 0;
@@ -498,33 +499,36 @@ namespace
     return minargs == 1 && maxargs == 1 && pred(specialMemberFunctionParameter(mfn, clkey));
   }
 
-  bool hasDefaultCopyAssignType(const SgMemberFunctionDeclaration& mfn, ga::ClassKeyType clkey)
+  bool
+  hasDefaultCopyAssignType(const SgMemberFunctionDeclaration& mfn, rca::ClassKeyType clkey)
   {
     return hasDefaultAssignType(mfn, clkey, isCopyParameterType);
   }
 
-  bool hasDefaultMoveAssignType(const SgMemberFunctionDeclaration& mfn, ga::ClassKeyType clkey)
+  bool
+  hasDefaultMoveAssignType(const SgMemberFunctionDeclaration& mfn, rca::ClassKeyType clkey)
   {
     return hasDefaultAssignType(mfn, clkey, isMoveParameterType);
   }
 
-  source::SpecialMemberFunctionPredicate isCompilerGeneratedCopyAssignOverriding()
+  rsa::SpecialMemberFunctionPredicate
+  isCompilerGeneratedCopyAssignOverriding()
   {
-    return [](const source::SpecialMemberFunction& smf) -> bool
+    return [](const rsa::SpecialMemberFunction& smf) -> bool
            {
              return smf.isCopyAssign() && smf.compilerGenerated();
            };
   }
 
-  std::unordered_set<ga::FunctionKeyType>
-  userDefinedFunctions(ga::ClassKeyType clazz)
+  std::unordered_set<rca::FunctionKeyType>
+  userDefinedFunctions(rca::ClassKeyType clazz)
   {
-    std::unordered_set<ga::FunctionKeyType> res;
-    SgClassDefinition* cls = Rose::Source::Analysis::keyToClass(clazz);
+    std::unordered_set<rca::FunctionKeyType> res;
+    SgClassDefinition* cls = rsa::keyToClass(clazz);
     if (!cls)
       return res;
 
-    Rose::Source::Analysis::CppCompatibility compat;
+    rsa::CppCompatibility compat;
     for (const SgDeclarationStatement* member : cls->get_members())
     {
       if (const SgMemberFunctionDeclaration* mfn = isSgMemberFunctionDeclaration(member))
@@ -536,22 +540,24 @@ namespace
 
   struct CategorizeFunctions
   {
-    explicit CategorizeFunctions(std::unordered_set<ga::FunctionKeyType> userDefined)
+    explicit CategorizeFunctions(std::unordered_set<rca::FunctionKeyType> userDefined)
     : userDefinedFunctions(std::move(userDefined))
     {}
 
-    source::SpecialMemberFunction none(ga::FunctionKeyType key) const
+    rsa::SpecialMemberFunction none(rca::FunctionKeyType key) const
     {
-      return {key, source::SpecialMemberFunction::notspecial, false, false, true};
+      return {key, rsa::SpecialMemberFunction::notspecial, false, false, true};
     }
 
-    source::SpecialMemberFunction special(const SgMemberFunctionDeclaration& mfn,
-                                      std::uint_fast8_t kind,
-                                      bool copyWithConstRef = false,
-                                      bool compliant = true) const
+    rsa::SpecialMemberFunction
+    special( const SgMemberFunctionDeclaration& mfn,
+             std::uint_fast8_t kind,
+             bool copyWithConstRef = false,
+             bool compliant = true
+           ) const
     {
-      Rose::Source::Analysis::CppCompatibility compat;
-      ga::FunctionKeyType key = compat.functionId(&mfn);
+      rsa::CppCompatibility compat;
+      rca::FunctionKeyType key = compat.functionId(&mfn);
       const bool compGen = userDefinedFunctions.find(key) == userDefinedFunctions.end();
 
       return {key, static_cast<std::int8_t>(kind), compGen, copyWithConstRef, compliant};
@@ -559,7 +565,7 @@ namespace
 
     bool compliantSignature(const SgMemberFunctionDeclaration& mfn, std::uint_fast8_t kind) const
     {
-      if ((kind & source::SpecialMemberFunction::cassign) != source::SpecialMemberFunction::cassign)
+      if ((kind & rsa::SpecialMemberFunction::cassign) != rsa::SpecialMemberFunction::cassign)
         return true;
 
       ParameterTypeDesc param = specialMemberFunctionParameter(mfn);
@@ -573,8 +579,8 @@ namespace
                                   std::uint_fast8_t kind) const
     {
       const bool copyAssignOrCtor =
-        ((kind & source::SpecialMemberFunction::cassign) == source::SpecialMemberFunction::cassign)
-        || ((kind & source::SpecialMemberFunction::cctor) == source::SpecialMemberFunction::cctor);
+        ((kind & rsa::SpecialMemberFunction::cassign) == rsa::SpecialMemberFunction::cassign)
+        || ((kind & rsa::SpecialMemberFunction::cctor) == rsa::SpecialMemberFunction::cctor);
 
       if (!copyAssignOrCtor)
         return false;
@@ -594,20 +600,20 @@ namespace
       if (isCopyParameterType(param))
         return cp;
 
-      return source::SpecialMemberFunction::notspecial;
+      return rsa::SpecialMemberFunction::notspecial;
     }
 
-    source::SpecialMemberFunction categorize(const SgMemberFunctionSymbol* sym) const
+    rsa::SpecialMemberFunction categorize(const SgMemberFunctionSymbol* sym) const
     {
       if (!sym)
-        return none(ga::FunctionKeyType{});
+        return none(rca::FunctionKeyType{});
 
       const SgMemberFunctionDeclaration* fn = sym->get_declaration();
       if (!fn)
-        return none(ga::FunctionKeyType{});
+        return none(rca::FunctionKeyType{});
 
       if (fn->get_specialFunctionModifier().isDestructor())
-        return special(*fn, source::SpecialMemberFunction::dtor);
+        return special(*fn, rsa::SpecialMemberFunction::dtor);
 
       std::size_t minargs = 0;
       std::size_t maxargs = 0;
@@ -615,33 +621,33 @@ namespace
 
       if (fn->get_specialFunctionModifier().isConstructor())
       {
-        std::uint_fast8_t kind = source::SpecialMemberFunction::ctor;
+        std::uint_fast8_t kind = rsa::SpecialMemberFunction::ctor;
         if (minargs == 0)
-          kind |= source::SpecialMemberFunction::dctor;
+          kind |= rsa::SpecialMemberFunction::dctor;
         if (minargs <= 1 && maxargs > 0)
-          kind |= chooseKind(*fn, source::SpecialMemberFunction::cctor, source::SpecialMemberFunction::mctor);
+          kind |= chooseKind(*fn, rsa::SpecialMemberFunction::cctor, rsa::SpecialMemberFunction::mctor);
 
         return special(*fn, kind, copyCallableWithConstRef(*fn, kind));
       }
 
       if (fn->get_name() == "operator=")
       {
-        std::uint_fast8_t kind = source::SpecialMemberFunction::notspecial;
+        std::uint_fast8_t kind = rsa::SpecialMemberFunction::notspecial;
         if (maxargs == 1)
-          kind |= chooseKind(*fn, source::SpecialMemberFunction::cassign, source::SpecialMemberFunction::massign);
+          kind |= chooseKind(*fn, rsa::SpecialMemberFunction::cassign, rsa::SpecialMemberFunction::massign);
 
         return special(*fn, kind, copyCallableWithConstRef(*fn, kind), compliantSignature(*fn, kind));
       }
 
-      return none(Rose::Source::Analysis::functionToKey(fn));
+      return none(rsa::functionToKey(fn));
     }
 
-    source::SpecialMemberFunction operator()(const SgSymbol& sym) const
+    rsa::SpecialMemberFunction operator()(const SgSymbol& sym) const
     {
       return categorize(isSgMemberFunctionSymbol(&sym));
     }
 
-    std::unordered_set<ga::FunctionKeyType> userDefinedFunctions;
+    std::unordered_set<rca::FunctionKeyType> userDefinedFunctions;
   };
 
   std::uint32_t languageStandardFromROSEmacroFile(const std::string& macroFile, std::size_t pos)
@@ -653,13 +659,13 @@ namespace
     pos += 2;
     const std::size_t year = (macroFile[pos] - '0') * 10 + (macroFile[pos + 1] - '0');
 
-    if (year == 98) return ga::ClassAnalysis::Cxx98;
-    if (year == 11) return ga::ClassAnalysis::Cxx11;
-    if (year == 14) return ga::ClassAnalysis::Cxx14;
-    if (year == 17) return ga::ClassAnalysis::Cxx17;
-    if (year == 20) return ga::ClassAnalysis::Cxx20;
-    if (year == 23) return ga::ClassAnalysis::Cxx23;
-    if (year == 26) return ga::ClassAnalysis::Cxx26;
+    if (year == 98) return rca::ClassAnalysis::Cxx98;
+    if (year == 11) return rca::ClassAnalysis::Cxx11;
+    if (year == 14) return rca::ClassAnalysis::Cxx14;
+    if (year == 17) return rca::ClassAnalysis::Cxx17;
+    if (year == 20) return rca::ClassAnalysis::Cxx20;
+    if (year == 23) return rca::ClassAnalysis::Cxx23;
+    if (year == 26) return rca::ClassAnalysis::Cxx26;
     return 0;
   }
 
@@ -669,19 +675,19 @@ namespace
     {
       case SgFile::e_cxx98_standard:
       case SgFile::e_cxx03_standard:
-        return ga::ClassAnalysis::Cxx98;
+        return rca::ClassAnalysis::Cxx98;
       case SgFile::e_cxx11_standard:
-        return ga::ClassAnalysis::Cxx11;
+        return rca::ClassAnalysis::Cxx11;
       case SgFile::e_cxx14_standard:
-        return ga::ClassAnalysis::Cxx14;
+        return rca::ClassAnalysis::Cxx14;
       case SgFile::e_cxx17_standard:
-        return ga::ClassAnalysis::Cxx17;
+        return rca::ClassAnalysis::Cxx17;
       case SgFile::e_cxx20_standard:
-        return ga::ClassAnalysis::Cxx20;
+        return rca::ClassAnalysis::Cxx20;
       case SgFile::e_cxx23_standard:
-        return ga::ClassAnalysis::Cxx23;
+        return rca::ClassAnalysis::Cxx23;
       case SgFile::e_cxx26_standard:
-        return ga::ClassAnalysis::Cxx26;
+        return rca::ClassAnalysis::Cxx26;
       case SgFile::e_default_standard:
       {
         const std::size_t pos = file.getFileName().find("rose_edg_required_compiler_macros_");
@@ -712,7 +718,7 @@ namespace
         throw std::runtime_error("Inconsistent C++ standards detected");
     }
 
-    return version == 0 ? ga::ClassAnalysis::Cxx98 : version;
+    return version == 0 ? rca::ClassAnalysis::Cxx98 : version;
   }
 
   struct CollectSourceFilesFromMemoryPool : ROSE_VisitTraversal
@@ -727,6 +733,7 @@ namespace
   };
 }
 
+
 namespace Rose::Source::Analysis
 {
 
@@ -735,43 +742,43 @@ std::ostream& operator<<(std::ostream& os, const SourceLocation& loc)
   return os << loc.file() << ":" << loc.startLine() << ":" << loc.startCol();
 }
 
-ga::VariableKeyType
+rca::VariableKeyType
 CppCompatibility::variableId(const SgInitializedName* var) const
 {
   return variableToKey(var);
 }
 
-ga::VariableKeyType
+rca::VariableKeyType
 CppCompatibility::variableId(const SgVariableDeclaration* var) const
 {
   if (!var || var->get_variables().empty())
-    return ga::VariableKeyType{};
+    return rca::VariableKeyType{};
 
   return variableId(var->get_variables().front());
 }
 
-ga::FunctionKeyType
+rca::FunctionKeyType
 CppCompatibility::functionId(const SgFunctionDeclaration* fun) const
 {
   return functionToKey(representativeDecl(fun));
 }
 
 std::string
-CppCompatibility::nameOf(ga::VariableKeyType key) const
+CppCompatibility::nameOf(rca::VariableKeyType key) const
 {
   SgInitializedName* var = keyToVariable(key);
   return var ? var->get_name().getString() : "<invalid-variable>";
 }
 
 std::string
-CppCompatibility::nameOf(ga::FunctionKeyType key) const
+CppCompatibility::nameOf(rca::FunctionKeyType key) const
 {
   SgFunctionDeclaration* fn = keyToFunction(key);
   return fn ? fn->get_name().getString() : "<invalid-function>";
 }
 
 std::string
-CppCompatibility::nameOf(ga::ClassKeyType key) const
+CppCompatibility::nameOf(rca::ClassKeyType key) const
 {
   SgClassDefinition* cls = keyToClass(key);
   if (!cls || !cls->get_declaration())
@@ -800,21 +807,21 @@ namespace
     template <class Key>
     std::string operator()(Key key) const
     {
-      if ROSE_IF_CONSTEXPR (std::is_same<Key, ga::ClassKeyType>::value)
-        return compatibility.nameOf(ga::ClassKeyType{key.key});
-      else if ROSE_IF_CONSTEXPR (std::is_same<Key, ga::FunctionKeyType>::value)
+      if ROSE_IF_CONSTEXPR (std::is_same<Key, rca::ClassKeyType>::value)
+        return compatibility.nameOf(rca::ClassKeyType{key.key});
+      else if ROSE_IF_CONSTEXPR (std::is_same<Key, rca::FunctionKeyType>::value)
       {
-        SgFunctionDeclaration* fn = keyToFunction(ga::FunctionKeyType{key.key});
+        SgFunctionDeclaration* fn = keyToFunction(rca::FunctionKeyType{key.key});
         return fn ? fn->get_qualified_name().getString() + functionSignature(*fn->get_type(), true)
                   : "<invalid-function>";
       }
-      else if ROSE_IF_CONSTEXPR (std::is_same<Key, ga::VariableKeyType>::value)
+      else if ROSE_IF_CONSTEXPR (std::is_same<Key, rca::VariableKeyType>::value)
       {
-        SgInitializedName* var = keyToVariable(ga::VariableKeyType{key.key});
+        SgInitializedName* var = keyToVariable(rca::VariableKeyType{key.key});
         return var ? var->get_qualified_name().getString() : "<invalid-variable>";
       }
-      else if ROSE_IF_CONSTEXPR (std::is_same<Key, ga::TypeKeyType>::value)
-        return typeSignature(keyToType(ga::TypeKeyType{key.key}), false);
+      else if ROSE_IF_CONSTEXPR (std::is_same<Key, rca::TypeKeyType>::value)
+        return typeSignature(keyToType(rca::TypeKeyType{key.key}), false);
       else
         return std::to_string(key.key);
     }
@@ -827,12 +834,12 @@ namespace
     template <class Key>
     const SgLocatedNode* operator()(Key key) const
     {
-      if ROSE_IF_CONSTEXPR (std::is_same<Key, ga::ClassKeyType>::value)
-        return keyToClass(ga::ClassKeyType{key.key});
-      else if ROSE_IF_CONSTEXPR (std::is_same<Key, ga::FunctionKeyType>::value)
-        return keyToFunction(ga::FunctionKeyType{key.key});
-      else if ROSE_IF_CONSTEXPR (std::is_same<Key, ga::VariableKeyType>::value)
-        return keyToVariable(ga::VariableKeyType{key.key});
+      if ROSE_IF_CONSTEXPR (std::is_same<Key, rca::ClassKeyType>::value)
+        return keyToClass(rca::ClassKeyType{key.key});
+      else if ROSE_IF_CONSTEXPR (std::is_same<Key, rca::FunctionKeyType>::value)
+        return keyToFunction(rca::FunctionKeyType{key.key});
+      else if ROSE_IF_CONSTEXPR (std::is_same<Key, rca::VariableKeyType>::value)
+        return keyToVariable(rca::VariableKeyType{key.key});
       else
         return nullptr;
     }
@@ -840,19 +847,19 @@ namespace
 }
 
 std::intptr_t
-CppCompatibility::numericId(ga::AnyKeyType id) const
+CppCompatibility::numericId(rca::AnyKeyType id) const
 {
   return boost::apply_visitor(NumericIdVisitor{}, id);
 }
 
 std::string
-CppCompatibility::uniqueName(ga::AnyKeyType id) const
+CppCompatibility::uniqueName(rca::AnyKeyType id) const
 {
   return boost::apply_visitor(UniqueNameVisitor{*this}, id);
 }
 
 SourceLocation
-CppCompatibility::location(ga::AnyKeyType id, bool) const
+CppCompatibility::location(rca::AnyKeyType id, bool) const
 {
   const SgLocatedNode* locNode = boost::apply_visitor(LocationVisitor{}, id);
 
@@ -865,14 +872,14 @@ CppCompatibility::location(ga::AnyKeyType id, bool) const
 }
 
 int
-CppCompatibility::compareNames(ga::FunctionKeyType lhs, ga::FunctionKeyType rhs) const
+CppCompatibility::compareNames(rca::FunctionKeyType lhs, rca::FunctionKeyType rhs) const
 {
   return cmpValue(nameOf(lhs), nameOf(rhs));
 }
 
 int
-CppCompatibility::compareFunctionTypes(ga::FunctionTypeKeyType lhs,
-                                        ga::FunctionTypeKeyType rhs,
+CppCompatibility::compareFunctionTypes(rca::FunctionTypeKeyType lhs,
+                                        rca::FunctionTypeKeyType rhs,
                                         bool exclReturnType) const
 {
   SgFunctionType* lhsType = keyToFunctionType(lhs);
@@ -887,8 +894,8 @@ CppCompatibility::compareFunctionTypes(ga::FunctionTypeKeyType lhs,
 }
 
 int
-CppCompatibility::compareFunctionsByType(ga::FunctionKeyType lhs,
-                                          ga::FunctionKeyType rhs,
+CppCompatibility::compareFunctionsByType(rca::FunctionKeyType lhs,
+                                          rca::FunctionKeyType rhs,
                                           bool exclReturnType) const
 {
   SgFunctionDeclaration* lhsFn = keyToFunction(lhs);
@@ -904,7 +911,7 @@ CppCompatibility::compareFunctionsByType(ga::FunctionKeyType lhs,
 }
 
 int
-CppCompatibility::compareTypes(ga::TypeKeyType lhs, ga::TypeKeyType rhs) const
+CppCompatibility::compareTypes(rca::TypeKeyType lhs, rca::TypeKeyType rhs) const
 {
   SgType* lhsType = keyToType(lhs);
   SgType* rhsType = keyToType(rhs);
@@ -916,59 +923,59 @@ CppCompatibility::compareTypes(ga::TypeKeyType lhs, ga::TypeKeyType rhs) const
   return cmpValue(typeSignature(lhsType, false), typeSignature(rhsType, false));
 }
 
-ga::FunctionTypeRelation
-CppCompatibility::haveSameOrCovariantReturn(const ga::ClassAnalysis& classes,
-                                             ga::FunctionKeyType basId,
-                                             ga::FunctionKeyType drvId) const
+rca::FunctionTypeRelation
+CppCompatibility::haveSameOrCovariantReturn(const rca::ClassAnalysis& classes,
+                                             rca::FunctionKeyType basId,
+                                             rca::FunctionKeyType drvId) const
 {
   SgFunctionDeclaration* bas = keyToFunction(basId);
   SgFunctionDeclaration* drv = keyToFunction(drvId);
 
   if (!bas || !drv || !bas->get_type() || !drv->get_type())
-    return ga::FunctionTypeRelation::unrelated;
+    return rca::FunctionTypeRelation::unrelated;
 
   return areSameOrCovariant(classes,
                             typeToKey(bas->get_type()->get_return_type()),
                             typeToKey(drv->get_type()->get_return_type()));
 }
 
-ga::FunctionTypeRelation
-CppCompatibility::areSameOrCovariant(const ga::ClassAnalysis& classes,
-                                      ga::TypeKeyType basId,
-                                      ga::TypeKeyType drvId) const
+rca::FunctionTypeRelation
+CppCompatibility::areSameOrCovariant(const rca::ClassAnalysis& classes,
+                                      rca::TypeKeyType basId,
+                                      rca::TypeKeyType drvId) const
 {
   SgType* basType = keyToType(basId);
   SgType* drvType = keyToType(drvId);
 
   if (!basType || !drvType)
-    return ga::FunctionTypeRelation::unrelated;
+    return rca::FunctionTypeRelation::unrelated;
 
   if (compareTypes(basId, drvId) == 0)
-    return ga::FunctionTypeRelation::sametype;
+    return rca::FunctionTypeRelation::sametype;
 
   SgClassDefinition* basClass = classDefFromType(basType, SgType::STRIP_POINTER_TYPE);
   SgClassDefinition* drvClass = classDefFromType(drvType, SgType::STRIP_POINTER_TYPE);
 
   if (!basClass || !drvClass)
-    return ga::FunctionTypeRelation::unrelated;
+    return rca::FunctionTypeRelation::unrelated;
 
-  ga::ClassKeyType basKey = classToKey(basClass);
-  ga::ClassKeyType drvKey = classToKey(drvClass);
+  rca::ClassKeyType basKey = classToKey(basClass);
+  rca::ClassKeyType drvKey = classToKey(drvClass);
 
   if (basKey == drvKey)
-    return ga::FunctionTypeRelation::sametype;
+    return rca::FunctionTypeRelation::sametype;
 
   return classes.isBaseOf(basKey, drvKey)
-       ? ga::FunctionTypeRelation::covariant
-       : ga::FunctionTypeRelation::unrelated;
+       ? rca::FunctionTypeRelation::covariant
+       : rca::FunctionTypeRelation::unrelated;
 }
 
 void
-CppCompatibility::extractFromMemoryPool(ga::ClassAnalysis& classes) const
+CppCompatibility::extractFromMemoryPool(rca::ClassAnalysis& classes) const
 {
   struct CollectClassesFromMemoryPool : ROSE_VisitTraversal
   {
-    explicit CollectClassesFromMemoryPool(ga::ClassAnalysis& c) : classes(c) {}
+    explicit CollectClassesFromMemoryPool(rca::ClassAnalysis& c) : classes(c) {}
 
     void visit(SgNode* node) override
     {
@@ -979,7 +986,7 @@ CppCompatibility::extractFromMemoryPool(ga::ClassAnalysis& classes) const
       addClassDefinition(classes, classDeclaration->get_definition());
     }
 
-    ga::ClassAnalysis& classes;
+    rca::ClassAnalysis& classes;
   };
 
   CollectClassesFromMemoryPool traversal(classes);
@@ -990,7 +997,7 @@ CppCompatibility::extractFromMemoryPool(ga::ClassAnalysis& classes) const
 }
 
 void
-CppCompatibility::extractFromProject(ga::ClassAnalysis& classes, ga::ASTRootType root) const
+CppCompatibility::extractFromProject(rca::ClassAnalysis& classes, rca::ASTRootType root) const
 {
   SgProject* project = keyToRoot(root);
   if (!project)
@@ -1003,15 +1010,15 @@ CppCompatibility::extractFromProject(ga::ClassAnalysis& classes, ga::ASTRootType
   collectMembers(classes);
 }
 
-ga::LanguageSpecificFn
+rca::LanguageSpecificFn
 CppCompatibility::languageSpecificProcessing() const
 {
-  return [](ga::ClassAnalysis&) {};
+  return [](rca::ClassAnalysis&) {};
 }
 
 void
-CppCompatibility::inheritanceEdges(ga::ClassKeyType clkey,
-                                    std::function<void(ga::ClassKeyType, ga::ClassKeyType, bool)> fn) const
+CppCompatibility::inheritanceEdges(rca::ClassKeyType clkey,
+                                    std::function<void(rca::ClassKeyType, rca::ClassKeyType, bool)> fn) const
 {
   SgClassDefinition* cls = keyToClass(clkey);
   if (!cls)
@@ -1022,8 +1029,8 @@ CppCompatibility::inheritanceEdges(ga::ClassKeyType clkey,
     if (!bscls || !bscls->get_isDirectBaseClass())
       continue;
 
-    ga::ClassKeyType baseKey = classKeyFromDeclaration(bscls->get_base_class());
-    if (!ga::isValidKey(baseKey))
+    rca::ClassKeyType baseKey = classKeyFromDeclaration(bscls->get_base_class());
+    if (!rca::isValidKey(baseKey))
     {
       msgWarn() << "Skipping C++ base class without available definition under "
                 << nameOf(clkey) << std::endl;
@@ -1035,12 +1042,12 @@ CppCompatibility::inheritanceEdges(ga::ClassKeyType clkey,
   }
 }
 
-ga::DataMemberType
-CppCompatibility::typeOf(ga::VariableKeyType var) const
+rca::DataMemberType
+CppCompatibility::typeOf(rca::VariableKeyType var) const
 {
   SgInitializedName* initName = keyToVariable(var);
   if (!initName)
-    return {ga::ClassKeyType{}, false, false, false, false};
+    return {rca::ClassKeyType{}, false, false, false, false};
 
   const SgType* type = initName->get_type();
   const bool hasInitializer = initName->get_initializer() != nullptr;
@@ -1086,58 +1093,58 @@ CppCompatibility::typeOf(ga::VariableKeyType var) const
 }
 
 bool
-CppCompatibility::isPureVirtual(ga::FunctionKeyType id) const
+CppCompatibility::isPureVirtual(rca::FunctionKeyType id) const
 {
   SgFunctionDeclaration* fn = keyToFunction(id);
   return fn && fn->get_functionModifier().isPureVirtual();
 }
 
 bool
-CppCompatibility::hasDefinition(ga::FunctionKeyType id) const
+CppCompatibility::hasDefinition(rca::FunctionKeyType id) const
 {
   SgFunctionDeclaration* fn = keyToFunction(id);
   return fn && fn->get_definingDeclaration();
 }
 
 bool
-CppCompatibility::isAbstract(ga::ClassKeyType clkey) const
+CppCompatibility::isAbstract(rca::ClassKeyType clkey) const
 {
   SgClassDefinition* cls = keyToClass(clkey);
   return cls && cls->get_isAbstract();
 }
 
-ga::FuncNameFn
+rca::FuncNameFn
 CppCompatibility::functionNaming() const
 {
-  return [this](ga::FunctionKeyType key) { return nameOf(key); };
+  return [this](rca::FunctionKeyType key) { return nameOf(key); };
 }
 
-ga::ClassNameFn
+rca::ClassNameFn
 CppCompatibility::classNaming() const
 {
-  return [this](ga::ClassKeyType key) { return nameOf(key); };
+  return [this](rca::ClassKeyType key) { return nameOf(key); };
 }
 
-ga::VarNameFn
+rca::VarNameFn
 CppCompatibility::variableNaming() const
 {
-  return [this](ga::VariableKeyType key) { return nameOf(key); };
+  return [this](rca::VariableKeyType key) { return nameOf(key); };
 }
 
-bool hasSpecialFunction(const CppHierarchyAnalysis& classes, ga::ClassKeyType clazz, SpecialMemberFunctionPredicate pred)
+bool hasSpecialFunction(const CppHierarchyAnalysis& classes, rca::ClassKeyType clazz, SpecialMemberFunctionPredicate pred)
 {
   return hasSpecialFunction(classes.specialMemberFunctions(clazz), std::move(pred));
 }
 
 
 bool
-CppCompatibility::isAutoGeneratable(const ga::ClassAnalysis& all,
-                                    ga::ClassKeyType clkey,
-                                    ga::FunctionKeyType fnkey) const
+CppCompatibility::isAutoGeneratable(const rca::ClassAnalysis& all,
+                                    rca::ClassKeyType clkey,
+                                    rca::FunctionKeyType fnkey) const
 {
   const CppHierarchyAnalysis& classes = dynamic_cast<const CppHierarchyAnalysis&>(all);
 
-  if (!ga::isValidKey(clkey) || !ga::isValidKey(fnkey))
+  if (!rca::isValidKey(clkey) || !rca::isValidKey(fnkey))
     return false;
 
   const SgMemberFunctionDeclaration* memfn = isSgMemberFunctionDeclaration(keyToFunction(fnkey));
@@ -1170,20 +1177,20 @@ CppCompatibility::languageStandard() const
   return standardVersion(collector.allSourceFiles);
 }
 
-source::SpecialMemberFunctionContainer
-CppCompatibility::specialMemberFunctions(ga::ClassKeyType clazz) const
+rsa::SpecialMemberFunctionContainer
+CppCompatibility::specialMemberFunctions(rca::ClassKeyType clazz) const
 {
   SgClassDefinition* cls = keyToClass(clazz);
   if (!cls)
     return {};
 
-  std::unordered_set<ga::FunctionKeyType> knownUserFunctions = userDefinedFunctions(clazz);
+  std::unordered_set<rca::FunctionKeyType> knownUserFunctions = userDefinedFunctions(clazz);
   CategorizeFunctions categorize{std::move(knownUserFunctions)};
-  source::SpecialMemberFunctionContainer res;
+  rsa::SpecialMemberFunctionContainer res;
 
   for (ConstSymbolTableIterator it = symbolBegin(*cls), lim = symbolLimit(*cls); it != lim; ++it)
   {
-    source::SpecialMemberFunction smf = categorize(*it);
+    rsa::SpecialMemberFunction smf = categorize(*it);
     if (smf.isSpecialFunc())
       res.push_back(smf);
   }
@@ -1192,7 +1199,7 @@ CppCompatibility::specialMemberFunctions(ga::ClassKeyType clazz) const
 }
 
 Optional
-CppCompatibility::classType(ga::FunctionKeyType fn) const
+CppCompatibility::classType(rca::FunctionKeyType fn) const
 {
   SgFunctionDeclaration* fndcl = keyToFunction(fn);
   SgMemberFunctionDeclaration* memfn = isSgMemberFunctionDeclaration(fndcl);
@@ -1203,8 +1210,8 @@ CppCompatibility::classType(ga::FunctionKeyType fn) const
   return classToKey(cls);
 }
 
-std::pair<ga::ClassKeyType, ga::TypeKeyType>
-getClassCastInfo(ga::TypeKeyType tykey)
+std::pair<rca::ClassKeyType, rca::TypeKeyType>
+getClassCastInfo(rca::TypeKeyType tykey)
 {
   SgType* ty = keyToType(tykey);
   SgClassDefinition* cls = classDefFromType(ty, SgType::STRIP_POINTER_TYPE);
@@ -1260,7 +1267,7 @@ keyDecl(SgFunctionDeclaration& fn)
 }
 
 boost::optional<std::string>
-missingDiagnostics(ga::ClassKeyType key)
+missingDiagnostics(rca::ClassKeyType key)
 {
   if (SgClassDefinition* cls = keyToClass(key))
     if (templated(cls))
@@ -1270,7 +1277,7 @@ missingDiagnostics(ga::ClassKeyType key)
 }
 
 std::string
-dbgInfo(ga::ClassKeyType key, std::size_t)
+dbgInfo(rca::ClassKeyType key, std::size_t)
 {
   CppCompatibility compat;
   return compat.nameOf(key);

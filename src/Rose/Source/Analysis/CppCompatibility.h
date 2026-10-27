@@ -81,7 +81,7 @@ SgProject* keyToRoot(Rose::Common::Analysis::ASTRootType key);
 /// Converts a ROSE project pointer to an abstract root key.
 /// \param n ROSE project pointer to wrap.
 /// \return abstract key for \p n.
-Rose::Common::Analysis::ASTRootType rootToKey(SgProject* n);
+Rose::Common::Analysis::ASTRootType rootToKey(const SgProject* n);
 
 /// Converts an abstract class key to a ROSE class definition pointer.
 /// \param key abstract class key to unwrap.

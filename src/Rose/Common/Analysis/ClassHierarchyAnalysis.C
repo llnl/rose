@@ -11,7 +11,7 @@
 #include <boost/range/algorithm.hpp>
 #include <boost/range/adaptors.hpp>
 
-namespace ga = Rose::Common::Analysis;
+namespace rca = Rose::Common::Analysis;
 namespace adapt = boost::adaptors;
 
 
@@ -19,9 +19,9 @@ namespace
 {
   [[noreturn]]
   void
-  reportAndThrowError( const ga::AbstractCompatibilityBridge&,
-                       ga::ClassKeyType key,
-                       const ga::ClassAnalysis& m
+  reportAndThrowError( const rca::AbstractCompatibilityBridge&,
+                       rca::ClassKeyType key,
+                       const rca::ClassAnalysis& m
                      )
   {
     msgError() << m.classInfo(key) << std::endl;
@@ -34,9 +34,9 @@ namespace
 
   [[noreturn]]
   void
-  reportAndThrowError( const ga::AbstractCompatibilityBridge& compat,
-                       ga::FunctionKeyType key,
-                       const ga::VirtualFunctionAnalysis& m
+  reportAndThrowError( const rca::AbstractCompatibilityBridge& compat,
+                       rca::FunctionKeyType key,
+                       const rca::VirtualFunctionAnalysis& m
                      )
   {
     msgError() << "Function " << compat.nameOf(key) << " not found in VirtualFunctionAnalysis"
@@ -52,7 +52,7 @@ namespace
   template <class AnalysisMap>
   inline
   auto
-  lookup( const ga::AbstractCompatibilityBridge& compat,
+  lookup( const rca::AbstractCompatibilityBridge& compat,
           AnalysisMap& m,
           const typename AnalysisMap::key_type& key
         ) -> decltype(*m.find(key))
@@ -111,7 +111,7 @@ std::ostream& operator<<(std::ostream& os, ClassAnalysisInfo cai)
 ClassAnalysis::mapped_type&
 ClassAnalysis::at(const ClassAnalysis::key_type& k)
 {
-  const ga::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
+  const rca::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
 
   return lookup(compat, *this, k).second;
 }
@@ -119,7 +119,7 @@ ClassAnalysis::at(const ClassAnalysis::key_type& k)
 const ClassAnalysis::mapped_type&
 ClassAnalysis::at(const ClassAnalysis::key_type& k) const
 {
-  const ga::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
+  const rca::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
 
   return lookup(compat, *this, k).second;
 }
@@ -226,12 +226,12 @@ ClassAnalysis::concreteDescendants(ClassKeyType classKey) const
 
 namespace
 {
-  using RelationAccessor = std::vector<ga::InheritanceDesc>& (ga::ClassData::*)();
-  using RelationAccessorConst = const std::vector<ga::InheritanceDesc>& (ga::ClassData::*)() const;
+  using RelationAccessor = std::vector<rca::InheritanceDesc>& (rca::ClassData::*)();
+  using RelationAccessorConst = const std::vector<rca::InheritanceDesc>& (rca::ClassData::*)() const;
 
   struct GetClass
   {
-    ga::ClassKeyType operator()(const ga::InheritanceDesc& desc) const
+    rca::ClassKeyType operator()(const rca::InheritanceDesc& desc) const
     {
       return desc.getClass();
     }
@@ -243,21 +243,21 @@ namespace
   {
     return [selector, &all](auto& elem) // -> someRange
            {
-             return (elem.second.*selector)() | adapt::filtered(ga::IsDirect{}) | adapt::transformed(GetClass{});
+             return (elem.second.*selector)() | adapt::filtered(rca::IsDirect{}) | adapt::transformed(GetClass{});
            };
   }
 
   template <class AnalysisT, class Fn, class Selector, class Set>
-  void traversal(AnalysisT& all, Fn fn, ga::ClassKeyType curr, Selector selector, Set& explored)
+  void traversal(AnalysisT& all, Fn fn, rca::ClassKeyType curr, Selector selector, Set& explored)
   {
-    const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+    const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
 
     if (!explored.insert(curr).second)
       return;
 
     auto& elem = lookup(compat, all, curr);
 
-    for (ga::ClassKeyType clazz : selector(elem))
+    for (rca::ClassKeyType clazz : selector(elem))
     {
       try
       {
@@ -281,7 +281,7 @@ namespace
   template <class AnalysisT, class Fn, class MemFnSelector>
   void traversal(AnalysisT& all, Fn fn, MemFnSelector selector)
   {
-    std::unordered_set<ga::ClassKeyType> explored;
+    std::unordered_set<rca::ClassKeyType> explored;
 
     for (auto& elem : all)
       traversal(all, fn, elem.first, inheritanceRelationships(all, selector), explored);
@@ -359,11 +359,11 @@ bool ClassData::hasVirtualTable() const
 
 namespace
 {
-  bool inheritsVirtualFunctions(const ga::ClassAnalysis& classes, const ga::ClassAnalysis::value_type& entry)
+  bool inheritsVirtualFunctions(const rca::ClassAnalysis& classes, const rca::ClassAnalysis::value_type& entry)
   {
-    const std::vector<ga::InheritanceDesc>&          parents = entry.second.ancestors();
-    std::vector<ga::InheritanceDesc>::const_iterator aa = parents.begin();
-    std::vector<ga::InheritanceDesc>::const_iterator zz = parents.end();
+    const std::vector<rca::InheritanceDesc>&          parents = entry.second.ancestors();
+    std::vector<rca::InheritanceDesc>::const_iterator aa = parents.begin();
+    std::vector<rca::InheritanceDesc>::const_iterator zz = parents.end();
 
     while (aa != zz && !classes.at(aa->getClass()).hasVirtualFunctions())
       ++aa;
@@ -371,13 +371,13 @@ namespace
     return aa != zz;
   }
 
-  void integrateIndirectInheritance(ga::ClassAnalysis& classes, ga::ClassAnalysis::value_type& entry)
+  void integrateIndirectInheritance(rca::ClassAnalysis& classes, rca::ClassAnalysis::value_type& entry)
   {
-    std::vector<ga::InheritanceDesc>  tmp;
+    std::vector<rca::InheritanceDesc>  tmp;
 
     // collect additional ancestors
-    for (ga::InheritanceDesc& parent : entry.second.ancestors())
-      for (ga::InheritanceDesc ancestor : classes.at(parent.getClass()).ancestors())
+    for (rca::InheritanceDesc& parent : entry.second.ancestors())
+      for (rca::InheritanceDesc ancestor : classes.at(parent.getClass()).ancestors())
       {
         // skip virtual bases (they have already been propagated to derived)
         if (ancestor.isVirtual()) continue;
@@ -387,7 +387,7 @@ namespace
       }
 
     // add additional ancestors
-    for (ga::InheritanceDesc ancestor : tmp)
+    for (rca::InheritanceDesc ancestor : tmp)
     {
       classes.addInheritanceEdge(entry, ancestor);
     }
@@ -395,7 +395,7 @@ namespace
 
   struct UniqueVirtualInheritancePredicate
   {
-    bool operator()(const ga::InheritanceDesc& lhs, const ga::InheritanceDesc& rhs)
+    bool operator()(const rca::InheritanceDesc& lhs, const rca::InheritanceDesc& rhs)
     {
       return lhs.getClass() == rhs.getClass();
     }
@@ -403,7 +403,7 @@ namespace
 
   struct VirtualInheritanceComparator
   {
-    bool operator()(const ga::InheritanceDesc& lhs, const ga::InheritanceDesc& rhs)
+    bool operator()(const rca::InheritanceDesc& lhs, const rca::InheritanceDesc& rhs)
     {
       // only virtual inheritance is considered
       assert(lhs.isVirtual() && rhs.isVirtual());
@@ -422,19 +422,19 @@ namespace
   };
 
 
-  void copyVirtualInhertanceToDerived(ga::ClassAnalysis& classes, ga::ClassAnalysis::value_type& entry)
+  void copyVirtualInhertanceToDerived(rca::ClassAnalysis& classes, rca::ClassAnalysis::value_type& entry)
   {
-    using iterator = std::vector<ga::InheritanceDesc>::iterator;
+    using iterator = std::vector<rca::InheritanceDesc>::iterator;
 
-    std::vector<ga::InheritanceDesc> tmp;
+    std::vector<rca::InheritanceDesc> tmp;
 
     // collect addition ancestors
-    for (ga::InheritanceDesc& parent : entry.second.ancestors())
+    for (rca::InheritanceDesc& parent : entry.second.ancestors())
     {
       if (parent.isVirtual())
         tmp.push_back(parent);
 
-      for (ga::InheritanceDesc ancestor : classes.at(parent.getClass()).ancestors())
+      for (rca::InheritanceDesc ancestor : classes.at(parent.getClass()).ancestors())
       {
         if (!ancestor.isVirtual()) continue;
 
@@ -449,7 +449,7 @@ namespace
 
     // add additional ancestors
     std::for_each( tmp.begin(), zz,
-                   [&classes, &entry](const ga::InheritanceDesc& ancestor) -> void
+                   [&classes, &entry](const rca::InheritanceDesc& ancestor) -> void
                    {
                      if (!ancestor.isDirect())
                        classes.addInheritanceEdge(entry, ancestor);
@@ -457,19 +457,19 @@ namespace
                  );
   }
 
-  void computeVirtualBaseInitializationOrder(ga::ClassAnalysis& classes, ga::ClassAnalysis::value_type& entry)
+  void computeVirtualBaseInitializationOrder(rca::ClassAnalysis& classes, rca::ClassAnalysis::value_type& entry)
   {
-    std::unordered_set<ga::ClassKeyType> alreadySeen;
-    std::vector<ga::ClassKeyType>&       initorder = entry.second.virtualBaseClassOrder();
+    std::unordered_set<rca::ClassKeyType> alreadySeen;
+    std::vector<rca::ClassKeyType>&       initorder = entry.second.virtualBaseClassOrder();
 
     // traverse direct ancestors and collect their initialization orders
-    for (ga::InheritanceDesc& parentDesc : entry.second.ancestors() | adapt::filtered(ga::IsDirect{}))
+    for (rca::InheritanceDesc& parentDesc : entry.second.ancestors() | adapt::filtered(rca::IsDirect{}))
     {
-      ga::ClassKeyType                     parent = parentDesc.getClass();
-      const std::vector<ga::ClassKeyType>& parentInit = classes.at(parent).virtualBaseClassOrder();
+      rca::ClassKeyType                     parent = parentDesc.getClass();
+      const std::vector<rca::ClassKeyType>& parentInit = classes.at(parent).virtualBaseClassOrder();
 
       // add the virtual bases that have not been seen before
-      for (ga::ClassKeyType vbase : parentInit)
+      for (rca::ClassKeyType vbase : parentInit)
         if (alreadySeen.insert(vbase).second)
           initorder.push_back(vbase);
 
@@ -478,47 +478,47 @@ namespace
     }
   }
 
-  void analyzeClassRelationships(ga::ClassAnalysis& all)
+  void analyzeClassRelationships(rca::ClassAnalysis& all)
   {
     msgTrace() << "analyzing classes " << all.size() << std::endl;
 
     auto propagateVirtualInheritance =
-           [&all](ga::ClassAnalysis::value_type& rep) -> void
+           [&all](rca::ClassAnalysis::value_type& rep) -> void
            {
              copyVirtualInhertanceToDerived(all, rep);
            };
     topDownTraversal(all, propagateVirtualInheritance);
 
     auto computeVirtualBaseClassInitializationOrder =
-           [&all](ga::ClassAnalysis::value_type& rep) -> void
+           [&all](rca::ClassAnalysis::value_type& rep) -> void
            {
              computeVirtualBaseInitializationOrder(all, rep);
            };
     topDownTraversal(all, computeVirtualBaseClassInitializationOrder);
 
     auto flattenInheritance =
-           [&all](ga::ClassAnalysis::value_type& rep) -> void
+           [&all](rca::ClassAnalysis::value_type& rep) -> void
            {
              integrateIndirectInheritance(all, rep);
            };
     topDownTraversal(all, flattenInheritance);
 
     auto analyzeInheritedVirtualMethod =
-           [&all](ga::ClassAnalysis::value_type& rep) -> void
+           [&all](rca::ClassAnalysis::value_type& rep) -> void
            {
              rep.second.inheritsVirtualFunctions(inheritsVirtualFunctions(all, rep));
            };
     topDownTraversal(all, analyzeInheritedVirtualMethod);
   }
 
-  void inheritanceRelations(ga::ClassAnalysis& classes)
+  void inheritanceRelations(rca::ClassAnalysis& classes)
   {
-    const ga::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
+    const rca::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
 
-    for (ga::ClassAnalysis::value_type& elem : classes)
+    for (rca::ClassAnalysis::value_type& elem : classes)
     {
       auto addEdge =
-             [&elem, &classes](ga::ClassKeyType child, ga::ClassKeyType parent, bool virt) -> void
+             [&elem, &classes](rca::ClassKeyType child, rca::ClassKeyType parent, bool virt) -> void
              {
                assert(elem.first == child);
 
@@ -532,7 +532,7 @@ namespace
   // returns true iff lhs < rhs
   struct VFNameTypeOrder
   {
-    bool operator()(ga::FunctionKeyType lhs, ga::FunctionKeyType rhs) const
+    bool operator()(rca::FunctionKeyType lhs, rca::FunctionKeyType rhs) const
     {
       static constexpr bool firstDecisiveComparison = false;
 
@@ -552,16 +552,16 @@ namespace
       return (*this)(std::get<0>(lhs), std::get<0>(rhs));
     }
 */
-    const ga::AbstractCompatibilityBridge& compat;
+    const rca::AbstractCompatibilityBridge& compat;
   };
 
   struct ComputeVirtualFunctionRelation
   {
-    void operator()(ga::FunctionKeyType drv, ga::FunctionKeyType bas) const
+    void operator()(rca::FunctionKeyType drv, rca::FunctionKeyType bas) const
     {
-      const ga::FunctionTypeRelation rel = compat.haveSameOrCovariantReturn(classes, bas, drv);
+      const rca::FunctionTypeRelation rel = compat.haveSameOrCovariantReturn(classes, bas, drv);
 
-      if (rel == ga::FunctionTypeRelation::unrelated)
+      if (rel == rca::FunctionTypeRelation::unrelated)
       {
         msgError() << "oops, covariant return assertion failed: "
                    << compat.nameOf(bas) << " <> " << compat.nameOf(drv)
@@ -569,39 +569,39 @@ namespace
         return;
       }
 
-      ASSERT_require(rel != ga::FunctionTypeRelation::unrelated);
+      ASSERT_require(rel != rca::FunctionTypeRelation::unrelated);
       //~ std::cerr << compat.nameOf(drv) << " overrides " << compat.nameOf(bas)
                 //~ << std::endl;
 
-      const bool               covariant = rel == ga::FunctionTypeRelation::covariant;
+      const bool               covariant = rel == rca::FunctionTypeRelation::covariant;
 
       vfunAnalysis.at(drv).overridden().emplace_back(bas, covariant);
       vfunAnalysis.at(bas).overriders().emplace_back(drv, covariant);
     }
 
-    void operator()(ga::FunctionKeyType, unavailable_t) const {}
+    void operator()(rca::FunctionKeyType, unavailable_t) const {}
 
-    void operator()(unavailable_t, ga::FunctionKeyType) const {}
+    void operator()(unavailable_t, rca::FunctionKeyType) const {}
 
     // data members
-    const ga::AbstractCompatibilityBridge& compat;
-    const ga::ClassAnalysis&       classes;
-    ga::VirtualFunctionAnalysis&   vfunAnalysis;
-    ga::ClassKeyType               ancestor;
-    ga::ClassKeyType               descendant;
+    const rca::AbstractCompatibilityBridge& compat;
+    const rca::ClassAnalysis&       classes;
+    rca::VirtualFunctionAnalysis&   vfunAnalysis;
+    rca::ClassKeyType               ancestor;
+    rca::ClassKeyType               descendant;
   };
 
-  using SortedVirtualMemberFunctions = std::unordered_map<ga::ClassKeyType, ga::ClassData::VirtualFunctionContainer>;
+  using SortedVirtualMemberFunctions = std::unordered_map<rca::ClassKeyType, rca::ClassData::VirtualFunctionContainer>;
 
-  void computeOverriders( const ga::ClassAnalysis& classes,
-                          ga::VirtualFunctionAnalysis& vfunAnalysis,
-                          const ga::ClassAnalysis::value_type& entry,
+  void computeOverriders( const rca::ClassAnalysis& classes,
+                          rca::VirtualFunctionAnalysis& vfunAnalysis,
+                          const rca::ClassAnalysis::value_type& entry,
                           bool /*normalizedSignature*/,
                           SortedVirtualMemberFunctions& sortedVFunMap
                         )
   {
-    using VirtualFunctionContainer    = ga::ClassData::VirtualFunctionContainer;
-    using AbstractCompatibilityBridge = ga::AbstractCompatibilityBridge;
+    using VirtualFunctionContainer    = rca::ClassData::VirtualFunctionContainer;
+    using AbstractCompatibilityBridge = rca::AbstractCompatibilityBridge;
 
     // create a new entry
     AbstractCompatibilityBridge const& compat = classes.compatibilityBridge();
@@ -613,13 +613,13 @@ namespace
     std::sort(vfunSorted.begin(), vfunSorted.end(), VFNameTypeOrder{ compat });
 
     std::for_each( vfunSorted.begin(), vfunSorted.end(),
-                   [&vfunAnalysis, &entry, &compat](ga::FunctionKeyType id) -> void
+                   [&vfunAnalysis, &entry, &compat](rca::FunctionKeyType id) -> void
                    {
-                     vfunAnalysis.emplace(id, ga::VirtualFunctionDesc{entry.first, compat.isPureVirtual(id)});
+                     vfunAnalysis.emplace(id, rca::VirtualFunctionDesc{entry.first, compat.isPureVirtual(id)});
                    }
                  );
 
-    for (const ga::InheritanceDesc& parentDesc : entry.second.ancestors())
+    for (const rca::InheritanceDesc& parentDesc : entry.second.ancestors())
     {
       using ComputeRelation = ComputeVirtualFunctionRelation;
 
@@ -656,7 +656,7 @@ analyzeVirtualFunctions(const ClassAnalysis& all, bool normalizedSignature)
 
 void analyzeClassesCommon(ClassAnalysis& classes)
 {
-  const ga::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
+  const rca::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
 
   inheritanceRelations(classes);
   analyzeClassRelationships(classes);
@@ -667,7 +667,7 @@ void analyzeClassesCommon(ClassAnalysis& classes)
 
 void analyzeClasses(ClassAnalysis& classes, ASTRootType n)
 {
-  const ga::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
+  const rca::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
 
   classes.containsAllClasses(true);
   classes.languageStandard(compat.languageStandard());
@@ -677,7 +677,7 @@ void analyzeClasses(ClassAnalysis& classes, ASTRootType n)
 
 void analyzeClassesFromMemoryPool(ClassAnalysis& classes)
 {
-  const ga::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
+  const rca::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
 
   classes.containsAllClasses(true);
   classes.languageStandard(compat.languageStandard());
@@ -710,7 +710,7 @@ VirtualFunctionAnalysis::VirtualFunctionAnalysis(const AbstractCompatibilityBrid
 VirtualFunctionAnalysis::mapped_type&
 VirtualFunctionAnalysis::at(const VirtualFunctionAnalysis::key_type& k)
 {
-  const ga::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
+  const rca::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
 
   return lookup(compat, *this, k).second;
 }
@@ -718,7 +718,7 @@ VirtualFunctionAnalysis::at(const VirtualFunctionAnalysis::key_type& k)
 const VirtualFunctionAnalysis::mapped_type&
 VirtualFunctionAnalysis::at(const VirtualFunctionAnalysis::key_type& k) const
 {
-  const ga::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
+  const rca::AbstractCompatibilityBridge& compat = this->compatibilityBridge();
 
   return lookup(compat, *this, k).second;
 }

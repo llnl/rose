@@ -8,7 +8,7 @@
 #include <boost/range/adaptors.hpp>
 #include <boost/range/join.hpp>
 
-namespace ga = Rose::Common::Analysis;
+namespace rca = Rose::Common::Analysis;
 namespace adapt = boost::adaptors;
 
 namespace Rose::Source::Analysis
@@ -21,80 +21,80 @@ CppHierarchyAnalysis::compatibilityBridge() const
 
 CppCompatibility CppHierarchyAnalysis::compat;
 
-ga::ASTRootType
-CppHierarchyAnalysis::rootId(SgProject* root) const
+rca::ASTRootType
+CppHierarchyAnalysis::rootId(const SgProject* root) const
 {
   return rootToKey(root);
 }
 
 SgProject*
-CppHierarchyAnalysis::root(ga::ASTRootType key) const
+CppHierarchyAnalysis::root(rca::ASTRootType key) const
 {
   return keyToRoot(key);
 }
 
-ga::ClassKeyType
+rca::ClassKeyType
 CppHierarchyAnalysis::classId(const SgClassDefinition* cls) const
 {
   return classToKey(cls);
 }
 
 SgClassDefinition*
-CppHierarchyAnalysis::classDefinition(ga::ClassKeyType key) const
+CppHierarchyAnalysis::classDefinition(rca::ClassKeyType key) const
 {
   return keyToClass(key);
 }
 
-ga::FunctionKeyType
+rca::FunctionKeyType
 CppHierarchyAnalysis::functionId(const SgFunctionDeclaration* fun) const
 {
   return compat.functionId(fun);
 }
 
 SgFunctionDeclaration*
-CppHierarchyAnalysis::functionDeclaration(ga::FunctionKeyType key) const
+CppHierarchyAnalysis::functionDeclaration(rca::FunctionKeyType key) const
 {
   return keyToFunction(key);
 }
 
-ga::VariableKeyType
+rca::VariableKeyType
 CppHierarchyAnalysis::variableId(SgInitializedName* var) const
 {
   return compat.variableId(var);
 }
 
-ga::VariableKeyType
+rca::VariableKeyType
 CppHierarchyAnalysis::variableId(SgVariableDeclaration* var) const
 {
   return compat.variableId(var);
 }
 
 SgInitializedName*
-CppHierarchyAnalysis::variableDeclaration(ga::VariableKeyType key) const
+CppHierarchyAnalysis::variableDeclaration(rca::VariableKeyType key) const
 {
   return keyToVariable(key);
 }
 
-ga::FunctionTypeKeyType
+rca::FunctionTypeKeyType
 CppHierarchyAnalysis::functionTypeId(const SgFunctionType* ty) const
 {
   return functionTypeToKey(ty);
 }
 
 SgFunctionType*
-CppHierarchyAnalysis::functionType(ga::FunctionTypeKeyType key) const
+CppHierarchyAnalysis::functionType(rca::FunctionTypeKeyType key) const
 {
   return keyToFunctionType(key);
 }
 
-ga::TypeKeyType
+rca::TypeKeyType
 CppHierarchyAnalysis::typeId(const SgType* ty) const
 {
   return typeToKey(ty);
 }
 
 SgType*
-CppHierarchyAnalysis::type(ga::TypeKeyType key) const
+CppHierarchyAnalysis::type(rca::TypeKeyType key) const
 {
   return keyToType(key);
 }
@@ -118,13 +118,13 @@ CppHierarchyAnalysis::nameOf(const SgInitializedName* var) const
 }
 
 SpecialMemberFunctionContainer&
-CppHierarchyAnalysis::specialMemberFunctions(ga::ClassKeyType clazz)
+CppHierarchyAnalysis::specialMemberFunctions(rca::ClassKeyType clazz)
 {
   return allSpecialMemberFunctions[clazz];
 }
 
 const SpecialMemberFunctionContainer&
-CppHierarchyAnalysis::specialMemberFunctions(ga::ClassKeyType clazz) const
+CppHierarchyAnalysis::specialMemberFunctions(rca::ClassKeyType clazz) const
 {
   static const SpecialMemberFunctionContainer empty;
   SpecialMemberFunctionMap::const_iterator pos = allSpecialMemberFunctions.find(clazz);
@@ -133,14 +133,14 @@ CppHierarchyAnalysis::specialMemberFunctions(ga::ClassKeyType clazz) const
 }
 /*
 bool hasSpecialFunction(const CppHierarchyAnalysis& all,
-                        ga::ClassKeyType clazz,
+                        rca::ClassKeyType clazz,
                         SpecialMemberFunctionPredicate pred)
 {
   return hasSpecialFunction(all.specialMemberFunctions(clazz), std::move(pred));
 }
 
-bool hasSpecialFunction(const ga::ClassAnalysis& all,
-                        ga::ClassKeyType clazz,
+bool hasSpecialFunction(const rca::ClassAnalysis& all,
+                        rca::ClassKeyType clazz,
                         SpecialMemberFunctionPredicate pred)
 {
   const CppHierarchyAnalysis* cpp = dynamic_cast<const CppHierarchyAnalysis*>(&all);
@@ -158,14 +158,14 @@ namespace
   bool
   isUsableSpecialMember(const CppHierarchyAnalysis& all,
                         const SpecialMemberFunction& smf,
-                        ga::ClassKeyType caller,
+                        rca::ClassKeyType caller,
                         SpecialMemberUse use)
   {
-    const ga::FunctionKeyType key = smf.function();
+    const rca::FunctionKeyType key = smf.function();
 
     // A keyless descriptor was synthesized only after its own prerequisites
     // were established.  Such implicitly declared special members are public.
-    if (!ga::isValidKey(key))
+    if (!rca::isValidKey(key))
       return true;
 
     const SgMemberFunctionDeclaration* function =
@@ -195,8 +195,8 @@ namespace
 
   bool
   hasUsableSpecialFunction(const CppHierarchyAnalysis& all,
-                           ga::ClassKeyType clazz,
-                           ga::ClassKeyType caller,
+                           rca::ClassKeyType clazz,
+                           rca::ClassKeyType caller,
                            SpecialMemberUse use,
                            const SpecialMemberFunctionPredicate& pred)
   {
@@ -207,12 +207,12 @@ namespace
                        });
   }
 
-  std::function<bool(const ga::InheritanceDesc&)>
+  std::function<bool(const rca::InheritanceDesc&)>
   baseHasSpecialFunction(const CppHierarchyAnalysis& all,
-                         ga::ClassKeyType caller,
+                         rca::ClassKeyType caller,
                          SpecialMemberFunctionPredicate pred)
   {
-    return [&all, caller, p = std::move(pred)](const ga::InheritanceDesc& baseClass) -> bool
+    return [&all, caller, p = std::move(pred)](const rca::InheritanceDesc& baseClass) -> bool
            {
              return hasUsableSpecialFunction(all, baseClass.getClass(), caller,
                                              SpecialMemberUse::baseSubobject, p);
@@ -235,14 +235,14 @@ namespace
            };
   }
 
-  using VariablePredicate = std::function<bool(ga::VariableKeyType)>;
+  using VariablePredicate = std::function<bool(rca::VariableKeyType)>;
 
-  VariablePredicate isDefaultConstructible(const CppHierarchyAnalysis& all, ga::ClassKeyType caller)
+  VariablePredicate isDefaultConstructible(const CppHierarchyAnalysis& all, rca::ClassKeyType caller)
   {
-    return [&all, caller](ga::VariableKeyType var) -> bool
+    return [&all, caller](rca::VariableKeyType var) -> bool
            {
-             const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-             ga::DataMemberType desc = compat.typeOf(var);
+             const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+             rca::DataMemberType desc = compat.typeOf(var);
 
              // A default member initializer constructs the subobject itself,
              // so it does not need a default constructor.  This includes
@@ -253,107 +253,107 @@ namespace
              if (desc.hasReference())
                return false;
 
-             ga::ClassKeyType clazz = desc.classType();
-             return !ga::isValidKey(clazz)
+             rca::ClassKeyType clazz = desc.classType();
+             return !rca::isValidKey(clazz)
                  || hasUsableSpecialFunction(all, clazz, caller,
                                              SpecialMemberUse::memberSubobject, isDefaultCtor());
            };
   }
 
-  VariablePredicate isCopyConstructible(const CppHierarchyAnalysis& all, ga::ClassKeyType caller)
+  VariablePredicate isCopyConstructible(const CppHierarchyAnalysis& all, rca::ClassKeyType caller)
   {
-    return [&all, caller](ga::VariableKeyType var) -> bool
+    return [&all, caller](rca::VariableKeyType var) -> bool
            {
-             const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-             ga::DataMemberType desc = compat.typeOf(var);
-             ga::ClassKeyType clazz = desc.classType();
+             const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+             rca::DataMemberType desc = compat.typeOf(var);
+             rca::ClassKeyType clazz = desc.classType();
 
-             return !ga::isValidKey(clazz)
+             return !rca::isValidKey(clazz)
                  || hasUsableSpecialFunction(all, clazz, caller,
                                              SpecialMemberUse::memberSubobject, isCopyCtor());
            };
   }
 
   VariablePredicate isCopyConstructibleConstRef(const CppHierarchyAnalysis& all,
-                                                ga::ClassKeyType caller)
+                                                rca::ClassKeyType caller)
   {
-    return [&all, caller](ga::VariableKeyType var) -> bool
+    return [&all, caller](rca::VariableKeyType var) -> bool
            {
-             const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-             ga::DataMemberType desc = compat.typeOf(var);
-             ga::ClassKeyType clazz = desc.classType();
+             const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+             rca::DataMemberType desc = compat.typeOf(var);
+             rca::ClassKeyType clazz = desc.classType();
 
-             return !ga::isValidKey(clazz)
+             return !rca::isValidKey(clazz)
                  || hasUsableSpecialFunction(all, clazz, caller,
                                              SpecialMemberUse::memberSubobject, isCopyCtorConstRef());
            };
   }
 
   VariablePredicate isMoveOrCopyConstructible(const CppHierarchyAnalysis& all,
-                                              ga::ClassKeyType caller)
+                                              rca::ClassKeyType caller)
   {
     return [&all, caller, moveOrCopy = isMoveCtor() || isCopyCtor()]
-           (ga::VariableKeyType var) -> bool
+           (rca::VariableKeyType var) -> bool
            {
-             const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-             ga::DataMemberType desc = compat.typeOf(var);
-             ga::ClassKeyType clazz = desc.classType();
+             const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+             rca::DataMemberType desc = compat.typeOf(var);
+             rca::ClassKeyType clazz = desc.classType();
 
-             return !ga::isValidKey(clazz)
+             return !rca::isValidKey(clazz)
                  || hasUsableSpecialFunction(all, clazz, caller,
                                              SpecialMemberUse::memberSubobject, moveOrCopy);
            };
   }
 
-  VariablePredicate isCopyAssignable(const CppHierarchyAnalysis& all, ga::ClassKeyType caller)
+  VariablePredicate isCopyAssignable(const CppHierarchyAnalysis& all, rca::ClassKeyType caller)
   {
-    return [&all, caller](ga::VariableKeyType var) -> bool
+    return [&all, caller](rca::VariableKeyType var) -> bool
            {
-             const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-             ga::DataMemberType desc = compat.typeOf(var);
+             const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+             rca::DataMemberType desc = compat.typeOf(var);
 
              if (desc.hasReference() || desc.isConst())
                return false;
 
-             ga::ClassKeyType clazz = desc.classType();
-             return !ga::isValidKey(clazz)
+             rca::ClassKeyType clazz = desc.classType();
+             return !rca::isValidKey(clazz)
                  || hasUsableSpecialFunction(all, clazz, caller,
                                              SpecialMemberUse::memberSubobject, isCopyAssign());
            };
   }
 
   VariablePredicate isCopyAssignableConstRef(const CppHierarchyAnalysis& all,
-                                             ga::ClassKeyType caller)
+                                             rca::ClassKeyType caller)
   {
-    return [&all, caller](ga::VariableKeyType var) -> bool
+    return [&all, caller](rca::VariableKeyType var) -> bool
            {
-             const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-             ga::DataMemberType desc = compat.typeOf(var);
+             const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+             rca::DataMemberType desc = compat.typeOf(var);
 
              if (desc.hasReference() || desc.isConst())
                return false;
 
-             ga::ClassKeyType clazz = desc.classType();
-             return !ga::isValidKey(clazz)
+             rca::ClassKeyType clazz = desc.classType();
+             return !rca::isValidKey(clazz)
                  || hasUsableSpecialFunction(all, clazz, caller,
                                              SpecialMemberUse::memberSubobject, isCopyAssignConstRef());
            };
   }
 
   VariablePredicate isMoveOrCopyAssignable(const CppHierarchyAnalysis& all,
-                                           ga::ClassKeyType caller)
+                                           rca::ClassKeyType caller)
   {
     return [&all, caller, moveOrCopy = isMoveAssign() || isCopyAssign()]
-           (ga::VariableKeyType var) -> bool
+           (rca::VariableKeyType var) -> bool
            {
-             const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-             ga::DataMemberType desc = compat.typeOf(var);
+             const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+             rca::DataMemberType desc = compat.typeOf(var);
 
              if (desc.hasReference() || desc.isConst())
                return false;
 
-             ga::ClassKeyType clazz = desc.classType();
-             return !ga::isValidKey(clazz)
+             rca::ClassKeyType clazz = desc.classType();
+             return !rca::isValidKey(clazz)
                  || hasUsableSpecialFunction(all, clazz, caller,
                                              SpecialMemberUse::memberSubobject, moveOrCopy);
            };
@@ -361,7 +361,7 @@ namespace
 
   SpecialMemberFunctionContainer
   processDefaultCtor(const CppHierarchyAnalysis& all,
-                     const ga::ClassAnalysis::value_type& rep,
+                     const rca::ClassAnalysis::value_type& rep,
                      SpecialMemberFunctionContainer funcs)
   {
     if (hasSpecialFunction(funcs, isUserDefinedCtor()))
@@ -370,61 +370,61 @@ namespace
     if (hasSpecialFunction(funcs, isDefaultCtor()))
       return funcs;
 
-    const ga::ClassData::AncestorContainer& bases = rep.second.ancestors();
+    const rca::ClassData::AncestorContainer& bases = rep.second.ancestors();
     if (!std::all_of(bases.begin(), bases.end(),
                      baseHasSpecialFunction(all, rep.first, isDefaultCtor())))
       return funcs;
 
-    const ga::ClassData::DataMemberContainer& data = rep.second.dataMembers();
+    const rca::ClassData::DataMemberContainer& data = rep.second.dataMembers();
     if (!std::all_of(data.begin(), data.end(), isDefaultConstructible(all, rep.first)))
       return funcs;
 
-    funcs.emplace_back(ga::FunctionKeyType{}, SpecialMemberFunction::dctor, true, false, true);
+    funcs.emplace_back(rca::FunctionKeyType{}, SpecialMemberFunction::dctor, true, false, true);
     return funcs;
   }
 
   SpecialMemberFunctionContainer
   processDefaultDtor(const CppHierarchyAnalysis& all,
-                     const ga::ClassAnalysis::value_type& rep,
+                     const rca::ClassAnalysis::value_type& rep,
                      SpecialMemberFunctionContainer funcs)
   {
     if (hasSpecialFunction(funcs, isDtor()))
       return funcs;
 
-    const ga::ClassData::AncestorContainer& bases = rep.second.ancestors();
+    const rca::ClassData::AncestorContainer& bases = rep.second.ancestors();
     if (!std::all_of(bases.begin(), bases.end(),
                      baseHasSpecialFunction(all, rep.first, isDtor())))
       return funcs;
 
-    const ga::ClassData::DataMemberContainer& data = rep.second.dataMembers();
+    const rca::ClassData::DataMemberContainer& data = rep.second.dataMembers();
     const VariablePredicate isDestructible =
-      [&all, caller = rep.first](ga::VariableKeyType var) -> bool
+      [&all, caller = rep.first](rca::VariableKeyType var) -> bool
       {
-        const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
-        ga::DataMemberType desc = compat.typeOf(var);
-        ga::ClassKeyType clazz = desc.classType();
+        const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+        rca::DataMemberType desc = compat.typeOf(var);
+        rca::ClassKeyType clazz = desc.classType();
 
-        return !ga::isValidKey(clazz)
+        return !rca::isValidKey(clazz)
             || hasUsableSpecialFunction(all, clazz, caller,
                                         SpecialMemberUse::memberSubobject, isDtor());
       };
     if (!std::all_of(data.begin(), data.end(), isDestructible))
       return funcs;
 
-    funcs.emplace_back(ga::FunctionKeyType{}, SpecialMemberFunction::dtor, true, false, true);
+    funcs.emplace_back(rca::FunctionKeyType{}, SpecialMemberFunction::dtor, true, false, true);
 
     return funcs;
   }
 
   SpecialMemberFunctionContainer
   processDefaultCopyCtor(const CppHierarchyAnalysis& all,
-                         const ga::ClassAnalysis::value_type& rep,
+                         const rca::ClassAnalysis::value_type& rep,
                          SpecialMemberFunctionContainer funcs)
   {
     if (hasSpecialFunction(funcs, isCopyCtor()))
       return funcs;
 
-    if (all.languageStandard() >= ga::ClassAnalysis::Cxx11)
+    if (all.languageStandard() >= rca::ClassAnalysis::Cxx11)
     {
       const bool hasUserDefinedMoveFn = hasSpecialFunction(funcs, isMoveCtor(false))
                                      || hasSpecialFunction(funcs, isMoveAssign(false));
@@ -432,7 +432,7 @@ namespace
         return funcs;
     }
 
-    const ga::ClassData::AncestorContainer& bases = rep.second.ancestors();
+    const rca::ClassData::AncestorContainer& bases = rep.second.ancestors();
     const bool basesSupportConstRef = std::all_of(bases.begin(), bases.end(),
                                                   baseHasSpecialFunction(all, rep.first, isCopyCtorConstRef()));
     const bool basesHaveCopyCtor = basesSupportConstRef
@@ -441,7 +441,7 @@ namespace
     if (!basesHaveCopyCtor)
       return funcs;
 
-    const ga::ClassData::DataMemberContainer& data = rep.second.dataMembers();
+    const rca::ClassData::DataMemberContainer& data = rep.second.dataMembers();
     const bool dataSupportConstRef = std::all_of(data.begin(), data.end(),
                                                  isCopyConstructibleConstRef(all, rep.first));
     const bool dataIsCopyConstructible = dataSupportConstRef
@@ -450,17 +450,17 @@ namespace
     if (!dataIsCopyConstructible)
       return funcs;
 
-    funcs.emplace_back(ga::FunctionKeyType{}, SpecialMemberFunction::cctor,
+    funcs.emplace_back(rca::FunctionKeyType{}, SpecialMemberFunction::cctor,
                        true, basesSupportConstRef && dataSupportConstRef, true);
     return funcs;
   }
 
   SpecialMemberFunctionContainer
   processDefaultMoveCtor(const CppHierarchyAnalysis& all,
-                         const ga::ClassAnalysis::value_type& rep,
+                         const rca::ClassAnalysis::value_type& rep,
                          SpecialMemberFunctionContainer funcs)
   {
-    if (all.languageStandard() < ga::ClassAnalysis::Cxx11)
+    if (all.languageStandard() < rca::ClassAnalysis::Cxx11)
       return funcs;
 
     if (hasSpecialFunction(funcs, isMoveCtor()))
@@ -473,29 +473,29 @@ namespace
     if (hasUserDefinedSpecialFn)
       return funcs;
 
-    const ga::ClassData::AncestorContainer& bases = rep.second.ancestors();
+    const rca::ClassData::AncestorContainer& bases = rep.second.ancestors();
     SpecialMemberFunctionPredicate moveOrCopyPred = isMoveCtor() || isCopyCtor();
     if (!std::all_of(bases.begin(), bases.end(),
                      baseHasSpecialFunction(all, rep.first, moveOrCopyPred)))
       return funcs;
 
-    const ga::ClassData::DataMemberContainer& data = rep.second.dataMembers();
+    const rca::ClassData::DataMemberContainer& data = rep.second.dataMembers();
     if (!std::all_of(data.begin(), data.end(), isMoveOrCopyConstructible(all, rep.first)))
       return funcs;
 
-    funcs.emplace_back(ga::FunctionKeyType{}, SpecialMemberFunction::mctor, true, false, true);
+    funcs.emplace_back(rca::FunctionKeyType{}, SpecialMemberFunction::mctor, true, false, true);
     return funcs;
   }
 
   SpecialMemberFunctionContainer
   processDefaultCopyAssign(const CppHierarchyAnalysis& all,
-                           const ga::ClassAnalysis::value_type& rep,
+                           const rca::ClassAnalysis::value_type& rep,
                            SpecialMemberFunctionContainer funcs)
   {
     if (hasSpecialFunction(funcs, isCopyAssign()))
       return funcs;
 
-    if (all.languageStandard() >= ga::ClassAnalysis::Cxx11)
+    if (all.languageStandard() >= rca::ClassAnalysis::Cxx11)
     {
       const bool hasUserDefinedMoveFn = hasSpecialFunction(funcs, isMoveCtor(false))
                                      || hasSpecialFunction(funcs, isMoveAssign(false));
@@ -503,7 +503,7 @@ namespace
         return funcs;
     }
 
-    const ga::ClassData::AncestorContainer& bases = rep.second.ancestors();
+    const rca::ClassData::AncestorContainer& bases = rep.second.ancestors();
     const bool basesSupportConstRef = std::all_of(bases.begin(), bases.end(),
                                                   baseHasSpecialFunction(all, rep.first, isCopyAssignConstRef()));
     const bool basesHaveCopyAssign = basesSupportConstRef
@@ -512,7 +512,7 @@ namespace
     if (!basesHaveCopyAssign)
       return funcs;
 
-    const ga::ClassData::DataMemberContainer& data = rep.second.dataMembers();
+    const rca::ClassData::DataMemberContainer& data = rep.second.dataMembers();
     const bool dataSupportConstRef = std::all_of(data.begin(), data.end(),
                                                  isCopyAssignableConstRef(all, rep.first));
     const bool dataAreCopyAssignable = dataSupportConstRef
@@ -521,17 +521,17 @@ namespace
     if (!dataAreCopyAssignable)
       return funcs;
 
-    funcs.emplace_back(ga::FunctionKeyType{}, SpecialMemberFunction::cassign,
+    funcs.emplace_back(rca::FunctionKeyType{}, SpecialMemberFunction::cassign,
                        true, basesSupportConstRef && dataSupportConstRef, true);
     return funcs;
   }
 
   SpecialMemberFunctionContainer
   processDefaultMoveAssign(const CppHierarchyAnalysis& all,
-                           const ga::ClassAnalysis::value_type& rep,
+                           const rca::ClassAnalysis::value_type& rep,
                            SpecialMemberFunctionContainer funcs)
   {
-    if (all.languageStandard() < ga::ClassAnalysis::Cxx11)
+    if (all.languageStandard() < rca::ClassAnalysis::Cxx11)
       return funcs;
 
     if (hasSpecialFunction(funcs, isMoveAssign()))
@@ -544,22 +544,22 @@ namespace
     if (hasUserDefinedSpecialFn)
       return funcs;
 
-    const ga::ClassData::AncestorContainer& bases = rep.second.ancestors();
+    const rca::ClassData::AncestorContainer& bases = rep.second.ancestors();
     SpecialMemberFunctionPredicate moveOrCopyPred = isMoveAssign() || isCopyAssign();
     if (!std::all_of(bases.begin(), bases.end(),
                      baseHasSpecialFunction(all, rep.first, moveOrCopyPred)))
       return funcs;
 
-    const ga::ClassData::DataMemberContainer& data = rep.second.dataMembers();
+    const rca::ClassData::DataMemberContainer& data = rep.second.dataMembers();
     if (!std::all_of(data.begin(), data.end(), isMoveOrCopyAssignable(all, rep.first)))
       return funcs;
 
-    funcs.emplace_back(ga::FunctionKeyType{}, SpecialMemberFunction::massign, true, false, true);
+    funcs.emplace_back(rca::FunctionKeyType{}, SpecialMemberFunction::massign, true, false, true);
     return funcs;
   }
 
   void analyzeAutoGeneratedMemberFunctions(CppHierarchyAnalysis& all,
-                                           ga::ClassAnalysis::value_type& rep)
+                                           rca::ClassAnalysis::value_type& rep)
   {
     const CppCompatibility& compat = all.compatibilityBridge();
     SpecialMemberFunctionContainer funcs = compat.specialMemberFunctions(rep.first);
@@ -574,11 +574,11 @@ namespace
     all.specialMemberFunctions(rep.first) = std::move(funcs);
   }
 
-  using RelationAccessorConst = const std::vector<ga::InheritanceDesc>& (ga::ClassData::*)() const;
+  using RelationAccessorConst = const std::vector<rca::InheritanceDesc>& (rca::ClassData::*)() const;
 
   struct GetClass
   {
-    ga::ClassKeyType operator()(const ga::InheritanceDesc& desc) const
+    rca::ClassKeyType operator()(const rca::InheritanceDesc& desc) const
     {
       return desc.getClass();
     }
@@ -586,19 +586,19 @@ namespace
 
   struct GetType
   {
-    ga::ClassKeyType operator()(ga::VariableKeyType key) const
+    rca::ClassKeyType operator()(rca::VariableKeyType key) const
     {
       return compat->typeOf(key).classType();
     }
 
-    sg::NotNull<const ga::AbstractCompatibilityBridge> compat;
+    sg::NotNull<const rca::AbstractCompatibilityBridge> compat;
   };
 
   struct IsValidClassKey
   {
-    bool operator()(ga::ClassKeyType key) const
+    bool operator()(rca::ClassKeyType key) const
     {
-      return ga::isValidKey(key);
+      return rca::isValidKey(key);
     }
   };
 
@@ -608,13 +608,13 @@ namespace
     return [selector](auto& elem) // -> someRange
            {
              return (elem.second.*selector)()
-                    | adapt::filtered(ga::IsDirect{})
+                    | adapt::filtered(rca::IsDirect{})
                     | adapt::transformed(GetClass{});
            };
   }
 
   auto valueTypes(const CppHierarchyAnalysis& all,
-                  const ga::ClassAnalysis::value_type& clazz) // -> someRange
+                  const rca::ClassAnalysis::value_type& clazz) // -> someRange
   {
     return clazz.second.dataMembers()
            | adapt::transformed(GetType{&all.compatibilityBridge()})
@@ -622,7 +622,7 @@ namespace
   }
 
   template <class AnalysisT, class Fn, class Selector>
-  void traversal(AnalysisT& all, Fn fn, ga::ClassKeyType curr, Selector selector)
+  void traversal(AnalysisT& all, Fn fn, rca::ClassKeyType curr, Selector selector)
   {
     typename AnalysisT::iterator pos = all.find(curr);
     if (pos == all.end())
@@ -632,9 +632,9 @@ namespace
     }
 
     auto& elem = *pos;
-    const ga::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
+    const rca::AbstractCompatibilityBridge& compat = all.compatibilityBridge();
 
-    for (ga::ClassKeyType clazz : selector(elem))
+    for (rca::ClassKeyType clazz : selector(elem))
     {
       try
       {
@@ -660,7 +660,7 @@ namespace
     auto preOrderClasses =
            [&all](auto& elem) // -> someRange
            {
-             RelationAccessorConst ancestors = &ga::ClassData::ancestors;
+             RelationAccessorConst ancestors = &rca::ClassData::ancestors;
 
              return boost::range::join(inheritanceRelationships(all, ancestors)(elem),
                                        valueTypes(all, elem));
@@ -676,18 +676,21 @@ void analyzeSpecialMemberFunctions(CppHierarchyAnalysis& all)
   msgTrace() << "analyzing C++ special member functions " << std::endl;
 
   traverseInTopologicalOrder(all,
-                             [&all](ga::ClassAnalysis::value_type& rep) -> void
+                             [&all](rca::ClassAnalysis::value_type& rep) -> void
                              {
                                analyzeAutoGeneratedMemberFunctions(all, rep);
                              });
 }
 
 CppHierarchyAnalysis
-analyzeCppClasses(Rose::Common::Analysis::ASTRootType root)
+analyzeCppClasses(const SgProject* prj)
 {
+  if (prj == nullptr)
+    return {};
+
   CppHierarchyAnalysis classes;
 
-  Rose::Common::Analysis::analyzeClasses(classes, root);
+  rca::analyzeClasses(classes, rootToKey(prj));
   analyzeSpecialMemberFunctions(classes);
   return classes;
 }
@@ -697,15 +700,15 @@ analyzeCppClassesFromMemoryPool()
 {
   CppHierarchyAnalysis classes;
 
-  Rose::Common::Analysis::analyzeClassesFromMemoryPool(classes);
+  rca::analyzeClassesFromMemoryPool(classes);
   analyzeSpecialMemberFunctions(classes);
   return classes;
 }
 
-Rose::Common::Analysis::VirtualFunctionAnalysis
-analyzeCppVirtualFunctions(const Rose::Common::Analysis::ClassAnalysis& classes, bool normalizedSignature)
+rca::VirtualFunctionAnalysis
+analyzeCppVirtualFunctions(const rca::ClassAnalysis& classes, bool normalizedSignature)
 {
-  return Rose::Common::Analysis::analyzeVirtualFunctions(classes, normalizedSignature);
+  return rca::analyzeVirtualFunctions(classes, normalizedSignature);
 }
 
 } // namespace Rose::Source::Analysis

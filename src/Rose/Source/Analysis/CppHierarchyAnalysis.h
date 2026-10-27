@@ -47,7 +47,7 @@ class CppHierarchyAnalysis final : public Rose::Common::Analysis::ClassAnalysis
     /// \param root ROSE project pointer to wrap.
     /// \return abstract key for \p root.
     Rose::Common::Analysis::ASTRootType
-    rootId(SgProject* root) const;
+    rootId(const SgProject* root) const;
 
     /// Converts an abstract analysis key back to a ROSE project root pointer.
     /// \param key abstract root key to unwrap.
@@ -159,7 +159,7 @@ class CppHierarchyAnalysis final : public Rose::Common::Analysis::ClassAnalysis
 /// Builds a C++ class hierarchy analysis by traversing the AST rooted at \p root.
 /// \param root abstract key for the AST root to traverse.
 /// \return populated C++ hierarchy analysis.
-CppHierarchyAnalysis analyzeCppClasses(Rose::Common::Analysis::ASTRootType root);
+CppHierarchyAnalysis analyzeCppClasses(const SgProject*);
 
 /// Builds a C++ class hierarchy analysis from the ROSE memory pool.
 /// \return populated C++ hierarchy analysis.
