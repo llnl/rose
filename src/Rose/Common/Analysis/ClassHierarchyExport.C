@@ -80,6 +80,7 @@ namespace
          << "::" << funcName(funid)
          << " #" << funid.key
          << (fn.covariantReturn() ? " (covariant)" : "")
+         << (fn.isImplied() ? " (via " + className(fn.witness()) + ")" : std::string{})
          << ", ";
     }
 
@@ -234,8 +235,12 @@ void classHierarchyJson(std::ostream& os,
 
             os << "{\"id\":" << JsonString{funcId(ov.function())}
                << ",\"name\":" << JsonString{funcName(ov.function())}
-               << ",\"covariant\":" << (ov.covariantReturn() ? "true" : "false")
-               << "}";
+               << ",\"covariant\":" << (ov.covariantReturn() ? "true" : "false");
+
+            if (ov.isImplied())
+              os << ",\"witness\":" << JsonString{classId(ov.witness())};
+
+            os << "}";
           }
 
           os << "],\"overriddenBy\":[";
@@ -247,8 +252,12 @@ void classHierarchyJson(std::ostream& os,
 
             os << "{\"id\":" << JsonString{funcId(ov.function())}
                << ",\"name\":" << JsonString{funcName(ov.function())}
-               << ",\"covariant\":" << (ov.covariantReturn() ? "true" : "false")
-               << "}";
+               << ",\"covariant\":" << (ov.covariantReturn() ? "true" : "false");
+
+            if (ov.isImplied())
+              os << ",\"witness\":" << JsonString{classId(ov.witness())};
+
+            os << "}";
           }
           os << "]";
         }

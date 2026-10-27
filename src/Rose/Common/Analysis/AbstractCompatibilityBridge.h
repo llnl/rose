@@ -202,6 +202,62 @@ class AbstractCompatibilityBridge
     std::uint32_t
     languageStandard() const { return 0; }
 
+    /// returns whether a method inherited along the non-virtual inheritance chain
+    ///   implements an otherwise unimplemented function of a virtual base.
+    /// \return true if the language has this rule; the base implementation returns false.
+    /// \details
+    ///    This is the rule of Java (JLS 8.4.8.1, JVMS 5.4.6) and CIL (ECMA-335 II.12.2):
+    ///    for a class C extending B and implementing interface I, a concrete method B.m
+    ///    inherited by C implements I.m. C++ has no such rule; the class stays abstract.
+    ///    When enabled, analyzeVirtualFunctions records such relationships as implied
+    ///    overrides with C as witness (see OverrideDesc::witness).
+    /// \note
+    ///    Only the rule above is modelled. The selection among default methods of
+    ///    unrelated interfaces (JVMS 5.4.6, maximally-specific superinterface methods)
+    ///    is not.
+    virtual
+    bool
+    inheritedMethodsImplementVirtualBaseMethods() const { return false; }
+
+    /// returns whether the inherited function \p fnkey qualifies as an implementation
+    ///   of a virtual base function (see inheritedMethodsImplementVirtualBaseMethods).
+    /// \param fnkey an inherited function that matches a virtual base function by signature.
+    /// \return true if \p fnkey may implement the virtual base function.
+    /// \details
+    ///    Only consulted when inheritedMethodsImplementVirtualBaseMethods returns true.
+    ///    A Java bridge returns true for non-abstract public methods (JLS 8.4.8.4:
+    ///    an inherited abstract method does not implement; interface methods are
+    ///    public, so the implementing method must be public).
+    virtual
+    bool
+    isInheritableImplementation(FunctionKeyType fnkey) const
+    {
+      (void)fnkey;
+      return true;
+    }
+
+    /// returns whether \p drv may override \p bas under language rules beyond
+    ///   name and signature, such as access control.
+    /// \param drv function in a derived class (or inherited by it) that matches \p bas by signature.
+    /// \param bas function in an ancestor class.
+    /// \return true if the override relation may be recorded for the pair; the base implementation returns true.
+    /// \details
+    ///    In C++ access does not affect overriding, so the default applies. The JVM
+    ///    (JVMS 5.4.5) excludes private methods on either side and lets a
+    ///    package-private method be overridden only from the same run-time package.
+    ///    If this query rejects a pair, the analysis still records the relation when
+    ///    it holds transitively: \p drv overrides an intermediate function that in
+    ///    turn overrides \p bas (JVMS 5.4.5, rule (b)). Bridges therefore only need
+    ///    to decide the direct relation.
+    virtual
+    bool
+    canOverride(FunctionKeyType drv, FunctionKeyType bas) const
+    {
+      (void)drv;
+      (void)bas;
+      return true;
+    }
+
     // no state
 };
 

@@ -93,12 +93,34 @@ struct InheritanceDesc : std::tuple<ClassKeyType, bool, bool>
 };
 
 /// Describes an override relationship for one virtual function.
-struct OverrideDesc : std::tuple<FunctionKeyType, bool>
+/// \details
+///   An override descriptor is stored on both sides of the relationship:
+///   in VirtualFunctionDesc::overriders() of the overridden function and in
+///   VirtualFunctionDesc::overridden() of the overriding function.
+///
+///   A declared override (the overriding function is declared in a class that
+///   derives from the class declaring the overridden function) has an invalid
+///   witness key. An implied override has a valid witness: the class at which a
+///   function inherited along the non-virtual inheritance chain first meets a
+///   function of a virtual base that it implements (e.g., in Java a superclass
+///   method implementing an interface method of a subclass, JLS 8.4.8.1). The
+///   overriding function's class is then not derived from the overridden
+///   function's class; only the witness is. Implied overrides are only
+///   computed when AbstractCompatibilityBridge::inheritedMethodsImplementVirtualBaseMethods
+///   returns true.
+struct OverrideDesc : std::tuple<FunctionKeyType, bool, ClassKeyType>
 {
 
   /// Base tuple type used for storage.
-  using base = std::tuple<FunctionKeyType, bool>;
+  using base = std::tuple<FunctionKeyType, bool, ClassKeyType>;
   using base::base;
+
+  /// Constructs a descriptor for a declared override (no witness).
+  /// \param fn overriding or overridden function key.
+  /// \param covariant true if the override uses a covariant return type.
+  OverrideDesc(FunctionKeyType fn, bool covariant)
+  : base(fn, covariant, ClassKeyType{})
+  {}
 
   /// Returns the overriding or overridden function key.
   /// \return function key stored by this override descriptor.
@@ -114,6 +136,15 @@ struct OverrideDesc : std::tuple<FunctionKeyType, bool>
   /// but currently we use the same value.
   /// \return true if a return-object adjustment is required.
   bool            adjustReturnObj() const { return std::get<1>(*this); }
+
+  /// Returns the witness class of an implied override.
+  /// \return class key of the class at which the inherited function and the
+  ///         virtual base function meet; an invalid key for declared overrides.
+  ClassKeyType    witness()         const { return std::get<2>(*this); }
+
+  /// Returns true when this is an implied override (see class description).
+  /// \return true if witness() is a valid class key.
+  bool            isImplied()       const { return isValidKey(witness()); }
 };
 
 /// Container of override descriptors.
@@ -630,6 +661,21 @@ using ClassAnalysisConstFn = std::function<void(const ClassAnalysis::value_type&
 /// \param  classes a class analysis containing all relevant classes
 /// \param  normalizedSignature true if signatures are normalized (only relevant for C++)
 /// \return a class representing virtual functions and their relationships
+/// \details
+///    Records declared overrides: a function declared in a class overriding a
+///    function declared in one of its (direct or indirect) ancestors.
+///    If the compatibility bridge enables
+///    AbstractCompatibilityBridge::inheritedMethodsImplementVirtualBaseMethods,
+///    implied overrides are recorded as well: a function inherited along the
+///    non-virtual inheritance chain that implements a function of a virtual
+///    base which the class does not override itself (Java: a superclass method
+///    implementing an interface method of a subclass). Implied overrides carry
+///    the class at which they arise as OverrideDesc::witness and are recorded
+///    once, at that class.
+///    Every signature match is subject to AbstractCompatibilityBridge::canOverride.
+///    A rejected pair is still recorded when the derived function overrides an
+///    intermediate function that overrides the base function (transitive rule,
+///    e.g., JVMS 5.4.5 for package-private methods).
 VirtualFunctionAnalysis
 analyzeVirtualFunctions(const ClassAnalysis& classes, bool normalizedSignature = false);
 

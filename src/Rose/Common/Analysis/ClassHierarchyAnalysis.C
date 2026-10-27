@@ -457,6 +457,14 @@ namespace
                  );
   }
 
+  // TODO: Migrate the virtual base class initialization order to the C++
+  // specific processing (CppCompatibility::languageSpecificProcessing).
+  // Construction/destruction order of virtual bases is a C++ object model
+  // concept.  For the bytecode languages the "virtual" edges model interfaces,
+  // which have no instance state and no constructors (JVM interface
+  // initialization is not even triggered by subclass initialization unless
+  // default methods are present, JVMS 5.5), so the order computed here is
+  // meaningless for JVM/CIL and should not be part of the common analysis.
   void computeVirtualBaseInitializationOrder(rca::ClassAnalysis& classes, rca::ClassAnalysis::value_type& entry)
   {
     std::unordered_set<rca::ClassKeyType> alreadySeen;
@@ -489,6 +497,8 @@ namespace
            };
     topDownTraversal(all, propagateVirtualInheritance);
 
+    // TODO: move to CppCompatibility::languageSpecificProcessing; see the note
+    //       at computeVirtualBaseInitializationOrder.
     auto computeVirtualBaseClassInitializationOrder =
            [&all](rca::ClassAnalysis::value_type& rep) -> void
            {
@@ -555,28 +565,62 @@ namespace
     const rca::AbstractCompatibilityBridge& compat;
   };
 
+  /// a signature match that the bridge rejected as direct override and that
+  /// may still hold transitively through an intermediate overrider.
+  struct DeferredOverride
+  {
+    rca::FunctionKeyType drv;
+    rca::FunctionKeyType bas;
+    rca::ClassKeyType    witness;
+  };
+
+  using DeferredOverrides = std::vector<DeferredOverride>;
+
+  /// records \p drv as overrider of \p bas after checking the return types.
+  void recordOverride( const rca::AbstractCompatibilityBridge& compat,
+                       const rca::ClassAnalysis& classes,
+                       rca::VirtualFunctionAnalysis& vfunAnalysis,
+                       rca::FunctionKeyType drv,
+                       rca::FunctionKeyType bas,
+                       rca::ClassKeyType witness
+                     )
+  {
+    const rca::FunctionTypeRelation rel = compat.haveSameOrCovariantReturn(classes, bas, drv);
+
+    if (rel == rca::FunctionTypeRelation::unrelated)
+    {
+      msgError() << "oops, covariant return assertion failed: "
+                 << compat.nameOf(bas) << " <> " << compat.nameOf(drv)
+                 << std::endl;
+      return;
+    }
+
+    ASSERT_require(rel != rca::FunctionTypeRelation::unrelated);
+    //~ std::cerr << compat.nameOf(drv) << " overrides " << compat.nameOf(bas)
+              //~ << std::endl;
+
+    const bool covariant = rel == rca::FunctionTypeRelation::covariant;
+
+    vfunAnalysis.at(drv).overridden().emplace_back(bas, covariant, witness);
+    vfunAnalysis.at(bas).overriders().emplace_back(drv, covariant, witness);
+  }
+
   struct ComputeVirtualFunctionRelation
   {
     void operator()(rca::FunctionKeyType drv, rca::FunctionKeyType bas) const
     {
-      const rca::FunctionTypeRelation rel = compat.haveSameOrCovariantReturn(classes, bas, drv);
+      // implied overrides: the inherited function must qualify as an implementation
+      if (rca::isValidKey(witness) && !compat.isInheritableImplementation(drv))
+        return;
 
-      if (rel == rca::FunctionTypeRelation::unrelated)
+      // language rules beyond the signature (e.g., access); may still hold transitively
+      if (!compat.canOverride(drv, bas))
       {
-        msgError() << "oops, covariant return assertion failed: "
-                   << compat.nameOf(bas) << " <> " << compat.nameOf(drv)
-                   << std::endl;
+        deferred.push_back(DeferredOverride{drv, bas, witness});
         return;
       }
 
-      ASSERT_require(rel != rca::FunctionTypeRelation::unrelated);
-      //~ std::cerr << compat.nameOf(drv) << " overrides " << compat.nameOf(bas)
-                //~ << std::endl;
-
-      const bool               covariant = rel == rca::FunctionTypeRelation::covariant;
-
-      vfunAnalysis.at(drv).overridden().emplace_back(bas, covariant);
-      vfunAnalysis.at(bas).overriders().emplace_back(drv, covariant);
+      recordOverride(compat, classes, vfunAnalysis, drv, bas, witness);
     }
 
     void operator()(rca::FunctionKeyType, unavailable_t) const {}
@@ -587,25 +631,208 @@ namespace
     const rca::AbstractCompatibilityBridge& compat;
     const rca::ClassAnalysis&       classes;
     rca::VirtualFunctionAnalysis&   vfunAnalysis;
-    rca::ClassKeyType               ancestor;
-    rca::ClassKeyType               descendant;
+    DeferredOverrides&             deferred;
+
+    /// witness class of an implied override; invalid for declared overrides.
+    rca::ClassKeyType               witness = rca::ClassKeyType{};
   };
 
-  using SortedVirtualMemberFunctions = std::unordered_map<rca::ClassKeyType, rca::ClassData::VirtualFunctionContainer>;
+  /// returns true if \p drv overrides a function whose recorded overridden
+  /// functions include \p bas.
+  /// \details
+  ///   Classes are processed top-down, so the overridden() lists of functions in
+  ///   ancestor classes are complete, including their own transitive entries.
+  ///   One intermediate level therefore suffices.
+  bool overridesTransitively( const rca::VirtualFunctionAnalysis& vfunAnalysis,
+                              rca::FunctionKeyType drv,
+                              rca::FunctionKeyType bas
+                            )
+  {
+    auto isBas = [bas](const rca::OverrideDesc& desc) -> bool { return desc.function() == bas; };
+
+    for (const rca::OverrideDesc& mid : vfunAnalysis.at(drv).overridden())
+    {
+      const rca::OverrideContainer& midOverridden = vfunAnalysis.at(mid.function()).overridden();
+
+      if (std::find_if(midOverridden.begin(), midOverridden.end(), isBas) != midOverridden.end())
+        return true;
+    }
+
+    return false;
+  }
+
+  /// records the deferred pairs that hold transitively (fixpoint, since a
+  /// resolved pair can enable another one of the same derived function).
+  void resolveDeferredOverrides( const rca::AbstractCompatibilityBridge& compat,
+                                 const rca::ClassAnalysis& classes,
+                                 rca::VirtualFunctionAnalysis& vfunAnalysis,
+                                 DeferredOverrides& deferred
+                               )
+  {
+    bool progress = true;
+
+    while (progress && !deferred.empty())
+    {
+      DeferredOverrides remaining;
+
+      progress = false;
+
+      for (const DeferredOverride& cand : deferred)
+      {
+        if (overridesTransitively(vfunAnalysis, cand.drv, cand.bas))
+        {
+          recordOverride(compat, classes, vfunAnalysis, cand.drv, cand.bas, cand.witness);
+          progress = true;
+        }
+        else
+        {
+          remaining.push_back(cand);
+        }
+      }
+
+      deferred.swap(remaining);
+    }
+  }
+
+  using VirtualFunctionContainer     = rca::ClassData::VirtualFunctionContainer;
+  using SortedVirtualMemberFunctions = std::unordered_map<rca::ClassKeyType, VirtualFunctionContainer>;
+
+  /// per-class function lists maintained during the override computation.
+  struct VirtualFunctionTables
+  {
+    /// functions declared by a class, sorted by VFNameTypeOrder.
+    SortedVirtualMemberFunctions declared;
+
+    /// functions declared by a class plus the functions inherited along the
+    /// non-virtual inheritance chain that the class does not override, sorted
+    /// by VFNameTypeOrder (a vtable view). Only maintained when the bridge
+    /// enables inheritedMethodsImplementVirtualBaseMethods.
+    SortedVirtualMemberFunctions effective;
+  };
+
+  /// merge operation that builds the effective function list of a class from
+  /// its declared functions and the effective functions of its direct
+  /// non-virtual base. Declared functions take precedence; functions only
+  /// present in the base are collected separately as inherited.
+  struct MaterializeInheritedFunctions
+  {
+    void operator()(rca::FunctionKeyType declared, rca::FunctionKeyType /*overridden*/) const
+    {
+      effective.push_back(declared);
+    }
+
+    void operator()(rca::FunctionKeyType declared, unavailable_t) const
+    {
+      effective.push_back(declared);
+    }
+
+    void operator()(unavailable_t, rca::FunctionKeyType inheritedFn) const
+    {
+      effective.push_back(inheritedFn);
+      inherited.push_back(inheritedFn);
+    }
+
+    VirtualFunctionContainer& effective;
+    VirtualFunctionContainer& inherited;
+  };
+
+  std::vector<rca::ClassKeyType>
+  directNonVirtualBases(const rca::ClassAnalysis::value_type& entry)
+  {
+    std::vector<rca::ClassKeyType> res;
+
+    for (const rca::InheritanceDesc& desc : entry.second.ancestors())
+      if (desc.isDirect() && !desc.isVirtual())
+        res.push_back(desc.getClass());
+
+    return res;
+  }
+
+  /// records implied overrides for \p entry: functions inherited along the
+  /// non-virtual chain that implement functions of virtual bases (see
+  /// AbstractCompatibilityBridge::inheritedMethodsImplementVirtualBaseMethods).
+  /// \details
+  ///   1. effective(C) = declared(C) ∪ (effective(B) \ overridden by C), with
+  ///      B the direct non-virtual base; the functions only present in
+  ///      effective(B) are the inherited functions of C.
+  ///   2. the inherited functions are matched against the declared functions of
+  ///      every virtual base of C that is not already a base of B. Virtual
+  ///      bases known to B were handled when B (or one of its bases) was
+  ///      processed, so each implied override is recorded exactly once, at the
+  ///      class where the inherited function and the requirement first meet.
+  void computeImpliedOverriders( const rca::ClassAnalysis& classes,
+                                 rca::VirtualFunctionAnalysis& vfunAnalysis,
+                                 const rca::ClassAnalysis::value_type& entry,
+                                 VirtualFunctionTables& tables,
+                                 DeferredOverrides& deferred
+                               )
+  {
+    const rca::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
+    const VirtualFunctionContainer&        declared = tables.declared.at(entry.first);
+    VirtualFunctionContainer&              effective = tables.effective[entry.first];
+
+    ASSERT_require(effective.empty());
+
+    const std::vector<rca::ClassKeyType>    bases = directNonVirtualBases(entry);
+
+    if (bases.size() != 1)
+    {
+      if (bases.size() > 1)
+        msgWarn() << "class " << compat.nameOf(entry.first)
+                  << " has " << bases.size() << " direct non-virtual bases;"
+                  << " implied overrides are not computed for it."
+                  << std::endl;
+
+      effective = declared;
+      return;
+    }
+
+    const rca::ClassKeyType                 base = bases.front();
+    const VirtualFunctionContainer&        baseEffective = tables.effective.at(base);
+    VirtualFunctionContainer               inherited;
+
+    mergeOrderedSequences( declared.begin(), declared.end(),
+                           baseEffective.begin(), baseEffective.end(),
+                           MaterializeInheritedFunctions{effective, inherited},
+                           VFNameTypeOrder{compat}
+                         );
+
+    if (inherited.empty())
+      return;
+
+    // virtual bases already known to the direct base
+    std::unordered_set<rca::ClassKeyType>   knownToBase;
+
+    for (const rca::InheritanceDesc& desc : classes.at(base).ancestors())
+      knownToBase.insert(desc.getClass());
+
+    for (const rca::InheritanceDesc& parentDesc : entry.second.ancestors())
+    {
+      if (!parentDesc.isVirtual() || knownToBase.count(parentDesc.getClass()))
+        continue;
+
+      const VirtualFunctionContainer& parentDeclared = tables.declared.at(parentDesc.getClass());
+
+      mergeOrderedSequences( inherited.begin(), inherited.end(),
+                             parentDeclared.begin(), parentDeclared.end(),
+                             ComputeVirtualFunctionRelation{compat, classes, vfunAnalysis, deferred, entry.first /* witness */},
+                             VFNameTypeOrder{compat}
+                           );
+    }
+  }
 
   void computeOverriders( const rca::ClassAnalysis& classes,
                           rca::VirtualFunctionAnalysis& vfunAnalysis,
                           const rca::ClassAnalysis::value_type& entry,
                           bool /*normalizedSignature*/,
-                          SortedVirtualMemberFunctions& sortedVFunMap
+                          VirtualFunctionTables& tables
                         )
   {
-    using VirtualFunctionContainer    = rca::ClassData::VirtualFunctionContainer;
     using AbstractCompatibilityBridge = rca::AbstractCompatibilityBridge;
 
     // create a new entry
     AbstractCompatibilityBridge const& compat = classes.compatibilityBridge();
-    VirtualFunctionContainer&          vfunSorted = sortedVFunMap[entry.first];
+    VirtualFunctionContainer&          vfunSorted = tables.declared[entry.first];
 
     ASSERT_require(vfunSorted.empty());
 
@@ -619,18 +846,38 @@ namespace
                    }
                  );
 
-    for (const rca::InheritanceDesc& parentDesc : entry.second.ancestors())
-    {
-      using ComputeRelation = ComputeVirtualFunctionRelation;
+    // signature matches rejected by the bridge's direct rule; resolved transitively below
+    DeferredOverrides deferred;
 
-      VirtualFunctionContainer& parentVFunSorted = sortedVFunMap.at(parentDesc.getClass());
+    // declared overrides: functions declared by this class against functions
+    // declared by its ancestors; non-virtual ancestors first, then virtual ones.
+    auto declaredOverrides =
+        [&](bool virtualAncestors) -> void
+        {
+          for (const rca::InheritanceDesc& parentDesc : entry.second.ancestors())
+          {
+            if (parentDesc.isVirtual() != virtualAncestors)
+              continue;
 
-      mergeOrderedSequences( vfunSorted.begin(), vfunSorted.end(),
-                             parentVFunSorted.begin(), parentVFunSorted.end(),
-                             ComputeRelation{compat, classes, vfunAnalysis, entry.first, parentDesc.getClass()},
-                             VFNameTypeOrder{compat}
-                           );
-    }
+            const VirtualFunctionContainer& parentVFunSorted = tables.declared.at(parentDesc.getClass());
+
+            mergeOrderedSequences( vfunSorted.begin(), vfunSorted.end(),
+                                   parentVFunSorted.begin(), parentVFunSorted.end(),
+                                   ComputeVirtualFunctionRelation{compat, classes, vfunAnalysis, deferred},
+                                   VFNameTypeOrder{compat}
+                                 );
+          }
+        };
+
+    declaredOverrides(false /* non-virtual ancestors */);
+    declaredOverrides(true  /* virtual ancestors */);
+
+    // implied overrides (language dependent)
+    if (compat.inheritedMethodsImplementVirtualBaseMethods())
+      computeImpliedOverriders(classes, vfunAnalysis, entry, tables, deferred);
+
+    // transitive rule for pairs the bridge rejected directly
+    resolveDeferredOverrides(compat, classes, vfunAnalysis, deferred);
   }
 }
 
@@ -641,13 +888,13 @@ VirtualFunctionAnalysis
 analyzeVirtualFunctions(const ClassAnalysis& all, bool normalizedSignature)
 {
   VirtualFunctionAnalysis      res{all.compatibilityBridge()};
-  SortedVirtualMemberFunctions tmpSorted;
+  VirtualFunctionTables        tables;
 
   topDownTraversal( all,
-                    [&all, &res, &tmpSorted, &normalizedSignature]
+                    [&all, &res, &tables, &normalizedSignature]
                     (const ClassAnalysis::value_type& clrep) -> void
                     {
-                      computeOverriders(all, res, clrep, normalizedSignature, tmpSorted);
+                      computeOverriders(all, res, clrep, normalizedSignature, tables);
                     }
                   );
 

@@ -4,6 +4,7 @@
 #include <sageGeneric.h>
 
 #include <string>
+#include <unordered_set>
 
 #include <Rose/Common/Analysis/ClassHierarchyAnalysis.h>
 
@@ -233,6 +234,21 @@ int JvmCompatibility::compareFunctionsByType(FunctionKeyType lhs, FunctionKeyTyp
   // targets f:(I)Ljava/lang/String;, so it does not recurse.  JVM method
   // resolution distinguishes those full descriptors, even though this
   // source-level hierarchy analysis deliberately excludes the return type.
+  //
+  // TODO: Match on the full descriptor (name + parameters + return type), as
+  // the JVM does (JVMS 5.4.5), and treat bridge methods explicitly (see the
+  // TODO in extractVirtualFunctions).  The current mix is inconsistent:
+  //   - return types follow Java source semantics (excluded here, covariance
+  //     checked separately in haveSameOrCovariantReturn);
+  //   - parameter types follow bytecode semantics, so generic erasure is not
+  //     matched: compareTo(LA;)I never pairs with
+  //     Comparable.compareTo(Ljava/lang/Object;)I, only its bridge does;
+  //   - the covariant/generic override is dropped entirely when one of the
+  //     return classes (typically java/lang/Object or another JDK class) is
+  //     not in the memory pool, because haveSameOrCovariantReturn then
+  //     reports 'unrelated' and the common analysis discards the pair.
+  // With full-descriptor matching, the bridge pairs exactly with the base
+  // method, and the bridge's target gives the source-level override.
   if (exclReturnType)
   {
     // Retain only parameter types, including the closing delimiter.
@@ -307,6 +323,18 @@ JvmCompatibility::haveSameOrCovariantReturn(const ClassAnalysis& classes, Functi
   ClassKeyType basClass{0};
   ClassKeyType drvClass{0};
 
+  // TODO: Replace the substring matching below with an exact binary-name
+  // lookup (ideally through a name -> SgAsmJvmFileHeader map built once by the
+  // bridge).  Substring matching accepts any class whose name contains the
+  // target, e.g., "Foo" matches "a/b/FooBar" and "Foo$Inner", and the loop
+  // does not stop at the first hit, so the last match wins.  The linear scan
+  // over all classes per override pair is also quadratic in the number of
+  // classes.
+  //
+  // TODO: Handle array return types.  Descriptors starting with '[' are
+  // currently reported as unrelated, although Java array types are covariant
+  // (String[] <: Object[]) and every array type is a subtype of Object,
+  // Cloneable and java/io/Serializable.
   for (const auto& entry : classes) {
     std::string className = nameOf(entry.first);
     // Replace / with . for comparison or match directly
@@ -349,20 +377,37 @@ void extractVirtualFunctions(SgAsmJvmFileHeader* jvmFileHeader, ClassData& class
 
     // Check if method is virtual (non-static, non-private, non-final)
     std::uint16_t access = method->get_access_flags();
-    bool isStatic = (access & 0x0008) != 0;
+    bool isStatic  = (access & 0x0008 /*ACC_STATIC*/)  != 0;
+    bool isPrivate = (access & 0x0002 /*ACC_PRIVATE*/) != 0;
 
-    // TODO: Exclude ACC_PRIVATE methods from override analysis.  A private
-    // method is not inherited and cannot be overridden, but Java permits a
-    // subclass to declare an unrelated method with the same signature:
+    // Static methods are not dispatched virtually.  Private methods are not
+    // inherited and neither override nor can be overridden (JVMS 5.4.5); a
+    // subclass may declare an unrelated method with the same signature:
     //
     //   class Base { private Object f(int n) { return null; } }
     //   class Derived extends Base {
     //     Object f(int n) { return null; } // not an override
     //   }
     //
-    // Both class files contain f:(I)Ljava/lang/Object;, so including both
-    // methods lets the common hierarchy analysis falsely pair them.
-    if (isStatic) continue;
+    // Both class files contain f:(I)Ljava/lang/Object;, so keeping private
+    // methods would let the common hierarchy analysis falsely pair them.
+    // Excluding them also removes private synthetic lambda bodies
+    // (lambda$name$N) and private interface methods (Java 9+).  The remaining
+    // access rules of JVMS 5.4.5 (a package-private method is overridden only
+    // within its run-time package, directly or transitively) are applied
+    // pairwise in canOverride.
+    //
+    // TODO: ACC_FINAL (0x0010) methods cannot be overridden; this could be
+    // recorded so that clients know a method has no possible overriders.
+    //
+    // TODO: Exclude bridge methods (ACC_BRIDGE, 0x0040) and, more generally,
+    // ACC_SYNTHETIC (0x1000) methods from the virtual function list, or map a
+    // bridge to its target.  javac emits a bridge with the erased/base
+    // descriptor for covariant and generic overrides; together with the
+    // return-type-excluding comparison in compareFunctionsByType, the bridge
+    // and the real method compare equal and only one of them (arbitrarily,
+    // since std::sort is not stable) gets paired with the base method.
+    if (isStatic || isPrivate) continue;
 
     // Skip constructors and static initializers (they are not virtual)
     std::uint16_t nameIndex = method->get_name_index();
@@ -493,6 +538,65 @@ JvmCompatibility::languageSpecificProcessing() const
   return [](ClassAnalysis&) {};
 }
 
+bool
+JvmCompatibility::inheritedMethodsImplementVirtualBaseMethods() const
+{
+  return true;
+}
+
+bool
+JvmCompatibility::isInheritableImplementation(FunctionKeyType key) const
+{
+  if (!isValidKey(key)) return false;
+
+  sg::NotNull<SgAsmJvmMethod> method = keyToFunction(key);
+  std::uint16_t const         access = method->get_access_flags();
+  bool const                  isPublic   = (access & 0x0001 /*ACC_PUBLIC*/)   != 0;
+  bool const                  isAbstract = (access & 0x0400 /*ACC_ABSTRACT*/) != 0;
+
+  return isPublic && !isAbstract;
+}
+
+namespace
+{
+  // returns the package part of a binary class name (empty for the unnamed package)
+  std::string packageOf(const std::string& binaryClassName)
+  {
+    std::size_t const pos = binaryClassName.rfind('/');
+
+    return pos == std::string::npos ? std::string{} : binaryClassName.substr(0, pos);
+  }
+}
+
+bool
+JvmCompatibility::canOverride(FunctionKeyType drv, FunctionKeyType bas) const
+{
+  if (!isValidKey(drv) || !isValidKey(bas)) return false;
+
+  sg::NotNull<SgAsmJvmMethod> drvMethod = keyToFunction(drv);
+  sg::NotNull<SgAsmJvmMethod> basMethod = keyToFunction(bas);
+  std::uint16_t const         drvAccess = drvMethod->get_access_flags();
+  std::uint16_t const         basAccess = basMethod->get_access_flags();
+
+  // JVMS 5.4.5: neither the overriding nor the overridden method is private
+  if ((drvAccess & 0x0002 /*ACC_PRIVATE*/) || (basAccess & 0x0002 /*ACC_PRIVATE*/))
+    return false;
+
+  // a public or protected method can be overridden from any package
+  if (basAccess & (0x0001 /*ACC_PUBLIC*/ | 0x0004 /*ACC_PROTECTED*/))
+    return true;
+
+  // a package-private method is overridden only by a method declared in the
+  // same run-time package (rule (a)); rule (b), the transitive case through an
+  // intermediate overrider, is handled by the common analysis.
+  SgAsmJvmFileHeader*         drvClass = getFileHeaderFromMethod(drvMethod);
+  SgAsmJvmFileHeader*         basClass = getFileHeaderFromMethod(basMethod);
+
+  if (!drvClass || !basClass) return false;
+
+  return packageOf(nameOf(classToKey(drvClass))) == packageOf(nameOf(classToKey(basClass)));
+}
+
 namespace
 {
   // Find the interface in the memory pool
@@ -517,19 +621,41 @@ namespace
   };
 
 
-  SgAsmJvmFileHeader*
-  findAncestor(const JvmCompatibility& bridge, SgAsmJvmConstantPool& pool, std::uint16_t idx)
+  // returns the binary class name referenced by the CONSTANT_Class entry at \p idx
+  std::string
+  referencedClassName(SgAsmJvmConstantPool& pool, std::uint16_t idx)
   {
     sg::NotNull<SgAsmJvmConstantPoolEntry> entry = pool.get_entry(idx);
-    std::uint16_t const                    ancestorNameIndex = entry->get_name_index();
-    sg::NotNull<SgAsmJvmConstantPoolEntry> ancestorNameEntry = pool.get_entry(ancestorNameIndex);
-    std::string const                      ancestorName = to_string(ancestorNameEntry);
-    ClassAncestorVisitor                   ancestorVisitor(ancestorName, &bridge);
+    std::uint16_t const                    nameIndex = entry->get_name_index();
+    sg::NotNull<SgAsmJvmConstantPoolEntry> nameEntry = pool.get_entry(nameIndex);
+
+    return to_string(nameEntry);
+  }
+
+  // finds the class file with binary name \p name in the memory pool, or nullptr
+  SgAsmJvmFileHeader*
+  findClassByName(const JvmCompatibility& bridge, const std::string& name)
+  {
+    ClassAncestorVisitor ancestorVisitor(name, &bridge);
 
     SgAsmJvmFileHeader::traverseMemoryPoolNodes(ancestorVisitor);
     return ancestorVisitor.found;
   }
 
+  // warns once per missing ancestor name that an inheritance edge was dropped
+  void
+  warnUnresolvedAncestor(const JvmCompatibility& bridge, ClassKeyType clkey, const char* kind, const std::string& name)
+  {
+    static std::unordered_set<std::string> reported;
+
+    if (!reported.insert(name).second) return;
+
+    msgWarn() << "JVM class hierarchy: " << kind << " " << name
+              << " of " << bridge.nameOf(clkey) << " is not in the memory pool;"
+              << " the inheritance edge and the methods inherited from it are not represented."
+              << " (further occurrences of " << name << " are not reported)"
+              << std::endl;
+  }
 }
 
 // inheritanceEdges - calls the callback function for all direct base classes
@@ -541,29 +667,44 @@ void JvmCompatibility::inheritanceEdges(
 
   sg::NotNull<SgAsmJvmFileHeader>   jvmFileHeader = keyToClass(clkey);
   sg::NotNull<SgAsmJvmConstantPool> pool = jvmFileHeader->get_constant_pool();
+  bool const                        isInterface = (jvmFileHeader->get_access_flags() & 0x0200 /*ACC_INTERFACE*/) != 0;
 
   // Get superclass index
   std::uint16_t const               superClassIndex = jvmFileHeader->get_super_class();
 
-  if (superClassIndex != 0)
+  // JVMS 4.1 requires every interface to name java/lang/Object as its
+  // super_class, but that is a formality: an interface has no superclass
+  // subobject.  Emitting the edge would make the common analysis
+  // (integrateIndirectInheritance) copy Object once per implemented interface
+  // into every implementing class, i.e., several Object "subobjects" in C++
+  // terms, and duplicate override edges against Object's methods (toString,
+  // equals, hashCode, ...).  Object is reached exactly once through the
+  // superclass chain of every class, so interfaces get no superclass edge.
+  // This also leaves interfaces with an empty non-virtual inheritance chain,
+  // which the implied-overrider computation in the common analysis relies on.
+  if (superClassIndex != 0 && !isInterface)
   {
-    if (SgAsmJvmFileHeader* superClass = findAncestor(*this, *pool, superClassIndex))
-    {
-      ClassKeyType superKey = classToKey(superClass);
+    std::string const superName = referencedClassName(*pool, superClassIndex);
 
-      fn(clkey, superKey, false /*no virtual inheritance in Java*/);
-    }
+    if (SgAsmJvmFileHeader* superClass = findClassByName(*this, superName))
+      fn(clkey, classToKey(superClass), false /*no virtual inheritance in Java*/);
+    else
+      warnUnresolvedAncestor(*this, clkey, "superclass", superName);
   }
 
   // Get interfaces
   for (std::uint16_t interfaceIndex : jvmFileHeader->get_interfaces())
   {
-    if (SgAsmJvmFileHeader* interface = findAncestor(*this, *pool, interfaceIndex))
-    {
-      ClassKeyType interfaceKey = classToKey(interface);
+    std::string const interfaceName = referencedClassName(*pool, interfaceIndex);
 
-      // Interfaces in Java are similar to virtual inheritance
-      fn(clkey, interfaceKey, true/*virtual inheritance*/);
+    if (SgAsmJvmFileHeader* interface = findClassByName(*this, interfaceName))
+    {
+      // Interfaces in Java are modelled as abstract virtual base classes
+      fn(clkey, classToKey(interface), true /*virtual inheritance*/);
+    }
+    else
+    {
+      warnUnresolvedAncestor(*this, clkey, "interface", interfaceName);
     }
   }
 }
@@ -620,6 +761,12 @@ JvmCompatibility::typeOf(VariableKeyType var) const
       std::string className = descriptor.substr(1, endPos - 1);
 
       // Try to find the class in the memory pool
+      // TODO: Use an exact binary-name lookup instead of the bidirectional
+      // substring match below (see the TODO in haveSameOrCovariantReturn).
+      // The match here is even looser: candidateName containing targetName
+      // or targetName containing candidateName both count, so a field of type
+      // La/b/Foo; can resolve to Foo$Inner or FooBar, and a full memory-pool
+      // traversal is performed for every field.
       class ClassTypeVisitor : public ROSE_VisitTraversal
       {
         public:

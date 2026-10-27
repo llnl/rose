@@ -106,9 +106,58 @@ class JvmCompatibility final : public Rose::Common::Analysis::AbstractCompatibil
     /// \return callback for JVM-specific post-processing.
     /// \details
     ///    JVM currently does not need additional processing after the common
-    ///    class hierarchy analysis.
+    ///    class hierarchy analysis. The JVM-specific override rule for inherited
+    ///    methods is handled through inheritedMethodsImplementVirtualBaseMethods.
     Rose::Common::Analysis::LanguageSpecificFn
     languageSpecificProcessing() const override;
+
+
+    /// returns true: in Java a method inherited from a superclass implements an
+    ///   interface method of a subclass (JLS 8.4.8.1, JVMS 5.4.6).
+    /// \return true.
+    /// \details
+    ///    The common analysis pairs only methods declared by a class with
+    ///    methods of its ancestors, which is the C++ rule. Java adds the implied
+    ///    overrider:
+    ///    \code
+    ///      interface I { void m(); }
+    ///      class B { public void m() {} }
+    ///      class C extends B implements I {}   // concrete; C inherits B.m
+    ///
+    ///      I obj = new C();
+    ///      obj.m();                            // invokeinterface I.m -> B.m
+    ///    \endcode
+    ///    With this query returning true, analyzeVirtualFunctions records
+    ///    \c B.m as an implied overrider of \c I.m with witness \c C. The same
+    ///    rule covers an inherited superclass method beating an interface
+    ///    default method. Default method specificity among interfaces is
+    ///    resolved by the inheritance edges between the interfaces, as for C++
+    ///    abstract base classes.
+    bool inheritedMethodsImplementVirtualBaseMethods() const override;
+
+
+    /// returns whether an inherited method qualifies as implementation of an
+    ///   interface method.
+    /// \param fnkey JVM method key.
+    /// \return true if the method is public and not abstract.
+    /// \details
+    ///    JLS 8.4.8.4: an inherited abstract method does not implement an
+    ///    interface method. Interface methods are public, so the implementing
+    ///    method must be public as well.
+    bool isInheritableImplementation(Rose::Common::Analysis::FunctionKeyType fnkey) const override;
+
+
+    /// applies the access rules of JVMS 5.4.5 to a signature match.
+    /// \param drv method in (or inherited by) the derived class.
+    /// \param bas method in the ancestor class.
+    /// \return false if either method is private; true if \p bas is public or
+    ///         protected; otherwise true iff both methods are declared in the
+    ///         same package.
+    /// \details
+    ///    Run-time packages also depend on the defining class loader, which the
+    ///    analysis does not represent; a single loader is assumed. The transitive
+    ///    rule of JVMS 5.4.5 (b) is applied by the common analysis.
+    bool canOverride(Rose::Common::Analysis::FunctionKeyType drv, Rose::Common::Analysis::FunctionKeyType bas) const override;
 
 
     /// calls the callback function \p fn(derived, base, isvirtual)
