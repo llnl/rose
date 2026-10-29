@@ -1530,7 +1530,7 @@ namespace
     const SgScopeStatement* scope = scopeForFunctionMangling(n);
 
     if (!scope)
-      return simpleName(functionName(n), "fn2");
+      return join(simpleName(functionName(n), "fn2"), linkage);
 
     // Conversion operators are distinguished by their target type, which
     // ROSE represents as the function return type.  Ordinary function
@@ -1662,6 +1662,8 @@ mangleFilename(boost::string_view filename)
 
     auto replCh = [](char c) -> char
                   {
+                    // TODO: replace this lossy path normalization with a
+                    // reversible encoding or collision-resistant digest.
                     if ((c == '/') | (c == '\\') | (c == '.'))
                       c = '_';
 

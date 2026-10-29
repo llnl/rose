@@ -659,13 +659,13 @@ namespace
     pos += 2;
     const std::size_t year = (macroFile[pos] - '0') * 10 + (macroFile[pos + 1] - '0');
 
-    if (year == 98) return rca::ClassAnalysis::Cxx98;
-    if (year == 11) return rca::ClassAnalysis::Cxx11;
-    if (year == 14) return rca::ClassAnalysis::Cxx14;
-    if (year == 17) return rca::ClassAnalysis::Cxx17;
-    if (year == 20) return rca::ClassAnalysis::Cxx20;
-    if (year == 23) return rca::ClassAnalysis::Cxx23;
-    if (year == 26) return rca::ClassAnalysis::Cxx26;
+    if (year == 98) return rsa::CppHierarchyAnalysis::Cxx98;
+    if (year == 11) return rsa::CppHierarchyAnalysis::Cxx11;
+    if (year == 14) return rsa::CppHierarchyAnalysis::Cxx14;
+    if (year == 17) return rsa::CppHierarchyAnalysis::Cxx17;
+    if (year == 20) return rsa::CppHierarchyAnalysis::Cxx20;
+    if (year == 23) return rsa::CppHierarchyAnalysis::Cxx23;
+    if (year == 26) return rsa::CppHierarchyAnalysis::Cxx26;
     return 0;
   }
 
@@ -675,19 +675,19 @@ namespace
     {
       case SgFile::e_cxx98_standard:
       case SgFile::e_cxx03_standard:
-        return rca::ClassAnalysis::Cxx98;
+        return rsa::CppHierarchyAnalysis::Cxx98;
       case SgFile::e_cxx11_standard:
-        return rca::ClassAnalysis::Cxx11;
+        return rsa::CppHierarchyAnalysis::Cxx11;
       case SgFile::e_cxx14_standard:
-        return rca::ClassAnalysis::Cxx14;
+        return rsa::CppHierarchyAnalysis::Cxx14;
       case SgFile::e_cxx17_standard:
-        return rca::ClassAnalysis::Cxx17;
+        return rsa::CppHierarchyAnalysis::Cxx17;
       case SgFile::e_cxx20_standard:
-        return rca::ClassAnalysis::Cxx20;
+        return rsa::CppHierarchyAnalysis::Cxx20;
       case SgFile::e_cxx23_standard:
-        return rca::ClassAnalysis::Cxx23;
+        return rsa::CppHierarchyAnalysis::Cxx23;
       case SgFile::e_cxx26_standard:
-        return rca::ClassAnalysis::Cxx26;
+        return rsa::CppHierarchyAnalysis::Cxx26;
       case SgFile::e_default_standard:
       {
         const std::size_t pos = file.getFileName().find("rose_edg_required_compiler_macros_");
@@ -718,7 +718,7 @@ namespace
         throw std::runtime_error("Inconsistent C++ standards detected");
     }
 
-    return version == 0 ? rca::ClassAnalysis::Cxx98 : version;
+    return version == 0 ? rsa::CppHierarchyAnalysis::Cxx98 : version;
   }
 
   struct CollectSourceFilesFromMemoryPool : ROSE_VisitTraversal

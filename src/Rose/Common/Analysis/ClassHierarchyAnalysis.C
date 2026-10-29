@@ -670,7 +670,6 @@ void analyzeClasses(ClassAnalysis& classes, ASTRootType n)
   const rca::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
 
   classes.containsAllClasses(true);
-  classes.languageStandard(compat.languageStandard());
   compat.extractFromProject(classes, n);
   analyzeClassesCommon(classes);
 }
@@ -680,7 +679,6 @@ void analyzeClassesFromMemoryPool(ClassAnalysis& classes)
   const rca::AbstractCompatibilityBridge& compat = classes.compatibilityBridge();
 
   classes.containsAllClasses(true);
-  classes.languageStandard(compat.languageStandard());
   compat.extractFromMemoryPool(classes);
   analyzeClassesCommon(classes);
 }

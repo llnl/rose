@@ -19,27 +19,10 @@
 // CONST-CORRECTNESS STRATEGY
 // =============================================================================
 //
-// This implementation is fully const-correct, working with ROSE's well-designed
-// const-correct APIs without requiring any const_cast operations.
-//
-// APPROACH:
-// 1. Our public API accepts const pointers (const SgType*, const SgDeclarationStatement*)
-// 2. Internal functions also accept const pointers where possible
-// 3. NO const_cast is needed anywhere in the implementation
-//
-// ROSE API CONST-CORRECTNESS:
-// - isSg* type-checking functions: HAVE const overloads - no const_cast needed
-// - Getter functions (get_type(), get_scope(), get_name(), get_firstNondefiningDeclaration(), etc.):
-//   Are const methods returning non-const pointers/references - no const_cast needed
-// - When calling getters on const objects, bind returned references to const references
-//   (e.g., const SgTypeModifier& instead of SgTypeModifier&)
-//
 // SubstitutionTable: Stores const pointers (const SgType*, const SgScopeStatement*)
 // - The table never modifies the pointed-to objects
 // - No const_cast needed when adding or finding entries
 //
-// This approach provides complete const-safety throughout the implementation
-// while leveraging ROSE's const-correct design.
 // =============================================================================
 
 // =============================================================================
@@ -107,10 +90,17 @@ constexpr const char* const ABI_CTOR_COMPLETE       = "C1";
 constexpr const char* const ABI_DTOR_COMPLETE       = "D1";
 
 // Special encodings
-// TODO(itanium-review): none of the standard abbreviations are produced (St for ::std::, Sa
-//   allocator, Sb basic_string, Ss string, Si istream, So ostream, Sd iostream), so any
-//   signature mentioning a std:: entity differs from the compiler's.  No test yet.
-//   ABI:  Compression (#mangling-compression)
+// Standard substitutions are recognized structurally from the AST below.  They
+// are predefined ABI substitutions, not entries in ManglingContext's ordinary
+// substitution table.
+// ABI: Compression (#mangling-compression)
+constexpr const char* const ABI_STD_NAMESPACE       = "St";
+constexpr const char* const ABI_STD_ALLOCATOR       = "Sa";
+constexpr const char* const ABI_STD_BASIC_STRING    = "Sb";
+constexpr const char* const ABI_STD_STRING          = "Ss";
+constexpr const char* const ABI_STD_ISTREAM         = "Si";
+constexpr const char* const ABI_STD_OSTREAM         = "So";
+constexpr const char* const ABI_STD_IOSTREAM        = "Sd";
 constexpr const char* const ABI_ANONYMOUS_NAMESPACE = "12_GLOBAL__N_1";
 constexpr const char* const ABI_LITERAL_OPERATOR    = "li";
 
@@ -325,6 +315,7 @@ std::string mangleNestedName(ManglingContext& context, const SgScopeStatement& s
 std::string mangleFunctionParameters(ManglingContext& context, const SgFunctionDeclaration& funcDecl,
                                      bool arrayToPointerDecay,
                                      const SgFunctionDeclaration* templateInstantiation = nullptr);
+std::string standardClassSubstitution(const SgTemplateInstantiationDecl& classDecl);
 
 CompletedClassTemplateKey
 completedClassTemplateKey(const SgTemplateInstantiationDecl& classDecl)
@@ -476,6 +467,28 @@ isGlobalMainFunction(const SgDeclarationStatement* dcl)
     return globalMain ? func : nullptr;
 }
 
+/// Fortran function names are not governed by the Itanium C++ ABI.  Preserve
+/// the external spelling used by the established ExternalMangling API instead.
+std::string
+fortranFunctionName(const SgFunctionDeclaration& declaration)
+{
+    if (declaration.get_declarationModifier().isBind())
+    {
+        const std::string binding = declaration.get_binding_label();
+        if (!binding.empty())
+            return binding;
+    }
+
+    std::string name = declaration.get_name().getString();
+    std::transform( name.begin(), name.end(), name.begin(),
+                    [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); }
+                  );
+
+    // Match ExternalMangling's convention.  In particular, names containing
+    // an underscore still receive only one trailing underscore.
+    return name + "_";
+}
+
 /// Check if a scope is or contains an anonymous namespace
 /// Returns true if the scope hierarchy includes an anonymous namespace
 bool
@@ -531,12 +544,14 @@ std::string
 mangleRoseLocalIdentity(const SgInitializedName& name)
 {
     std::string ordinal;
+
     if (const SgFunctionDeclaration* owner = findEnclosingFunctionDeclaration(name))
     {
         if (SgFunctionParameterList* parameters = owner->get_parameterList())
         {
             const SgInitializedNamePtrList& names = parameters->get_args();
             auto found = std::find(names.begin(), names.end(), &name);
+
             if (found != names.end())
                 ordinal = "_param_" + std::to_string(std::distance(names.begin(), found));
         }
@@ -592,17 +607,18 @@ mangleRoseParameterIdentity(const SgInitializedName& name, const SgFunctionDecla
     sg::NotNull<const SgFunctionParameterList> parameters = function.get_parameterList();
     const SgInitializedNamePtrList& names = parameters->get_args();
     auto found = std::find(names.begin(), names.end(), &name);
+
     if (found == names.end())
         throw std::runtime_error("Initialized name is not a function parameter");
 
-    const std::size_t position = std::distance(names.begin(), found);
-    ManglingContext context;
+    const std::size_t  position = std::distance(names.begin(), found);
+    ManglingContext    context;
 
     // Both operations add substitution candidates.  Keep their order explicit:
     // C++ does not sequence the operands of operator+.
-    const std::string qualifiedName = mangleQualifiedName(context, function);
-    const std::string parameterEncoding = mangleFunctionParameters(context, function, true);
-    const std::string owner = qualifiedName + parameterEncoding;
+    const std::string  qualifiedName = mangleQualifiedName(context, function);
+    const std::string  parameterEncoding = mangleFunctionParameters(context, function, true);
+    const std::string  owner = qualifiedName + parameterEncoding;
     std::ostringstream oss;
 
     oss << ABI_PREFIX << ITANIUM_ROSE_EXT << "param_"
@@ -745,6 +761,26 @@ classSubstitutionKey(const SgClassDeclaration& classDecl)
     return &classDecl;
 }
 
+bool
+isStdNamespace(const SgNamespaceDefinitionStatement& ns)
+{
+    const SgNamespaceDeclarationStatement* declaration = ns.get_namespaceDeclaration();
+
+    return (  declaration
+           && declaration->get_name().getString() == "std"
+           && isSgGlobal(declaration->get_scope())
+           );
+}
+
+bool
+isDirectStdNamespaceScope(const SgScopeStatement& scope)
+{
+    if (const SgNamespaceDefinitionStatement* ns = isSgNamespaceDefinitionStatement(&scope))
+      return isStdNamespace(*ns);
+
+    return false;
+}
+
 // =============================================================================
 // Nested name mangling (with member-function qualifiers and local linkage support)
 // Format: N [CV/ref qualifiers] <scope1> <scope2> ... [L] <name> E
@@ -781,6 +817,14 @@ mangleNestedEncodedNameWithCallback( ManglingContext& context,
     // Unqualified name - if local linkage, we'll handle 'L' at the top level
     if (scopes.empty())
         return encodeName();
+
+    // The standard-namespace substitution is itself a <prefix>.  A direct
+    // member of ::std:: therefore uses St followed by its unqualified name,
+    // rather than a nested-name production (NSt...E).  This also supplies the
+    // canonical St11char_traitsIcE spelling used by Ss/Si/So/Sd matching.
+    if (scopes.size() == 1 && isDirectStdNamespaceScope(*scopes.front()) &&
+        memberQualifiers.empty() && !localLinkage)
+        return std::string(ABI_STD_NAMESPACE) + encodeName();
 
     // Nested name: N [CV/ref qualifiers] <prefix> [L] <unqualified-name> E
     std::ostringstream oss;
@@ -835,6 +879,49 @@ mangleNestedEncodedNameWithCallback( ManglingContext& context,
         }
 
         const SgScopeStatement* s = outerScopes[scopeIndex++];
+
+        // St is a predefined ABI substitution.  It must win even if this
+        // scope was recorded by an older path: predefined substitutions do
+        // not consume ordinary substitution-table positions.
+        if (const SgNamespaceDefinitionStatement* ns = isSgNamespaceDefinitionStatement(s))
+        {
+            if (isStdNamespace(*ns))
+            {
+                // A standard class substitution covers the ::std prefix as
+                // well as the class name.  In particular, a member of
+                // std::allocator<int> is N Sa Ii E <member> E, not
+                // N St 9allocator Ii E <member> E.  This path is distinct
+                // from TypeMangler::handle(SgClassType), which covers the
+                // same substitutions when the class is used as a type.
+                if (scopeIndex < outerScopes.size())
+                {
+                    if (const SgClassDefinition* nextClass = isSgClassDefinition(outerScopes[scopeIndex]))
+                    {
+                        if (const SgTemplateInstantiationDecl* nextTemplate = isSgTemplateInstantiationDecl(nextClass->get_declaration()))
+                        {
+                            std::string standard = standardClassSubstitution(*nextTemplate);
+
+                            if (!standard.empty())
+                            {
+                                oss << standard;
+
+                                if (standard == ABI_STD_ALLOCATOR || standard == ABI_STD_BASIC_STRING)
+                                {
+                                    oss << mangleTemplateArguments(context, nextTemplate->get_templateArguments());
+                                    context.substitutions.addCompletedClassTemplate(completedClassTemplateKey(*nextTemplate));
+                                }
+
+                                ++scopeIndex;
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                oss << ABI_STD_NAMESPACE;
+                continue;
+            }
+        }
 
         // Check if this scope is already in the substitution table
         // SubstitutionTable now stores const pointers
@@ -922,7 +1009,12 @@ mangleNestedEncodedName( ManglingContext& context,
                          bool localLinkage
                        )
 {
-    return mangleNestedEncodedNameWithCallback(context, scope, [&]() { return encodedName; }, memberQualifiers, localLinkage);
+    return mangleNestedEncodedNameWithCallback( context,
+                                                scope,
+                                                [&]() { return encodedName; },
+                                                memberQualifiers,
+                                                localLinkage
+                                              );
 }
 
 std::string
@@ -940,6 +1032,7 @@ std::string
 mangleMemberFunctionCvQualifiers(const SgMemberFunctionType& mft)
 {
     std::string result;
+
     if (mft.isVolatileFunc())
         result += ABI_VOLATILE_QUALIFIER;
 
@@ -952,21 +1045,21 @@ mangleMemberFunctionCvQualifiers(const SgMemberFunctionType& mft)
 std::string
 mangleMemberFunctionRefQualifier(const SgMemberFunctionType& mft)
 {
-    std::string result;
     if (mft.isLvalueReferenceFunc())
-        result += ABI_REFERENCE;
+        return ABI_REFERENCE;
 
     if (mft.isRvalueReferenceFunc())
-        result += ABI_RVALUE_REFERENCE;
+        return ABI_RVALUE_REFERENCE;
 
-    return result;
+    return {};
 }
 
 std::string
 mangleMemberFunctionQualifiers(const SgMemberFunctionType& mft)
 {
-    return mangleMemberFunctionCvQualifiers(mft) +
-           mangleMemberFunctionRefQualifier(mft);
+    return ( mangleMemberFunctionCvQualifiers(mft)
+           + mangleMemberFunctionRefQualifier(mft)
+           );
 }
 
 const SgTemplateArgumentPtrList*
@@ -1015,13 +1108,13 @@ hasCLinkage(const SgFunctionDeclaration& declaration)
     if (declaration.get_linkage() == "C")
         return true;
 
-    const SgFunctionDeclaration* first =
-        isSgFunctionDeclaration(declaration.get_firstNondefiningDeclaration());
+    const SgFunctionDeclaration* first = isSgFunctionDeclaration(declaration.get_firstNondefiningDeclaration());
+
     if (first && first->get_linkage() == "C")
         return true;
 
-    const SgFunctionDeclaration* defining =
-        isSgFunctionDeclaration(declaration.get_definingDeclaration());
+    const SgFunctionDeclaration* defining = isSgFunctionDeclaration(declaration.get_definingDeclaration());
+
     return defining && defining->get_linkage() == "C";
 }
 
@@ -1055,12 +1148,8 @@ mangleSpecialMemberName( ManglingContext& context,
 std::string
 mangleQualifiedName(ManglingContext& context, const SgFunctionDeclaration& decl, bool localLinkage)
 {
-    std::string name;
-    std::string specialName;
     const SgType* conversionTargetType = nullptr;
-
-    // ROSE getters are const methods returning non-const pointers
-    name = decl.get_name().getString();
+    std::string   name = decl.get_name().getString();
 
     if (decl.get_specialFunctionModifier().isConversion())
     {
@@ -1070,77 +1159,78 @@ mangleQualifiedName(ManglingContext& context, const SgFunctionDeclaration& decl,
         ASSERT_not_null(conversionTargetType);
     }
 
-    const SgFunctionParameterList* parameters = decl.get_parameterList();
-    const std::size_t explicitArity = parameters ? parameters->get_args().size() : 0;
-    const bool unaryOperator = isSgMemberFunctionDeclaration(&decl)
-                                 ? explicitArity == 0
-                                 : explicitArity == 1;
+    const SgMemberFunctionDeclaration* const   memberFunc = isSgMemberFunctionDeclaration(&decl);
+    sg::NotNull<const SgFunctionParameterList> parameters = decl.get_parameterList();
+    const std::size_t                          explicitArity = parameters->get_args().size();
+    const bool                                 unaryOperator = explicitArity == (memberFunc ? 0 : 1);
+    std::string                                specialName;
 
     // The four operators below have distinct unary and binary productions.
-    if (name == "operator+") specialName = unaryOperator ? "ps" : "pl";
-    else if (name == "operator-") specialName = unaryOperator ? "ng" : "mi";
-    else if (name == "operator*") specialName = unaryOperator ? "de" : "ml";
-    else if (name == "operator/") specialName = "dv";
-    else if (name == "operator%") specialName = "rm";
-    else if (name == "operator&") specialName = unaryOperator ? "ad" : "an";
-    else if (name == "operator|") specialName = "or";
-    else if (name == "operator^") specialName = "eo";
-    else if (name == "operator=") specialName = "aS";
-    else if (name == "operator+=") specialName = "pL";
-    else if (name == "operator-=") specialName = "mI";
-    else if (name == "operator*=") specialName = "mL";
-    else if (name == "operator/=") specialName = "dV";
-    else if (name == "operator%=") specialName = "rM";
-    else if (name == "operator&=") specialName = "aN";
-    else if (name == "operator|=") specialName = "oR";
-    else if (name == "operator^=") specialName = "eO";
-    else if (name == "operator<<") specialName = "ls";
-    else if (name == "operator>>") specialName = "rs";
-    else if (name == "operator<<=") specialName = "lS";
-    else if (name == "operator>>=") specialName = "rS";
-    else if (name == "operator==") specialName = "eq";
-    else if (name == "operator!=") specialName = "ne";
-    else if (name == "operator<") specialName = "lt";
-    else if (name == "operator>") specialName = "gt";
-    else if (name == "operator<=") specialName = "le";
-    else if (name == "operator>=") specialName = "ge";
-    else if (name == "operator<=>") specialName = "ss";
-    else if (name == "operator!") specialName = "nt";
-    else if (name == "operator&&") specialName = "aa";
-    else if (name == "operator||") specialName = "oo";
-    else if (name == "operator~") specialName = "co";
-    else if (name == "operator++") specialName = "pp";
-    else if (name == "operator--") specialName = "mm";
-    else if (name == "operator,") specialName = "cm";
-    else if (name == "operator->*") specialName = "pm";
-    else if (name == "operator->") specialName = "pt";
+    if (name == "operator+")              specialName = unaryOperator ? "ps" : "pl";
+    else if (name == "operator-")         specialName = unaryOperator ? "ng" : "mi";
+    else if (name == "operator*")         specialName = unaryOperator ? "de" : "ml";
+    else if (name == "operator&")         specialName = unaryOperator ? "ad" : "an";
+    else if (name == "operator/")         specialName = "dv";
+    else if (name == "operator%")         specialName = "rm";
+    else if (name == "operator|")         specialName = "or";
+    else if (name == "operator^")         specialName = "eo";
+    else if (name == "operator=")         specialName = "aS";
+    else if (name == "operator+=")        specialName = "pL";
+    else if (name == "operator-=")        specialName = "mI";
+    else if (name == "operator*=")        specialName = "mL";
+    else if (name == "operator/=")        specialName = "dV";
+    else if (name == "operator%=")        specialName = "rM";
+    else if (name == "operator&=")        specialName = "aN";
+    else if (name == "operator|=")        specialName = "oR";
+    else if (name == "operator^=")        specialName = "eO";
+    else if (name == "operator<<")        specialName = "ls";
+    else if (name == "operator>>")        specialName = "rs";
+    else if (name == "operator<<=")       specialName = "lS";
+    else if (name == "operator>>=")       specialName = "rS";
+    else if (name == "operator==")        specialName = "eq";
+    else if (name == "operator!=")        specialName = "ne";
+    else if (name == "operator<")         specialName = "lt";
+    else if (name == "operator>")         specialName = "gt";
+    else if (name == "operator<=")        specialName = "le";
+    else if (name == "operator>=")        specialName = "ge";
+    else if (name == "operator<=>")       specialName = "ss";
+    else if (name == "operator!")         specialName = "nt";
+    else if (name == "operator&&")        specialName = "aa";
+    else if (name == "operator||")        specialName = "oo";
+    else if (name == "operator~")         specialName = "co";
+    else if (name == "operator++")        specialName = "pp";
+    else if (name == "operator--")        specialName = "mm";
+    else if (name == "operator,")         specialName = "cm";
+    else if (name == "operator->*")       specialName = "pm";
+    else if (name == "operator->")        specialName = "pt";
     else if (name == "operator co_await") specialName = "aw";
-    else if (name == "operator()") specialName = "cl";
-    else if (name == "operator[]") specialName = "ix";
-    else if (name == "operator new") specialName = "nw";
-    else if (name == "operator new[]") specialName = "na";
-    else if (name == "operator delete") specialName = "dl";
+    else if (name == "operator()")        specialName = "cl";
+    else if (name == "operator[]")        specialName = "ix";
+    else if (name == "operator new")      specialName = "nw";
+    else if (name == "operator new[]")    specialName = "na";
+    else if (name == "operator delete")   specialName = "dl";
     else if (name == "operator delete[]") specialName = "da";
 
     // Check for user-defined literal operators (C++11)
     // Format: operator"" _suffix  (note: ROSE may include space)
     // Mangling: li<length><suffix>
-    if (name.find("operator") == 0 && name.find("\"\"") != std::string::npos)
+    if (specialName.empty() && name.find("operator") == 0)
     {
-        // Find the position after the quotes
+        // Find the quotes;
         size_t const quotePos = name.find("\"\"");
         if (quotePos != std::string::npos)
         {
             // Extract everything after the quotes
             std::string suffix = name.substr(quotePos + 2);
             // Skip any whitespace
-            size_t firstNonSpace = suffix.find_first_not_of(" \t");
+            size_t const firstNonSpace = suffix.find_first_not_of(" \t");
             if (firstNonSpace != std::string::npos)
             {
                 suffix = suffix.substr(firstNonSpace);
                 // Encode as: li<length><suffix>
                 std::ostringstream oss;
                 oss << ABI_LITERAL_OPERATOR << suffix.length() << suffix;
+
                 specialName = oss.str();
             }
         }
@@ -1232,8 +1322,7 @@ stripTopLevelFunctionParameterQualifiers(sg::NotNull<const SgType> type)
 {
     // Strip only modifiers that qualify the parameter type itself.
     // ROSE isSg* have const overloads
-    sg::NotNull<const SgType> currentType = type;
-    while (const SgModifierType* modType = isSgModifierType(currentType))
+    while (const SgModifierType* modType = isSgModifierType(type))
     {
         const SgTypeModifier& modifier = modType->get_typeModifier();
         const bool skipTopLevelQualifiers = (  modifier.get_constVolatileModifier().isConst()
@@ -1245,10 +1334,10 @@ stripTopLevelFunctionParameterQualifiers(sg::NotNull<const SgType> type)
         if (!skipTopLevelQualifiers)
           break;
 
-        currentType = modType->get_base_type();
+        type = modType->get_base_type();
     }
 
-    return currentType;
+    return type;
 }
 
 // =============================================================================
@@ -1259,6 +1348,7 @@ std::string
 mangleFunctionParameterType(ManglingContext& context, sg::NotNull<const SgType> parameterType)
 {
     parameterType = stripTopLevelFunctionParameterQualifiers(getCanonicalType(parameterType));
+
     // Parameter types undergo exactly one adjustment: an array or function
     // parameter decays to a pointer, but constructors below that pointer keep
     // their own qualifiers and bounds.
@@ -1392,7 +1482,8 @@ mangleTemplateFunctionSignature(ManglingContext& context, const SgFunctionDeclar
 // Constant expression evaluation for array dimensions
 // =============================================================================
 
-std::string extractConstantValue(const SgExpression* expr);
+std::string
+extractConstantValue(const SgExpression* expr);
 
 struct ConstantValueExtractor : sg::DispatchHandler<std::string>
 {
@@ -1607,6 +1698,54 @@ mangleTemplateArguments(ManglingContext& context, const SgTemplateArgumentPtrLis
     return oss.str();
 }
 
+// Return an ABI standard substitution for a direct member of ::std::, or an
+// empty string when no standard substitution applies.  The argument probe
+// deliberately uses an isolated context so deciding whether a
+// complete standard specialization matches cannot perturb the substitutions
+// for the enclosing encoding.
+std::string
+standardClassSubstitution(const SgTemplateInstantiationDecl& classDecl)
+{
+    if (!isDirectStdNamespaceScope(*classDecl.get_scope()))
+        return {};
+
+    const std::string name = classDecl.get_templateName().getString();
+
+    if (name == "allocator")
+        return ABI_STD_ALLOCATOR;
+
+    bool const unabbrevClass = (  name != "basic_string"
+                               && name != "basic_istream"
+                               && name != "basic_ostream"
+                               && name != "basic_iostream"
+                               );
+
+    if (unabbrevClass)
+        return {};
+
+    ManglingContext   probeContext;
+    const std::string arguments = mangleTemplateArguments(probeContext, classDecl.get_templateArguments());
+
+    if (name == "basic_string")
+    {
+        if (arguments == "IcSt11char_traitsIcESaIcEE")
+            return ABI_STD_STRING;
+
+        return ABI_STD_BASIC_STRING;
+    }
+
+    if (arguments != "IcSt11char_traitsIcEE")
+        return {};
+
+    if (name == "basic_istream")
+        return ABI_STD_ISTREAM;
+
+    if (name == "basic_ostream")
+        return ABI_STD_OSTREAM;
+
+    return ABI_STD_IOSTREAM;
+}
+
 // Helper struct for dispatching type mangling using ROSE sg::dispatch
 struct TypeMangler : sg::DispatchHandler<std::string>
 {
@@ -1673,15 +1812,18 @@ struct TypeMangler : sg::DispatchHandler<std::string>
     // Pointer to member types
     void handle(const SgPointerMemberType& pmType)
     {
-        SgType* classType = pmType.get_class_type();
-        SgType* memberType = pmType.get_base_type();
+        sg::NotNull<const SgType> classType  = pmType.get_class_type();
+        sg::NotNull<const SgType> memberType = pmType.get_base_type();
+        std::ostringstream        oss;
 
-        std::ostringstream oss;
         oss << ABI_MEMBER_POINTER;
         oss << mangleType(context, classType, true, false);
-        if (const SgMemberFunctionType* memberFunction = isSgMemberFunctionType(memberType))
-            oss << mangleMemberFunctionCvQualifiers(*memberFunction);
+
+        if (const SgMemberFunctionType* memberFunctionTy = isSgMemberFunctionType(memberType))
+            oss << mangleMemberFunctionCvQualifiers(*memberFunctionTy);
+
         oss << mangleType(context, memberType, true, false);
+
         res = oss.str();
         context.substitutions.add(&pmType);
     }
@@ -1838,14 +1980,47 @@ struct TypeMangler : sg::DispatchHandler<std::string>
     // Class/struct/union types
     void handle(const SgClassType& classType)
     {
-        sg::NotNull<const SgClassDeclaration> classDecl = isSgClassDeclaration(classType.get_declaration());
-        const bool isTemplateInstantiation = isSgTemplateInstantiationDecl(classDecl) != nullptr;
-        const SgNode* const classKey = classSubstitutionKey(*classDecl);
-        int substIndex = -1;
+        sg::NotNull<const SgClassDeclaration>    classDecl  = isSgClassDeclaration(classType.get_declaration());
+        const SgTemplateInstantiationDecl* const tmplClass  = isSgTemplateInstantiationDecl(classDecl);
+        const SgNode* const                      classKey   = classSubstitutionKey(*classDecl);
 
-        if (const SgTemplateInstantiationDecl* tmplClass = isSgTemplateInstantiationDecl(classDecl))
+        if (tmplClass)
         {
-            substIndex = context.substitutions.findCompletedClassTemplate(completedClassTemplateKey(*tmplClass));
+            // The standard substitutions encode either a complete type
+            // (Ss/Si/So/Sd) or a template prefix (Sa/Sb).  They must be
+            // considered before ordinary name emission.  Sa/Sb template-ids
+            // are nevertheless ordinary completed-type candidates after
+            // their arguments have been emitted, as required by the ABI.
+            std::string standard = standardClassSubstitution(*tmplClass);
+            if (!standard.empty())
+            {
+                bool const stdAbbrev = (  standard == ABI_STD_ALLOCATOR
+                                       || standard == ABI_STD_BASIC_STRING
+                                       );
+
+                if (stdAbbrev)
+                {
+                    const CompletedClassTemplateKey completedKey = completedClassTemplateKey(*tmplClass);
+                    const int abbrevIndex = context.substitutions.findCompletedClassTemplate(completedKey);
+
+                    if (abbrevIndex >= 0)
+                    {
+                        res = context.substitutions.encode(abbrevIndex);
+                        return;
+                    }
+
+                    res = standard + mangleTemplateArguments(context, tmplClass->get_templateArguments());
+                    context.substitutions.addCompletedClassTemplate(completedKey);
+                }
+                else
+                {
+                    res = std::move(standard);
+                }
+
+                return;
+            }
+
+            const int substIndex = context.substitutions.findCompletedClassTemplate(completedClassTemplateKey(*tmplClass));
             if (substIndex >= 0)
             {
                 res = context.substitutions.encode(substIndex);
@@ -1853,8 +2028,8 @@ struct TypeMangler : sg::DispatchHandler<std::string>
             }
         }
 
-        substIndex = context.substitutions.find(classKey);
-        if (substIndex >= 0 && !isTemplateInstantiation)
+        const int substIndex = context.substitutions.find(classKey);
+        if (substIndex >= 0 && (tmplClass == nullptr))
         {
             res = context.substitutions.encode(substIndex);
             return;
@@ -1868,7 +2043,7 @@ struct TypeMangler : sg::DispatchHandler<std::string>
         auto templInstanceFn =
             [&]()
             {
-                if (const SgTemplateInstantiationDecl* tmplClass = isSgTemplateInstantiationDecl(classDecl))
+                if (tmplClass)
                 {
                     const CompletedClassTemplateKey completedKey = completedClassTemplateKey(*tmplClass);
                     const std::string templateName = tmplClass->get_templateName().getString();
@@ -1889,6 +2064,7 @@ struct TypeMangler : sg::DispatchHandler<std::string>
 
                 const std::string result = mangleClassUnqualifiedName(context, *classDecl);
                 context.substitutions.add(classKey);
+
                 return result;
             };
 
@@ -1977,8 +2153,8 @@ mangleDeclaration(const SgDeclarationStatement& n, bool withUniqueMain)
     // Get the first non-defining declaration (canonical declaration)
     // ROSE getters are const methods returning non-const pointers
     const SgDeclarationStatement* decl = &n;
-    const bool isTemplateInstantiationDecl = (  isSgTemplateInstantiationFunctionDecl(&n)
-                                             || isSgTemplateInstantiationMemberFunctionDecl(&n)
+    const bool isTemplateInstantiationDecl = (  isSgTemplateInstantiationFunctionDecl(decl)
+                                             || isSgTemplateInstantiationMemberFunctionDecl(decl)
                                              );
 
     if (!isTemplateInstantiationDecl)
@@ -2000,20 +2176,35 @@ mangleDeclaration(const SgDeclarationStatement& n, bool withUniqueMain)
         return result;
     }
 
+    // The Itanium ABI applies to C++, not Fortran.  Return the Fortran
+    // linker spelling so this API remains compatible with ExternalMangling.
+    if (SageInterface::is_Fortran_language())
+    {
+        if (const SgFunctionDeclaration* funcDecl = isSgFunctionDeclaration(decl))
+            return fortranFunctionName(*funcDecl);
+    }
+
     // Condition 1: Check for C language source file
     if (SageInterface::is_C_language())
     {
         // TODO(itanium-review): is_C_language() is a project-global query, so a project mixing C and
         //   C++ sources mangles C++ functions as C (or the reverse).  Decide per declaration/file.
-        //   Also: static C functions return the bare name, so two translation units with
-        //   "static int f(void)" collide, unlike the C++ path which appends the per-file suffix.
-        //   Test: none for the mixed-project case; ItaniumMangling_c_simple covers plain C.
         // C language - no mangling
         // PRIORITY: LOW
         if (const SgFunctionDeclaration* funcDecl = isSgFunctionDeclaration(decl))
         {
             // ROSE getters are const methods returning non-const pointers
             result = funcDecl->get_name().getString();
+
+            // C has no ABI mangling, but a file-scope static function has
+            // internal linkage and therefore needs a ROSE-local identity
+            // when multiple C translation units are analyzed together.
+            if (isStaticFunction(*funcDecl))
+            {
+                sg::NotNull<const SgFunctionDeclaration> origDecl = isSgFunctionDeclaration(&n);
+                result += mangleInternalLinkage(origDecl, true);
+            }
+
             return result;
         }
     }
@@ -2025,7 +2216,8 @@ mangleDeclaration(const SgDeclarationStatement& n, bool withUniqueMain)
     //   mangleRoseExternalDeclarationIdentity).  The reference driver skips them today.
     //   ABI:  Names (#mangle.name)
     // PRIORITY: LOW
-    if (const SgFunctionDeclaration* funcDecl = isSgFunctionDeclaration(decl)) {
+    if (const SgFunctionDeclaration* funcDecl = isSgFunctionDeclaration(decl))
+    {
         // Condition 2: Check for C linkage (extern "C").  Linkage may live
         // on a redeclaration rather than the declaration selected above.
         sg::NotNull<const SgFunctionDeclaration> origDecl = isSgFunctionDeclaration(&n);

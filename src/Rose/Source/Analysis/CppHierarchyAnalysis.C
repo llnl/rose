@@ -424,7 +424,7 @@ namespace
     if (hasSpecialFunction(funcs, isCopyCtor()))
       return funcs;
 
-    if (all.languageStandard() >= rca::ClassAnalysis::Cxx11)
+    if (all.languageStandard() >= CppHierarchyAnalysis::Cxx11)
     {
       const bool hasUserDefinedMoveFn = hasSpecialFunction(funcs, isMoveCtor(false))
                                      || hasSpecialFunction(funcs, isMoveAssign(false));
@@ -460,7 +460,7 @@ namespace
                          const rca::ClassAnalysis::value_type& rep,
                          SpecialMemberFunctionContainer funcs)
   {
-    if (all.languageStandard() < rca::ClassAnalysis::Cxx11)
+    if (all.languageStandard() < CppHierarchyAnalysis::Cxx11)
       return funcs;
 
     if (hasSpecialFunction(funcs, isMoveCtor()))
@@ -495,7 +495,7 @@ namespace
     if (hasSpecialFunction(funcs, isCopyAssign()))
       return funcs;
 
-    if (all.languageStandard() >= rca::ClassAnalysis::Cxx11)
+    if (all.languageStandard() >= CppHierarchyAnalysis::Cxx11)
     {
       const bool hasUserDefinedMoveFn = hasSpecialFunction(funcs, isMoveCtor(false))
                                      || hasSpecialFunction(funcs, isMoveAssign(false));
@@ -531,7 +531,7 @@ namespace
                            const rca::ClassAnalysis::value_type& rep,
                            SpecialMemberFunctionContainer funcs)
   {
-    if (all.languageStandard() < rca::ClassAnalysis::Cxx11)
+    if (all.languageStandard() < CppHierarchyAnalysis::Cxx11)
       return funcs;
 
     if (hasSpecialFunction(funcs, isMoveAssign()))
@@ -691,6 +691,7 @@ analyzeCppClasses(const SgProject* prj)
   CppHierarchyAnalysis classes;
 
   rca::analyzeClasses(classes, rootToKey(prj));
+  classes.languageStandard(classes.compatibilityBridge().languageStandard());
   analyzeSpecialMemberFunctions(classes);
   return classes;
 }
@@ -701,6 +702,7 @@ analyzeCppClassesFromMemoryPool()
   CppHierarchyAnalysis classes;
 
   rca::analyzeClassesFromMemoryPool(classes);
+  classes.languageStandard(classes.compatibilityBridge().languageStandard());
   analyzeSpecialMemberFunctions(classes);
   return classes;
 }

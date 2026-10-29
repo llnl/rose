@@ -379,8 +379,8 @@ class ClassAnalysis : ClassAnalysisBase
     /// \param fullTranslUnit true if the analysis covers the full translation unit.
     /// \param languageVersion language standard identifier used for language-specific rules.
     explicit
-    ClassAnalysis(bool fullTranslUnit, std::uint32_t languageVersion = Cxx98)
-    : base(), completeTranslationUnit(fullTranslUnit), langVersion(languageVersion)
+    ClassAnalysis(bool fullTranslUnit)
+    : base(), completeTranslationUnit(fullTranslUnit)
     {}
 
     /// Constructs an empty analysis that does not claim complete-program coverage.
@@ -461,35 +461,6 @@ class ClassAnalysis : ClassAnalysisBase
 
     /// \}
 
-    /// returns the version identifier of the language standard.
-    /// \return language standard identifier associated with this analysis.
-    std::uint32_t languageStandard() const { return langVersion; }
-
-    /// Sets the version identifier of the language standard.
-    /// \param v language standard identifier to record.
-    void languageStandard(std::uint32_t v) { langVersion = v; }
-
-    /// C++98 language standard identifier.
-    static constexpr std::uint32_t Cxx98 = 199711L;
-
-    /// C++11 language standard identifier.
-    static constexpr std::uint32_t Cxx11 = 201103L;
-
-    /// C++14 language standard identifier.
-    static constexpr std::uint32_t Cxx14 = 201402L;
-
-    /// C++17 language standard identifier.
-    static constexpr std::uint32_t Cxx17 = 201703L;
-
-    /// C++20 language standard identifier.
-    static constexpr std::uint32_t Cxx20 = 202002L;
-
-    /// C++23 language standard identifier.
-    static constexpr std::uint32_t Cxx23 = 202302L;
-
-    /// Draft C++26 language standard identifier.
-    static constexpr std::uint32_t Cxx26 = 202600L;
-
     /// returns a ClassAnalysisInfo object that can be used for writing information
     ///   to a stream.
     /// \begincode
@@ -507,8 +478,7 @@ class ClassAnalysis : ClassAnalysisBase
     virtual const AbstractCompatibilityBridge& compatibilityBridge() const = 0;
 
   private:
-    bool          completeTranslationUnit = false;
-    std::uint32_t langVersion = Cxx98;
+    bool completeTranslationUnit = false;
 };
 
 

@@ -151,9 +151,41 @@ class CppHierarchyAnalysis final : public Rose::Common::Analysis::ClassAnalysis
     const SpecialMemberFunctionContainer&
     specialMemberFunctions(Rose::Common::Analysis::ClassKeyType clazz) const;
 
+    /// returns the version identifier of the language standard.
+    /// \return language standard identifier associated with this analysis.
+    std::uint32_t languageStandard() const { return langVersion; }
+
+    /// Sets the version identifier of the language standard.
+    /// \param v language standard identifier to record.
+    void languageStandard(std::uint32_t v) { langVersion = v; }
+
+    /// C++98 language standard identifier.
+    static constexpr std::uint32_t Cxx98 = 199711L;
+
+    /// C++11 language standard identifier.
+    static constexpr std::uint32_t Cxx11 = 201103L;
+
+    /// C++14 language standard identifier.
+    static constexpr std::uint32_t Cxx14 = 201402L;
+
+    /// C++17 language standard identifier.
+    static constexpr std::uint32_t Cxx17 = 201703L;
+
+    /// C++20 language standard identifier.
+    static constexpr std::uint32_t Cxx20 = 202002L;
+
+    /// C++23 language standard identifier.
+    static constexpr std::uint32_t Cxx23 = 202302L;
+
+    /// Draft C++26 language standard identifier.
+    static constexpr std::uint32_t Cxx26 = 202600L;
+
+
   private:
     static CppCompatibility compat;
+
     SpecialMemberFunctionMap allSpecialMemberFunctions;
+    std::uint32_t            langVersion = Cxx98;
 };
 
 /// Builds a C++ class hierarchy analysis by traversing the AST rooted at \p root.
