@@ -1,0 +1,439 @@
+/******************************************************************************
+*                                                             \  ___  /       *
+*                                                               /   \         *
+* Edison Design Group C++/C Front End                        - | \^/ | -      *
+*                                                               \   /         *
+* Proprietary information of Edison Design Group Inc.         /  | |  \       *
+* Copyright 1999-2013 Edison Design Group Inc.                   [_]          *
+*                                                                             *
+******************************************************************************/
+/*
+
+defines.h -- Defines configuration parameters for a given version of the
+             front end.
+
+This is the version for ROSE Compiler. It is meant to be used by Linux, MacOS, and Windows.
+*/
+
+#include <stdint.h>
+#include <limits.h>
+#include "rose_config.h"
+
+#ifndef DEFINES_ROSE_H
+#define DEFINES_ROSE_H 1
+
+#if defined(DEMO_VERSION)
+  #define COMPILE_MULTIPLE_TRANSLATION_UNITS 1
+  #define COMPILE_MULTIPLE_SOURCE_FILES 0
+  #define DEBUG 0
+  #define EMBEDDED_C_ALLOWED 1
+  #define INCLUDE_EDG_TEST_NAMED_ADDRESS_SPACES 1
+  #define INCLUDE_EDG_TEST_NAMED_REGISTERS 1
+#endif
+
+#define COMPILE_MULTIPLE_SOURCE_FILES 0
+#define BACK_END_IS_C_GEN_BE  0
+#define BACK_END_IS_CP_GEN_BE 1
+
+#define TEMPORARILY_EXTEND_USE_OF_SSI_CP_GEN_BE 1
+
+#define NO_VLA_DIMENSION_TEMPORARIES_IN_FUNCTION_PROTOTYPES 0
+#define DEFAULT_VLA_ENABLED 1
+
+#define EXTRA_SOURCE_POSITIONS_IN_IL 1
+
+#ifndef STANDALONE_IL_DISPLAY
+  #define STANDALONE_IL_DISPLAY 0
+  #define STANDALONE_C_GEN_BE 0
+  #define STANDALONE_CP_GEN_BE 0
+  #define BACK_END_SHOULD_BE_CALLED 1
+  #define STANDALONE_UTILITY_PROGRAM 0
+#endif
+
+#define RECORD_MACRO_INVOCATIONS 1
+#define MACRO_INVOCATION_TREE_IN_IL 1
+
+#define CLASS_TEMPLATE_INSTANTIATIONS_IN_SOURCE_SEQUENCE_LISTS 1
+#define NONCLASS_TEMPLATE_INSTANTIATIONS_IN_SOURCE_SEQUENCE_LISTS 1
+
+#define PROTOTYPE_INSTANTIATIONS_IN_IL 1
+#define INSTANTIATE_TEMPLATES_EVERYWHERE_USED 1
+#define AUTOMATIC_TEMPLATE_INSTANTIATION 1
+#define PRAGMA_DEFINE_TYPE_INFO_IS_REQUIRED 0
+#define DEFAULT_REMOVE_UNNEEDED_ENTITIES 0
+#define RECORD_NAME_IN_PARAM_TYPE_ENTRY 1
+#define DO_IL_LOWERING 0
+#define GENERATE_SOURCE_SEQUENCE_LISTS 1
+#define DEFAULT_INSTANTIATIONS_PERMITTED_IN_CLASS_SRC_SEQ_LIST 1
+#define FRIEND_AND_MEMBER_DEFINITIONS_MAY_BE_MOVED_OUT_OF_CLASS 0
+#define INCLUDE_UNRECOGNIZED_PRAGMAS_IN_IL 1
+#define RECORD_TEMPLATE_STRINGS 1
+#define RECORD_MACROS_IN_IL 1
+#define EDG_AUXILIARY_INFO_DIR_NAME "."
+#define REPRESENT_EMPTY_STATEMENTS_IN_IL 1
+#define RECORD_FORM_OF_NAME_REFERENCE 1
+#define DOING_SOURCE_ANALYSIS 1
+#define DUMP_CONFIG_ENABLED 1
+#define MAX_PENDING_INSTANTIATIONS (64 * 1000)
+#define MAX_TOTAL_PENDING_INSTANTIATIONS (256 * 1000)
+#define MAX_UNUSED_ALL_MODE_INSTANTIATIONS (200 * 1000)
+#define DEFAULT_MAX_CONSTEXPR_CALL_DEPTH (1000 * 100)
+#define DEFAULT_MAX_CONSTEXPR_CALL_COUNT (50000 * 100)
+
+#if defined(ROSE_USE_MICROSOFT_EXTENSIONS) || defined(_MSC_VER)
+  #define MICROSOFT_EXTENSIONS_ALLOWED 1 
+  #define GNU_EXTENSIONS_ALLOWED 0
+  #define GNU_INIT_PRIORITY_ATTRIBUTE_ALLOWED 0
+  #define BUILTIN_FUNCTIONS_ENABLED 0
+#else
+  #define GNU_EXTENSIONS_ALLOWED 1
+#endif
+
+#if MICROSOFT_EXTENSIONS_ALLOWED && GNU_EXTENSIONS_ALLOWED
+  #error "EDG cannot support both (MICROSOFT_EXTENSIONS_ALLOWED == TRUE) && (GNU_EXTENSIONS_ALLOWED == TRUE) at the same time!"
+#endif
+
+#define DEFAULT_EXCEPTIONS_ENABLED 1
+#define DEFAULT_DEPENDENT_NAME_PROCESSING 1
+#define UPC_EXTENSIONS_ALLOWED 1
+#define DEFAULT_C99_MODE 1
+#define BUILTIN_FUNCTIONS_ENABLED FALSE
+
+#if GNU_EXTENSIONS_ALLOWED
+  #define ACCEPT_UNRECOGNIZED_GNU_ASM_OPERANDS 1
+  #define GNU_NAKED_ATTRIBUTE_ALLOWED 1
+  #ifndef GNU_INIT_PRIORITY_ATTRIBUTE_ALLOWED
+    #define GNU_INIT_PRIORITY_ATTRIBUTE_ALLOWED 1
+  #endif
+  #define GNU_VISIBILITY_ATTRIBUTE_ALLOWED 1
+  #ifndef BUILTIN_FUNCTIONS_ENABLED
+    #if BUILTIN_FUNCTIONS_ENABLED
+      #define BUILTIN_FUNCTIONS_ENABLED 1
+    #else
+      #define BUILTIN_FUNCTIONS_ENABLED 0
+    #endif
+  #endif
+  #define ASM_FUNCTION_ALLOWED 1
+  #if ASM_FUNCTION_ALLOWED
+    #define INCLUDE_COMMENTS_IN_ASM_FUNC_BODY 1
+  #endif
+  #ifndef RECORD_RAW_ASM_OPERAND_DESCRIPTIONS
+    #define RECORD_RAW_ASM_OPERAND_DESCRIPTIONS 1
+  #endif
+  #define GNU_VECTOR_TYPES_ALLOWED 1
+#endif
+
+#define END_OF_LINE_COMMENTS_ALLOWED_IN_C_MODE 1
+
+#if __APPLE__
+  #undef EMBEDDED_C_ALLOWED
+  #undef DEFAULT_EMBEDDED_C_ENABLED
+#else  /*__APPLE__*/
+  #define EMBEDDED_C_ALLOWED 1
+  #define DEFAULT_EMBEDDED_C_ENABLED 0
+#endif /*__APPLE__*/
+
+#define DEFINE_PORTABLE_FEATURE_TEST_MACROS TRUE
+
+#define DEFINE_FEATURE_TEST_MACRO_OPERATORS_IN_ALL_MODES TRUE
+
+#define USER_CONTROL_OF_STRUCT_PACKING 1
+#define DEFAULT_ALLOW_ANACHRONISMS 1
+#define C_ANACHRONISMS_ALLOWED 1
+#define DEFAULT_VARIADIC_MACROS_ALLOWED 1
+#define GCC_BUILTIN_VARARGS_IN_GENERATED_CODE 1
+
+#if defined(ROSE_USE_MICROSOFT_EXTENSIONS)
+  #define MICROSOFT_MODE_TYPE_INFO_IN_NAMESPACE_STD 1
+  #define TARG_MICROSOFT_BIT_FIELD_ALLOCATION 1
+  #define DEFAULT_MICROSOFT_VERSION 1600
+#endif
+
+#define PRESERVE_EFFECTLESS_EXPLICIT_CASTS_IN_IL 1
+#define PRESERVE_TOP_LEVEL_CASTS_TO_VOID_IN_IL 1
+#define UNARY_PLUS_IN_IL 1
+#define FAVOR_CONSTANT_RESULT_FOR_NONSTATIC_INIT 0
+#define TARG_MAXIMUM_PACK_ALIGNMENT 16384
+#define TYPE_FOR_TARG_ALIGNMENT uint16_t
+
+#define DECL_MODIFIERS_IN_USE 1
+#define DEFAULT_COMPRESS_MANGLED_NAMES 1
+
+#if GNU_EXTENSIONS_ALLOWED
+  #define RECORD_RAW_ASM_OPERAND_DESCRIPTIONS 1
+#else
+  #define RECORD_RAW_ASM_OPERAND_DESCRIPTIONS 0
+#endif
+
+#define THREAD_LOCAL_STORAGE_SPECIFIER_ALLOWED 1
+#define USING_DRIVER 1
+#define WRITE_SIGNOFF_MESSAGE 0
+
+#define __ANSIC__ 1
+
+#ifndef COMPILE_MULTIPLE_SOURCE_FILES
+  #define COMPILE_MULTIPLE_SOURCE_FILES 1
+#endif /* ifndef COMPILE_MULTIPLE_SOURCE_FILES */
+
+#if __STDC__ != 0
+  #ifndef _BSD_SOURCE
+    #define _BSD_SOURCE
+  #endif
+#endif
+
+#if defined(TARG_SUPPORTS_X86_64) || defined(TARG_SUPPORTS_ARM32) || defined(TARG_SUPPORTS_ARM64)
+  #error "None of the TARG_SUPPORTS_*** macro should be defined"
+#endif
+
+#if defined(_WIN64) || defined(__x86_64) || defined(__x86_64__) || defined(__INTEL_COMPILER)
+  #define TARG_SUPPORTS_X86_64 1
+  #define TARG_SUPPORTS_ARM64 0
+  #define TARG_SUPPORTS_ARM32 0
+#elif defined(__aarch64__)
+  #define TARG_SUPPORTS_X86_64 0
+  #define TARG_SUPPORTS_ARM64 1
+  #define TARG_SUPPORTS_ARM32 0
+#elif defined(__arm__)
+  #define TARG_SUPPORTS_X86_64 0
+  #define TARG_SUPPORTS_ARM64 0
+  #define TARG_SUPPORTS_ARM32 1
+#endif
+
+#ifndef BUILTIN_FUNCTIONS_ENABLED
+  #define BUILTIN_FUNCTIONS_ENABLED 1
+#endif
+
+#if TARG_SUPPORTS_X86_64
+  #define TARG_SIZEOF_LONG 8
+  #define TARG_ALIGNOF_LONG 8
+  #define TARG_SIZEOF_POINTER 8
+  #define TARG_ALIGNOF_POINTER 8
+  #define TARG_SIZEOF_DOUBLE 8
+  #define TARG_ALIGNOF_DOUBLE 8
+  #define TARG_SIZEOF_LONG_DOUBLE 16
+  #define TARG_ALIGNOF_LONG_DOUBLE 16
+  #if defined(ROSE_USE_MICROSOFT_EXTENSIONS)
+    #define TARG_WCHAR_T_INT_KIND ((an_integer_kind)ik_short)
+  #else
+    #define TARG_WCHAR_T_INT_KIND ((an_integer_kind)ik_int)
+  #endif
+  #ifndef _lint
+    #define TARG_SIZEOF_WCHAR_T TARG_SIZEOF_INT
+  #endif
+  #define TARG_SIZE_T_INT_KIND ((an_integer_kind)ik_unsigned_long)
+  #define TARG_PTRDIFF_T_INT_KIND ((an_integer_kind)ik_long)
+  #define TYPE_FOR_AN_FP_VALUE_PART unsigned int
+  #define TARG_DUAL_ALIGNMENTS_FOR_BUILTIN_TYPES 0
+  #if defined(__APPLE__)
+    #define TARG_SIZEOF_LONG 8
+    #define TARG_ALIGNOF_LONG 8
+    #define TARG_SIZEOF_POINTER 8
+    #define TARG_ALIGNOF_POINTER 8
+    #define TARG_ALIGNOF_DOUBLE 8
+    #define TARG_WCHAR_T_INT_KIND ((an_integer_kind)ik_int)
+    #define HOST_ALIGNMENT_REQUIRED 8
+    #define TARG_ALIGNOF_LONG_LONG 8
+  #elif defined(__INTEL_COMPILER)
+    #define HOST_ALIGNMENT_REQUIRED 8
+  #endif
+#elif TARG_SUPPORTS_ARM64
+  #if defined(__APPLE__)
+    #undef TARG_MAXIMUM_PACK_ALIGNMENT
+    #undef TYPE_FOR_TARG_ALIGNMENT 
+    #define TARG_SIZEOF_LONG 8
+    #define TARG_ALIGNOF_LONG 8
+    #define TARG_SIZEOF_POINTER 8
+    #define TARG_ALIGNOF_POINTER 8
+    #define TARG_ALIGNOF_DOUBLE 8
+    #define TARG_WCHAR_T_INT_KIND ((an_integer_kind)ik_int)
+    #define HOST_ALIGNMENT_REQUIRED 8
+    #define TARG_ALIGNOF_LONG_LONG 8
+    #define TARG_SIZEOF_LONG_DOUBLE 8
+    #define TARG_ALIGNOF_LONG_DOUBLE 8
+    #define TARG_JMP_BUF_NUM_ELEMENTS 48
+    #define USE_LONG_DOUBLE_FOR_HOST_FP_VALUE 0
+    #define FP_LONG_DOUBLE_IS_BINARY64 1
+
+    #define TARG_SIZE_T_INT_KIND ((an_integer_kind)ik_unsigned_long)
+    #define TARG_PTRDIFF_T_INT_KIND ((an_integer_kind)ik_long)
+    #define TARG_CHAR_BIT 8
+    #define TARG_HAS_SIGNED_CHARS TRUE
+    #define TARG_CHAR_CONSTANT_FIRST_CHAR_MOST_SIGNIFICANT TRUE
+    #define TARG_SIZEOF_SHORT 2
+    #define TARG_ALIGNOF_SHORT 2
+    #define TARG_SIZEOF_INT 4
+    #define TARG_ALIGNOF_INT 4
+    #define TARG_SIZEOF_FLOAT 4
+    #define TARG_ALIGNOF_FLOAT 4
+    #define TARG_SIZEOF_DOUBLE 8
+    #define TARG_RIGHT_SHIFT_IS_ARITHMETIC 1
+    #define TARG_MINIMUM_STRUCT_ALIGNMENT 1
+    #define TARG_JMP_BUF_ELEMENTS_ARE_FLOAT 0
+    #define TARG_JMP_BUF_ELEMENT_INT_KIND ((an_integer_kind)ik_int)
+    #ifndef ACCEPT_UNRECOGNIZED_GNU_ASM_OPERANDS
+      #define ACCEPT_UNRECOGNIZED_GNU_ASM_OPERANDS 1
+    #endif
+    #define GUARD_MACRO_FOR_VA_LIST "_VA_LIST"
+    #define C99_IL_EXTENSIONS_SUPPORTED 1
+    #define UNICODE_SOURCE_SUPPORTED 1
+    #define DEFAULT_UNICODE_SOURCE_KIND usk_utf8
+    #ifndef DEFAULT_EMULATE_GNU_ABI_BUGS
+      #define DEFAULT_EMULATE_GNU_ABI_BUGS 0
+    #endif
+    #ifndef CP_GEN_BE_VERSION
+      #ifndef GCC_IS_GENERATED_CODE_TARGET
+        #define GCC_IS_GENERATED_CODE_TARGET 0
+      #endif
+      #ifndef CLANG_IS_GENERATED_CODE_TARGET
+        #define CLANG_IS_GENERATED_CODE_TARGET 1
+      #endif
+    #endif
+  #else
+    #define TARG_HAS_SIGNED_CHARS FALSE
+    #define TARG_SIZEOF_LONG 8
+    #define TARG_ALIGNOF_LONG 8
+    #define TARG_SIZEOF_POINTER 8
+    #define TARG_ALIGNOF_POINTER 8
+    #define TARG_SIZEOF_LONG_DOUBLE 16
+    #define TARG_ALIGNOF_LONG_DOUBLE 16
+    #define TARG_WCHAR_T_INT_KIND ((an_integer_kind)ik_unsigned_int)
+    #define TARG_SIZE_T_INT_KIND ((an_integer_kind)ik_unsigned_long)
+    #define TARG_PTRDIFF_T_INT_KIND ((an_integer_kind)ik_long)
+    #define HOST_ALIGNMENT_REQUIRED 8
+    #define TARG_JMP_BUF_NUM_ELEMENTS 39
+    #define TARG_JMP_BUF_ELEMENT_INT_KIND ((an_integer_kind)ik_long_long)
+  #endif
+#else
+  #if defined(__x86_64)
+    #define TYPE_FOR_AN_FP_VALUE_PART unsigned int
+  #endif
+  #ifndef __sun
+    #define TARG_ALIGNOF_LONG_DOUBLE 4
+    #define TARG_SIZEOF_LONG_DOUBLE 12
+    #define TARG_JMP_BUF_NUM_ELEMENTS 39
+  #endif
+  #ifndef C_GEN_BE_GENERATES_ANSI_C
+    #define C_GEN_BE_GENERATES_ANSI_C 1
+  #endif
+
+  #if defined(ROSE_USE_MICROSOFT_EXTENSIONS)
+    #define TARG_WCHAR_T_INT_KIND ((an_integer_kind)ik_short)
+  #else
+    #define TARG_WCHAR_T_INT_KIND ((an_integer_kind)ik_long)
+  #endif
+  #ifndef _lint
+    #define TARG_SIZEOF_WCHAR_T TARG_SIZEOF_LONG
+  #endif
+  #define TARG_DOUBLE_FIELD_ALIGNMENT 4
+  #define TARG_LONG_LONG_FIELD_ALIGNMENT 4
+#endif
+
+#define TARG_WINT_T_INT_KIND ((an_integer_kind)ik_unsigned_int)
+
+#define TARG_ALIGNOF_DOUBLE 8
+#define TARG_ALIGNOF_LONG_LONG 8
+
+#define MAKE_ALL_FUNCTIONS_UNPROTOTYPED 0
+#define DESIGNATED_INITIALIZER_ENABLING_POSSIBLE 1
+#ifndef RUNTIME_USES_NAMESPACES
+  #define RUNTIME_USES_NAMESPACES 1
+#endif
+#define BUILTIN_VA_LIST_OVERRIDE_TYPE_NAME "__gnuc_va_list"
+#define DEFAULT_PASS_STDARG_REFERENCES_TO_GENERATED_CODE 1
+#define TARG_EXTERNAL_NAMES_GET_UNDERSCORE_ADDED 0
+#define IGNORE_CARRIAGE_RETURN_IN_SOURCE 1
+#ifndef GNU_EXTENSIONS_ALLOWED
+  #define GNU_EXTENSIONS_ALLOWED 1
+#endif
+#if defined(__GNUC__) && !defined(GNU_INIT_PRIORITY_ATTRIBUTE_ALLOWED)
+  #define GNU_INIT_PRIORITY_ATTRIBUTE_ALLOWED 1
+#endif
+#if !defined(RECORD_RAW_ASM_OPERAND_DESCRIPTIONS)
+  #define RECORD_RAW_ASM_OPERAND_DESCRIPTIONS 0
+#endif
+#define DEFAULT_GNU_COMPATIBILITY 0
+#define DEFAULT_USE_PREDEFINED_MACRO_FILE 0
+#ifndef IA64_ABI
+  #define IA64_ABI 1
+#endif
+
+#define TARG_BIT_FIELD_CONTAINER_SIZE (-1)
+#define ALLOW_NON_INT_BIT_FIELD_BASE_TYPE_IN_GENERATED_C 1
+#define TARG_PLAIN_INT_BIT_FIELD_IS_UNSIGNED 0
+#define TARG_NONNEGATIVE_ENUM_BIT_FIELD_IS_UNSIGNED 1
+
+#define LONG_LONG_ALLOWED 1
+#ifndef INTEGER_VALUE_REPR_IS_A_HOST_INTEGER
+  #define INTEGER_VALUE_REPR_IS_A_HOST_INTEGER 1
+#endif
+
+#ifndef _MSC_VER
+  #if defined(BACKEND_CXX_IS_GNU_COMPILER) || defined(BACKEND_CXX_IS_INTEL_COMPILER)
+    #if (__WORDSIZE == 64)
+      #define TYPE_FOR_AN_INTEGER_VALUE unsigned __int128
+      #define TYPE_FOR_A_SIGNED_INTEGER_VALUE __int128
+      #define INT128_EXTENSIONS_ALLOWED 1
+    #else
+      #define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
+      #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
+    #endif
+  #elif defined(BACKEND_CXX_IS_CLANG_COMPILER)
+    #if (TARG_SUPPORTS_ARM64 != 1)
+      #define TYPE_FOR_AN_INTEGER_VALUE unsigned __int128
+      #define TYPE_FOR_A_SIGNED_INTEGER_VALUE __int128
+      #define INT128_EXTENSIONS_ALLOWED 1
+    #else
+      #define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
+      #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
+      #define INT128_EXTENSIONS_ALLOWED 0
+    #endif
+  #else
+    #define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
+    #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
+  #endif
+#else
+  #define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
+  #define TYPE_FOR_A_SIGNED_INTEGER_VALUE long long
+#endif
+
+#define PRINTF_FORMAT_FOR_SIGNED_INTEGER_VALUE   "%lld"
+#define PRINTF_FORMAT_FOR_UNSIGNED_INTEGER_VALUE "%llu"
+#define PRINTF_FORMAT_FOR_HEX_INTEGER_VALUE      "%llx"
+#define MAX_INTEGER_VALUE 9223372036854775807LL
+#define MIN_INTEGER_VALUE (-MAX_INTEGER_VALUE-1)
+#define MAX_UNSIGNED_INTEGER_VALUE 18446744073709551615ULL
+
+#define LITERALS_AS_STRINGS_SUPPORT 1
+#define FLOAT_SUPPORT_MAX_SIZE_OF_FLOAT_LEXEMES 128
+#define INT_SUPPORT_MAX_SIZE_OF_INT_LEXEMES 24
+
+#if defined(ROSE_USE_EDG_QUAD_FLOAT) && !defined(_MSC_VER)
+  #define FLOAT128_ENABLING_POSSIBLE 1
+  #define USE_FLOAT128_FOR_HOST_FP_VALUE 1
+  /* Approximate __float128 conversions using long double routines instead of
+     relying on the GNU quadmath library. This removes the -lquadmath link
+     dependency; only the string<->value conversions done in float_pt.cc lose
+     precision beyond long double, the internal representation stays 128-bit. */
+  #define APPROXIMATE_QUADMATH 1
+#endif
+
+#define ENABLE_CUDA_SUPPORT 1
+#define ROSE_MISC 1
+
+#define USE_EDG_NAMESPACE 0
+#define BSEARCH_QSORT_FUNCTION_IS_EXTERN_C 0
+
+#define ALLOW_HOST_FP_TOO_SMALL_FOR_LARGEST_FIXED_POINT_TYPE 1
+
+#endif /* ifndef DEFINES_ROSE_H */
+
+/******************************************************************************
+*                                                             \  ___  /       *
+*                                                               /   \         *
+* Edison Design Group C++/C Front End                        - | \^/ | -      *
+*                                                               \   /         *
+* Proprietary information of Edison Design Group Inc.         /  | |  \       *
+* Copyright 1999-2013 Edison Design Group Inc.                   [_]          *
+*                                                                             *
+******************************************************************************/
+

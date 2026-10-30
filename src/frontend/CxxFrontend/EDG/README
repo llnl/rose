@@ -1,0 +1,66 @@
+ROSE uses EDG as a front-end to parsing C and C++.  We then read 
+the EDG AST to generate the AST in ROSE using the Sage III IR.
+
+New work, which is still ongoing, has implemented a newer interface
+between EDG and ROSE and builds the AST via a more direct traversal
+of the EDG source sequence lists.  This is likely an improvement over
+the design which was based on a design closely followign the 
+EDG unparser and build up the AST instead of generating code.  The
+different design benifits from initial work by Jeramiah and permits
+us to more readity use more current versions of EDG.  Originally
+designed for EDG 3.10, it has been redesigned to support the EDG
+version 4.0 interfaces (which is a much improved design over the 3.x
+versions of EDG; simpler and easier to use).
+
+
+*****************************************************
+Notes specific to use of the EDG 4.x version in ROSE:
+*****************************************************
+
+   This implementation is represented in the edgRose directory.
+This version is a refactored copy of the file new_sage_gen_be.C in 
+the EDG_SAGE_Connection, which will be removed soon to reflect
+the move to a new directory to better support the new interface 
+work.
+
+To use ROSE with the newer version of the EDG support uses the 
+configure option: "--enable-edg-version=4.0"
+Only the value of "4.0" is tested internally, but we should 
+be able to handle "3.10" and soon "4.1".  Major and minor
+version numbers are correctly identified.
+
+
+*****************************************************
+Notes specific to use of the EDG 3.3 version in ROSE:
+*****************************************************
+
+   This implementation is represented in the EDG_SAGE_Connection 
+directory. We currently use version 3.3 of EDG (default), and although 
+this has been robust and feature rich, we have some reasons for wanting 
+to upgrade to later versions of EDG.
+
+We use EDG mostly as is, and make only minor changes:
+   1) Adding pointers to Sage III IR nodes to some structs in EDG (see il_def.h)
+   2) We add the work to save literals as strings in the Sage III IR.
+
+We need a more complete list, some of what has been modified in 3.3 is no longer required
+in versions after 3.7. 
+
+Newer work in 2009 added the ability to use EDG 4.0 to ROSE. This version will
+also be patched to support the Nvidia EDG extensions required for CUDA support.
+
+
+Old Notes:
+
+1) To run the EDG unparser:
+      $(ROSE_BUILD_TREE)/src/frontend/CxxFrontend/EDG/EDG_3.10/src/cp_gen_be --edg_base=$(ROSE_BUILD_TREE)/src/frontend/CxxFrontend/EDG/EDG_3.10/lib $(SOURCE_FILES)
+
+   The --edg_base directory can also be set through the EDG_BASE environment variable.
+   The output goes into <source-file-base-name>.int.c (even for C++).
+
+2) New work in ROSE introduces a new connection between EDG and SageIII, the 
+   new connection required a configure option "" 
+   and also switches ROSe to use the EDG version 3.10 frontend.  This
+   work is currently experimental and will evolve with time.
+
+

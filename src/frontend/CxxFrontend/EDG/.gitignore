@@ -1,0 +1,13 @@
+# Editor backups
+*~
+# editor temp file
+*.swp
+*.dump2
+*.o
+# /
+Makefile.in
+
+*.orig
+*.rej
+
+.ipynb_checkpoints

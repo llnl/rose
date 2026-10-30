@@ -1,0 +1,17 @@
+include_rules
+ifeq (@(ENABLE_CXX_ANALYSIS),yes)
+
+EDG_ROOT = $(ROSE)/src/frontend/CxxFrontend/EDG/EDG_@(EDG_VERSION)
+
+librose_CPPFLAGS += -DMAKE_FRONT_END_CALLABLE=TRUE -DNEED_IL_DISPLAY -DENABLE_CUDA_SUPPORT=1
+librose_CPPFLAGS += -I$(EDG_ROOT)/src
+librose_CXXFLAGS += -Wswitch-default
+
+run $(librose_compile) --depend=$(EDG_ROOT)/src/defines.h --depend=$(EDG_ROOT)/src/err_codes.h \
+    edgGraph.C SourcePosition.C SourceSequenceList.C debugging.C edgRose.C edgRoseAttributes.C \
+    edgSupport.C translatedExpression.C
+
+run $(public_header) edgRose.h edgRoseFunctions.h edgRoseHeaders.h edgRoseInlineFunctions.h edgRoseAttributes.h \
+    edgRoseMacroDefs.h edgRoseOMP.h SourcePosition.h SourceSequenceList.h translatedExpression.h debugging.h
+
+endif

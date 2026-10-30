@@ -1,0 +1,1133 @@
+/******************************************************************************
+*                                                             \  ___  /       *
+*                                                               /   \         *
+* Edison Design Group C++/C Front End                        - | \^/ | -      *
+*                                                               \   /         *
+* Proprietary information of Edison Design Group Inc.         /  | |  \       *
+* Copyright 1988-2023 Edison Design Group Inc.                   [_]          *
+*                                                                             *
+******************************************************************************/
+/*
+
+defines.h -- Defines configuration parameters for a given version of the
+             front end.
+
+This is the version for Windows 95/98/NT/etc.
+*/
+
+/*
+A word of caution about using TRUE/FALSE values in this header file: The
+macros TRUE and FALSE are defined in basics.h, but their definition occurs
+only after defines.h is included.  A side-effect of this is that any #if
+test of a macro whose value is either TRUE or FALSE will result in the false
+branch being taken.  Consequently, it's best to use 1 or 0 instead of TRUE and
+FALSE in this header file.
+*/
+
+/* Avoid including these declarations more than once. */
+#ifndef DEFINES_WIN32_H
+#define DEFINES_WIN32_H 1
+
+#ifdef DEMO_VERSION
+#define DEBUG 0
+#ifndef CPPCLI_ENABLING_POSSIBLE
+#define CPPCLI_ENABLING_POSSIBLE 1
+#endif /* ifndef CPPCLI_ENABLING_POSSIBLE */
+#ifndef CP_GEN_BE_VERSION
+/* Demo versions that do not use the C++-generating back end should
+   support multiple translation units. */
+#define COMPILE_MULTIPLE_TRANSLATION_UNITS 1
+/* Allow lowering with CPPCLI_ENABLING_POSSIBLE. */
+#ifndef ALLOW_CPPCLI_AND_CPPCX_WITH_LOWERING
+#if CPPCLI_ENABLING_POSSIBLE
+#define ALLOW_CPPCLI_AND_CPPCX_WITH_LOWERING 1
+#endif /* CPPCLI_ENABLING_POSSIBLE */
+#endif /* ifndef ALLOW_CPPCLI_AND_CPPCX_WITH_LOWERING */
+#endif /* ifndef CP_GEN_BE_VERSION */
+#endif /* ifdef DEMO_VERSION */
+
+/*
+__float80 is usually a synonym for "long double" on Unix-like platforms.
+On Microsoft platforms, however, "long double" is a 64-bit type just like
+"double".  __float80 must therefore use its own floating-point kind in that
+case.
+*/
+#define DEFAULT_FLOAT_KIND_FOR_FLOAT80 fk_float80
+
+/* Configuration definitions determined by dettarg.c: */
+#define TARG_LITTLE_ENDIAN 1
+#define TARG_CHAR_BIT 8
+#define TARG_HAS_SIGNED_CHARS 1
+#define TARG_CHAR_CONSTANT_FIRST_CHAR_MOST_SIGNIFICANT 1
+#define TARG_SIZEOF_SHORT 2
+#define TARG_ALIGNOF_SHORT 2
+#define TARG_SIZEOF_INT 4
+#define TARG_ALIGNOF_INT 4
+#define TARG_SIZEOF_LONG 4
+#define TARG_ALIGNOF_LONG 4
+#define TARG_SIZEOF_FLOAT 4
+#define TARG_ALIGNOF_FLOAT 4
+#define TARG_SIZEOF_DOUBLE 8
+#define TARG_ALIGNOF_DOUBLE 8
+#define TARG_SIZEOF_LONG_DOUBLE 8
+#define TARG_ALIGNOF_LONG_DOUBLE 8
+#define TARG_RIGHT_SHIFT_IS_ARITHMETIC 1
+#define TARG_MINIMUM_STRUCT_ALIGNMENT 1
+#define TARG_JMP_BUF_NUM_ELEMENTS 16
+#define TARG_JMP_BUF_ELEMENTS_ARE_FLOAT 0
+#define TARG_JMP_BUF_ELEMENT_INT_KIND ((an_integer_kind)ik_int)
+
+/*
+If the target architecture is unspecified, heuristically determine a target
+architecture from the host compiler.
+*/
+#if !defined(TARG_SUPPORTS_X86_64) && !defined(TARG_SUPPORTS_ARM64) && \
+    !defined(TARG_SUPPORTS_ARM32)
+/* Default to an unspecified target. */
+#define TARG_SUPPORTS_X86_64 0
+#define TARG_SUPPORTS_ARM64 0
+#define TARG_SUPPORTS_ARM32 0
+#if defined(__aarch64__)
+/* 64-bit ARM. */
+#undef TARG_SUPPORTS_ARM64
+#define TARG_SUPPORTS_ARM64 1
+#elif defined(__arm__)
+/* 32-bit ARM. */
+#undef TARG_SUPPORTS_ARM32
+#define TARG_SUPPORTS_ARM32 1
+#elif defined(_WIN64)
+/* 64-bit x86. */
+#undef TARG_SUPPORTS_X86_64
+#define TARG_SUPPORTS_X86_64 1
+#endif /* defined(__x86_64__) */
+#endif /* !defined(TARG_SUPPORTS_X86_64) && !defined(TARG_SUPPORTS_ARM64)... */
+
+#if TARG_SUPPORTS_X86_64 || TARG_SUPPORTS_ARM64
+/* 64-bit targets. */
+#define TARG_SIZEOF_POINTER 8
+#define TARG_ALIGNOF_POINTER 8
+#define TARG_SIZE_T_INT_KIND ((an_integer_kind)ik_unsigned_long_long)
+#define TARG_PTRDIFF_T_INT_KIND ((an_integer_kind)ik_long_long)
+#define HOST_ALIGNMENT_REQUIRED 8
+#define HOST_POINTER_ALIGNMENT 8
+#else /* !TARG_SUPPORTS_X86_64 */
+/* 32-bit targets. */
+#define TARG_SIZEOF_POINTER 4
+#define TARG_ALIGNOF_POINTER 4
+#define TARG_SIZE_T_INT_KIND ((an_integer_kind)ik_unsigned_int)
+#define TARG_PTRDIFF_T_INT_KIND ((an_integer_kind)ik_int)
+#endif /* TARG_SUPPORTS_X86_64 */
+
+/* ARM-specific settings. */
+#if TARG_SUPPORTS_ARM64
+/* 64-bit ARM. */
+#define TARG_JMP_BUF_NUM_ELEMENTS 24
+#define TARG_JMP_BUF_ELEMENT_INT_KIND ((an_integer_kind)ik_long_long)
+#elif TARG_SUPPORTS_ARM32
+/* 32-bit ARM. */
+#define TARG_JMP_BUF_NUM_ELEMENTS 28
+#define TARG_JMP_BUF_ELEMENT_INT_KIND ((an_integer_kind)ik_int)
+#define HOST_ALIGNMENT_REQUIRED 8
+#define HOST_POINTER_ALIGNMENT 8
+#endif /* TARG_SUPPORTS_ARM64 */
+
+/*
+Definitions for Windows (WIN32)
+*/
+#define __ANSIC__ 1
+#define USING_ISO_C 1
+#define C_GEN_BE_GENERATES_ANSI_C 1
+#define MAKE_ALL_FUNCTIONS_UNPROTOTYPED 0
+#ifndef USE_MMAP_FOR_MEMORY_REGIONS
+#define USE_MMAP_FOR_MEMORY_REGIONS 1
+#endif /* ifndef USE_MMAP_FOR_MEMORY_REGIONS */
+#define MICROSOFT_EXTENSIONS_ALLOWED 1
+#define CFRONT_2_1_OBJECT_CODE_COMPATIBILITY 0
+#define CFRONT_3_0_OBJECT_CODE_COMPATIBILITY 0
+#define TARG_MICROSOFT_BIT_FIELD_ALLOCATION 1
+#define TARG_MICROSOFT_PTR_TO_MEMBER_SIZING 0
+#define LONG_LONG_ALLOWED 1
+#define INTEGER_VALUE_REPR_IS_A_HOST_INTEGER 0
+#define GUARD_MACRO_FOR_VA_LIST "_VA_LIST_DEFINED"
+#define DEFAULT_PASS_STDARG_REFERENCES_TO_GENERATED_CODE 1
+#define DEFAULT_VA_LIST_IN_STD_NAMESPACE 0
+#ifndef DEFAULT_EXCEPTIONS_ENABLED
+#define DEFAULT_EXCEPTIONS_ENABLED 1
+#endif /* ifndef DEFAULT_EXCEPTIONS_ENABLED */
+#define UNICODE_SOURCE_SUPPORTED 1
+#define MULTIBYTE_CHARS_IN_SOURCE_SUPPORTED 1
+#ifndef NATIVE_MULTIBYTE_CHARS_SUPPORTED_WITH_UNICODE
+#define NATIVE_MULTIBYTE_CHARS_SUPPORTED_WITH_UNICODE 1
+#endif /* NATIVE_MULTIBYTE_CHARS_SUPPORTED_WITH_UNICODE */
+#define DEFAULT_MULTIBYTE_CHARS_IN_SOURCE_ENABLED 1
+#ifndef RUNTIME_SUPPORTS_ARRAY_LENGTH_CHECK
+#define RUNTIME_SUPPORTS_ARRAY_LENGTH_CHECK 0
+#endif /* RUNTIME_SUPPORTS_ARRAY_LENGTH_CHECK */
+#ifndef TARG_MAXIMUM_INTRINSIC_ALIGNMENT
+#define TARG_MAXIMUM_INTRINSIC_ALIGNMENT 8
+#endif /* TARG_MAXIMUM_INTRINSIC_ALIGNMENT */
+#ifndef TARG_DEFAULT_NEW_ALIGNMENT
+#define TARG_DEFAULT_NEW_ALIGNMENT (2 * TARG_SIZEOF_POINTER)
+#endif /* TARG_DEFAULT_NEW_ALIGNMENT */
+#define FP_LONG_DOUBLE_IS_BINARY64 1
+
+#ifndef DEFAULT_USE_PREDEFINED_MACRO_FILE
+/*
+Assume that a predefined_macros.txt file should be used (to define target-
+specific macros such as _M_IX86 and _M_X64, etc. as appropriate for the
+target).
+*/
+#define DEFAULT_USE_PREDEFINED_MACRO_FILE 1
+#endif /* defined(DEFAULT_USE_PREDEFINED_MACRO_FILE) */
+/*
+Use fixed address for mmap to work around issues with address space
+layout randomization (ASLR) on Windows Vista.
+*/
+#if USE_MMAP_FOR_MEMORY_REGIONS
+#define USE_FIXED_ADDRESS_FOR_MMAP 1
+#define FIXED_ADDRESS_FOR_MMAP 0x21000000
+#endif /* USE_MMAP_FOR_MEMORY_REGIONS */
+
+#ifndef CP_GEN_BE_VERSION
+/*
+Use this define if the type_info from the EDG runtime library is to
+be used.  This is enabled by default in versions that generate C code
+as such versions cannot link with the Microsoft C++ libraries.
+*/
+#ifndef MICROSOFT_MODE_TYPE_INFO_IN_NAMESPACE_STD
+#define MICROSOFT_MODE_TYPE_INFO_IN_NAMESPACE_STD 1
+#endif /* ifndef MICROSOFT_MODE_TYPE_INFO_IN_NAMESPACE_STD */
+#endif /* ifdef CP_GEN_BE_VERSION */
+
+
+/* The EDG driver on NT does not support one instantiation per object mode. */
+#define ONE_INSTANTIATION_PER_OBJECT 0
+
+#ifndef OPTIMIZED_VERSION
+#define OPTIMIZED_VERSION 1
+#endif /* !defined(OPTIMIZED_VERSION) */
+#if OPTIMIZED_VERSION
+#define IL_SHOULD_BE_WRITTEN_TO_FILE 0
+#else /* !OPTIMIZED_VERSION */
+#define IL_SHOULD_BE_WRITTEN_TO_FILE 1
+#ifndef ALTERNATE_IL_FILE_FORMAT
+#define ALTERNATE_IL_FILE_FORMAT 0
+#endif /* ifndef ALTERNATE_IL_FILE_FORMAT */
+/* The defines.h file depends on whether this macro is defined, not what it's
+   defined to. */
+#undef OPTIMIZED_VERSION
+#endif /* OPTIMIZED_VERSION */
+
+#ifdef CP_GEN_BE_VERSION
+/*
+Flags to be set for any version that uses the C++ generating back end.
+*/
+#define BACK_END_IS_C_GEN_BE 0
+#define BACK_END_IS_CP_GEN_BE 1
+#define DO_IL_LOWERING 0
+#ifndef AUTOMATIC_TEMPLATE_INSTANTIATION
+#define AUTOMATIC_TEMPLATE_INSTANTIATION 0
+#endif /* ifndef AUTOMATIC_TEMPLATE_INSTANTIATION */
+#define NEW_CAN_BE_FOLDED_INTO_CTOR 0
+#define DELETE_CAN_BE_FOLDED_INTO_DTOR 0
+#define ASSIGNMENT_TO_THIS_ALLOWED 0
+#ifndef PRAGMA_DEFINE_TYPE_INFO_IS_REQUIRED
+#define PRAGMA_DEFINE_TYPE_INFO_IS_REQUIRED 0
+#endif /* ifndef PRAGMA_DEFINE_TYPE_INFO_IS_REQUIRED */
+#ifndef DEFAULT_TYPE_INFO_IN_NAMESPACE_STD
+#define DEFAULT_TYPE_INFO_IN_NAMESPACE_STD 0
+#endif /* ifndef DEFAULT_TYPE_INFO_IN_NAMESPACE_STD */
+#endif /* ifdef CP_GEN_BE_VERSION */
+
+/* Suppress Microsoft 8.0 warnings about deprecated C library functions. */
+#define _CRT_SECURE_NO_DEPRECATE
+#define _CRT_NONSTDC_NO_DEPRECATE
+
+/* By default, don't include the "other" target configuration. */
+#ifndef INCLUDE_ADDITIONAL_TARGET_CONFIGURATION
+#define INCLUDE_ADDITIONAL_TARGET_CONFIGURATION 0
+#endif /* defined(INCLUDE_ADDITIONAL_TARGET_CONFIGURATION) */
+
+#if INCLUDE_ADDITIONAL_TARGET_CONFIGURATION
+/*
+The legacy configuration (either a 32-bit or a 64-bit configuration as dictated
+by the setting of TARG_SUPPORTS_X86_64) has been defined above.  Give that
+target configuration the appropriate name (i.e., either "win32" or "win64"),
+and define a target configuration for the "other" target.  Note that these
+target configurations are primarily for demonstration purposes as the actual
+set of target-specific configuration macros depends on the set of features that
+have been selected, and some of the values here may not be correct for your
+configuration(s).  These sets of target-specific configuration macros were
+created using the --dump_legacy_as_target command-line option; additional
+configurations can be created in the same manner.  Note that these target
+configurations are specific to the Cfront ABI (though IA-64 ABI-specific
+ones can be created with --dump_legacy_as_target).
+*/
+#if defined(IA64_ABI) && IA64_ABI
+ #error Supplied target configurations cannot be used with IA64_ABI
+#endif /* defined(IA64_ABI) && IA64_ABI */
+
+#if TARG_SUPPORTS_X86_64
+#define LEGACY_TARGET_CONFIGURATION_NAME "win64"
+#else /* !TARG_SUPPORTS_X86_64 */
+#define LEGACY_TARGET_CONFIGURATION_NAME "win32"
+#endif /* TARG_SUPPORTS_X86_64 */
+
+#if TARG_SUPPORTS_X86_64
+
+/* "Other" target is Windows 32-bit configuration. */
+/* Target configuration: win32 */
+#define TARGET_CONFIGURATION_1 win32
+#define TARG_ALIGNOF_DOUBLE_win32 8
+#define TARG_ALIGNOF_FAR_POINTER_win32 4
+#define TARG_ALIGNOF_FLOAT_win32 4
+#define TARG_ALIGNOF_FLOAT128_win32 16
+#define TARG_ALIGNOF_FLOAT80_win32 4
+#define TARG_ALIGNOF_INT_win32 4
+#define TARG_ALIGNOF_INT128_win32 16
+#define TARG_ALIGNOF_LONG_win32 4
+#define TARG_ALIGNOF_LONG_DOUBLE_win32 8
+#define TARG_ALIGNOF_LONG_LONG_win32 8
+#define TARG_ALIGNOF_NEAR_POINTER_win32 2
+#define TARG_ALIGNOF_POINTER_win32 4
+#define TARG_ALIGNOF_PTR_TO_DATA_MEMBER_win32 4
+#define TARG_ALIGNOF_PTR_TO_MEMBER_FUNCTION_win32 4
+#define TARG_ALIGNOF_PTR_TO_VIRTUAL_BASE_CLASS_win32 4
+#define TARG_ALIGNOF_SHORT_win32 2
+#define TARG_ALIGNOF_VIRTUAL_FUNCTION_INFO_win32 4
+#define TARG_ALL_POINTERS_SAME_SIZE_win32 1
+#define TARG_BIT_FIELD_AFFECTS_UNION_ALIGNMENT_win32 0
+#define TARG_BIT_FIELD_CONTAINER_SIZE_win32 (-1)
+#define TARG_BOOL_INT_KIND_win32 ((an_integer_kind)ik_char)
+#define TARG_C_BOOL_INT_KIND_win32 ((an_integer_kind)ik_unsigned_char)
+#define TARG_CHAR16_T_INT_KIND_win32 ((an_integer_kind)ik_unsigned_short)
+#define TARG_CHAR32_T_INT_KIND_win32 ((an_integer_kind)ik_unsigned_int)
+#define TARG_CHAR_BIT_win32 8
+#define TARG_CHAR_CONSTANT_FIRST_CHAR_MOST_SIGNIFICANT_win32 1
+#define TARG_DBL_MANT_DIG_win32 53
+#define TARG_DBL_MAX_EXP_win32 1024
+#define TARG_DBL_MIN_EXP_win32 (-1021)
+#define TARG_DEFAULT_NEW_ALIGNMENT_win32 8
+#define TARG_DELTA_INT_KIND_win32 ((an_integer_kind)ik_short)
+#define TARG_DOUBLE_FIELD_ALIGNMENT_win32 8
+#define TARG_DUAL_ALIGNMENTS_FOR_BUILTIN_TYPES_win32 0
+#define TARG_ENUM_BIT_FIELDS_ARE_ALWAYS_UNSIGNED_win32 0
+#define TARG_ENUM_TYPES_CAN_BE_SMALLER_THAN_INT_win32 0
+#define TARG_FIELD_ALLOC_SEQUENCE_EQUALS_DECL_SEQUENCE_win32 1
+#define TARG_FLOAT_FIELD_ALIGNMENT_win32 4
+#define TARG_FLOAT128_FIELD_ALIGNMENT_win32 16
+#define TARG_FLOAT80_FIELD_ALIGNMENT_win32 4
+#define TARG_FLT_MANT_DIG_win32 24
+#define TARG_FLT_MAX_EXP_win32 128
+#define TARG_FLT_MIN_EXP_win32 (-125)
+#define TARG_FLT128_MANT_DIG_win32 113
+#define TARG_FLT128_MAX_EXP_win32 (16384)
+#define TARG_FLT128_MIN_EXP_win32 (-16381)
+#define TARG_FLT80_MANT_DIG_win32 64
+#define TARG_FLT80_MAX_EXP_win32 (16384)
+#define TARG_FLT80_MIN_EXP_win32 (-16381)
+#define TARG_FORCE_ONE_BIT_BIT_FIELD_TO_BE_UNSIGNED_win32 1
+#define TARG_HAS_SIGNED_CHARS_win32 1
+#define TARG_HOST_STRING_CHAR_BIT_win32 8
+#define TARG_INT_FIELD_ALIGNMENT_win32 4
+#define TARG_INT128_FIELD_ALIGNMENT_win32 16
+#define TARG_JMP_BUF_ELEMENTS_ARE_FLOAT_win32 0
+#define TARG_JMP_BUF_ELEMENT_FLOAT_KIND_win32 ((a_float_kind)fk_long_double)
+#define TARG_JMP_BUF_ELEMENT_INT_KIND_win32 ((an_integer_kind)ik_int)
+#define TARG_JMP_BUF_NUM_ELEMENTS_win32 16
+#define TARG_SETJMP_FUNC_win32 "setjmp"
+#define TARG_LDBL_MANT_DIG_win32 53
+#define TARG_LDBL_MAX_EXP_win32 1024
+#define TARG_LDBL_MIN_EXP_win32 (-1021)
+#define TARG_LIBGCC_CMP_RETURN_MODE_win32 ((a_type_mode_kind)tmk_SI)
+#define TARG_LIBGCC_SHIFT_COUNT_MODE_win32 ((a_type_mode_kind)tmk_SI)
+#define TARG_LITTLE_ENDIAN_win32 1
+#define TARG_LONG_DOUBLE_FIELD_ALIGNMENT_win32 8
+#define TARG_LONG_FIELD_ALIGNMENT_win32 4
+#define TARG_LONG_LONG_FIELD_ALIGNMENT_win32 8
+#define TARG_MAXIMUM_INTRINSIC_ALIGNMENT_win32 8
+#define TARG_MAX_BASE_CLASS_OFFSET_win32 0
+#define TARG_MAX_CLASS_OBJECT_SIZE_win32 0
+#define TARG_MICROSOFT_BIT_FIELD_ALLOCATION_win32 1
+#define TARG_MICROSOFT_PTR_TO_MEMBER_SIZING_win32 0
+#define TARG_MINIMUM_STRUCT_ALIGNMENT_win32 1
+#define TARG_NONNEGATIVE_ENUM_BIT_FIELD_IS_UNSIGNED_win32 0
+#define TARG_OPTIMIZE_EMPTY_BASE_CLASS_LAYOUT_win32 1
+#define TARG_PAD_BIT_FIELDS_LARGER_THAN_BASE_TYPE_win32 1
+#define TARG_PLAIN_INT_BIT_FIELD_IS_UNSIGNED_win32 ( !1)
+#define TARG_POINTER_MODE_win32 ((a_type_mode_kind)tmk_SI)
+#define TARG_PTRDIFF_T_INT_KIND_win32 ((an_integer_kind)ik_int)
+#define TARG_REGION_NUMBER_INT_KIND_win32 ((an_integer_kind)ik_unsigned_short)
+#define TARG_ETS_FLAG_TYPE_INT_KIND_win32 ((an_integer_kind)ik_unsigned_int)
+#define TARG_RIGHT_SHIFT_IS_ARITHMETIC_win32 1
+#define TARG_RUNTIME_ELEM_COUNT_INT_KIND_win32 ((an_integer_kind)ik_int)
+#define TARG_SHORT_FIELD_ALIGNMENT_win32 2
+#define TARG_SIZEOF_DOUBLE_win32 8
+#define TARG_SIZEOF_FAR_POINTER_win32 4
+#define TARG_SIZEOF_FLOAT_win32 4
+#define TARG_SIZEOF_FLOAT128_win32 16
+#define TARG_SIZEOF_FLOAT80_win32 12
+#define TARG_SIZEOF_INT_win32 4
+#define TARG_SIZEOF_INT128_win32 16
+#define TARG_SIZEOF_LONG_win32 4
+#define TARG_SIZEOF_LONG_DOUBLE_win32 8
+#define TARG_SIZEOF_LONG_LONG_win32 8
+#define TARG_SIZEOF_NEAR_POINTER_win32 2
+#define TARG_SIZEOF_POINTER_win32 4
+#define TARG_SIZEOF_PTR_TO_DATA_MEMBER_win32 4
+#define TARG_SIZEOF_PTR_TO_MEMBER_FUNCTION_win32 ((((2*2+4-1)/4)+1)* 4)
+#define TARG_SIZEOF_PTR_TO_VIRTUAL_BASE_CLASS_win32 4
+#define TARG_SIZEOF_SHORT_win32 2
+#define TARG_SIZEOF_VIRTUAL_FUNCTION_INFO_win32 4
+#define TARG_SIZE_T_INT_KIND_win32 ((an_integer_kind)ik_unsigned_int)
+#define TARG_SIZE_T_MAX_win32 ((a_targ_size_t)0xffffffff)
+#define TARG_SSIZE_T_INT_KIND_win32 ((an_integer_kind)ik_int)
+#define TARG_SUPPORTS_ARM32_win32 0
+#define TARG_SUPPORTS_ARM64_win32 0
+#define TARG_SUPPORTS_X86_64_win32 0
+#define TARG_TOO_LARGE_SHIFT_COUNT_IS_TAKEN_MODULO_SIZE_win32 0
+#define TARG_UNNAMED_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_win32 1
+#define TARG_UNWIND_WORD_MODE_win32 ((a_type_mode_kind)tmk_SI)
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BASE_CLASSES_win32 1
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BIT_FIELDS_win32 1
+#define TARG_VAR_HANDLE_INT_KIND_win32 ((an_integer_kind)ik_unsigned_short)
+#define TARG_VIRTUAL_FUNCTION_INDEX_INT_KIND_win32 ((an_integer_kind)ik_short)
+#define TARG_WCHAR_T_INT_KIND_win32 ((an_integer_kind)ik_unsigned_short)
+#define TARG_WINT_T_INT_KIND_win32 ((an_integer_kind)ik_unsigned_short)
+#define TARG_WORD_MODE_win32 ((a_type_mode_kind)tmk_SI)
+#define TARG_ZERO_WIDTH_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_win32 1
+#define TARG_ZERO_WIDTH_BIT_FIELD_ALIGNMENT_win32 (-1)
+
+#define TARG_ALIGNOF_SIGNED_ACCUM_win32 4
+#define TARG_ALIGNOF_SIGNED_FRACT_win32 2
+#define TARG_ALIGNOF_SIGNED_LONG_ACCUM_win32 8
+#define TARG_ALIGNOF_SIGNED_LONG_FRACT_win32 4
+#define TARG_ALIGNOF_SIGNED_SHORT_ACCUM_win32 2
+#define TARG_ALIGNOF_SIGNED_SHORT_FRACT_win32 1
+#define TARG_ALIGNOF_UNSIGNED_ACCUM_win32 4
+#define TARG_ALIGNOF_UNSIGNED_FRACT_win32 2
+#define TARG_ALIGNOF_UNSIGNED_LONG_ACCUM_win32 8
+#define TARG_ALIGNOF_UNSIGNED_LONG_FRACT_win32 4
+#define TARG_ALIGNOF_UNSIGNED_SHORT_ACCUM_win32 2
+#define TARG_ALIGNOF_UNSIGNED_SHORT_FRACT_win32 1
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_ACCUM_win32 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_FRACT_win32 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_ACCUM_win32 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_FRACT_win32 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_ACCUM_win32 7
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_FRACT_win32 7
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_ACCUM_win32 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_FRACT_win32 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_ACCUM_win32 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_FRACT_win32 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_ACCUM_win32 8
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_FRACT_win32 8
+#define TARG_SIZEOF_LARGEST_FIXED_POINT_win32 8
+#define TARG_SIZEOF_LARGEST_ATOMIC_win32 8
+#define TARG_SIZEOF_SIGNED_ACCUM_win32 4
+#define TARG_SIZEOF_SIGNED_FRACT_win32 2
+#define TARG_SIZEOF_SIGNED_LONG_ACCUM_win32 8
+#define TARG_SIZEOF_SIGNED_LONG_FRACT_win32 4
+#define TARG_SIZEOF_SIGNED_SHORT_ACCUM_win32 2
+#define TARG_SIZEOF_SIGNED_SHORT_FRACT_win32 1
+#define TARG_SIZEOF_UNSIGNED_ACCUM_win32 4
+#define TARG_SIZEOF_UNSIGNED_FRACT_win32 2
+#define TARG_SIZEOF_UNSIGNED_LONG_ACCUM_win32 8
+#define TARG_SIZEOF_UNSIGNED_LONG_FRACT_win32 4
+#define TARG_SIZEOF_UNSIGNED_SHORT_ACCUM_win32 2
+#define TARG_SIZEOF_UNSIGNED_SHORT_FRACT_win32 1
+
+#else /* !TARG_SUPPORTS_X86_64 */
+
+/* "Other" target is Windows 64-bit configuration. */
+/* Target configuration: win64 */
+#define TARGET_CONFIGURATION_1 win64
+#define TARG_ALIGNOF_DOUBLE_win64 8
+#define TARG_ALIGNOF_FAR_POINTER_win64 4
+#define TARG_ALIGNOF_FLOAT_win64 4
+#define TARG_ALIGNOF_FLOAT128_win64 16
+#define TARG_ALIGNOF_FLOAT80_win64 16
+#define TARG_ALIGNOF_INT_win64 4
+#define TARG_ALIGNOF_INT128_win64 16
+#define TARG_ALIGNOF_LONG_win64 4
+#define TARG_ALIGNOF_LONG_DOUBLE_win64 8
+#define TARG_ALIGNOF_LONG_LONG_win64 8
+#define TARG_ALIGNOF_NEAR_POINTER_win64 2
+#define TARG_ALIGNOF_POINTER_win64 8
+#define TARG_ALIGNOF_PTR_TO_DATA_MEMBER_win64 8
+#define TARG_ALIGNOF_PTR_TO_MEMBER_FUNCTION_win64 8
+#define TARG_ALIGNOF_PTR_TO_VIRTUAL_BASE_CLASS_win64 8
+#define TARG_ALIGNOF_SHORT_win64 2
+#define TARG_ALIGNOF_VIRTUAL_FUNCTION_INFO_win64 8
+#define TARG_ALL_POINTERS_SAME_SIZE_win64 1
+#define TARG_BIT_FIELD_AFFECTS_UNION_ALIGNMENT_win64 0
+#define TARG_BIT_FIELD_CONTAINER_SIZE_win64 (-1)
+#define TARG_BOOL_INT_KIND_win64 ((an_integer_kind)ik_char)
+#define TARG_C_BOOL_INT_KIND_win64 ((an_integer_kind)ik_unsigned_char)
+#define TARG_CHAR16_T_INT_KIND_win64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_CHAR32_T_INT_KIND_win64 ((an_integer_kind)ik_unsigned_int)
+#define TARG_CHAR_BIT_win64 8
+#define TARG_CHAR_CONSTANT_FIRST_CHAR_MOST_SIGNIFICANT_win64 1
+#define TARG_DBL_MANT_DIG_win64 53
+#define TARG_DBL_MAX_EXP_win64 1024
+#define TARG_DBL_MIN_EXP_win64 (-1021)
+#define TARG_DEFAULT_NEW_ALIGNMENT_win64 16
+#define TARG_DELTA_INT_KIND_win64 ((an_integer_kind)ik_short)
+#define TARG_DOUBLE_FIELD_ALIGNMENT_win64 8
+#define TARG_DUAL_ALIGNMENTS_FOR_BUILTIN_TYPES_win64 0
+#define TARG_ENUM_BIT_FIELDS_ARE_ALWAYS_UNSIGNED_win64 0
+#define TARG_ENUM_TYPES_CAN_BE_SMALLER_THAN_INT_win64 0
+#define TARG_FIELD_ALLOC_SEQUENCE_EQUALS_DECL_SEQUENCE_win64 1
+#define TARG_FLOAT_FIELD_ALIGNMENT_win64 4
+#define TARG_FLOAT128_FIELD_ALIGNMENT_win64 16
+#define TARG_FLOAT80_FIELD_ALIGNMENT_win64 16
+#define TARG_FLT_MANT_DIG_win64 24
+#define TARG_FLT_MAX_EXP_win64 128
+#define TARG_FLT_MIN_EXP_win64 (-125)
+#define TARG_FLT128_MANT_DIG_win64 113
+#define TARG_FLT128_MAX_EXP_win64 (16384)
+#define TARG_FLT128_MIN_EXP_win64 (-16381)
+#define TARG_FLT80_MANT_DIG_win64 64
+#define TARG_FLT80_MAX_EXP_win64 (16384)
+#define TARG_FLT80_MIN_EXP_win64 (-16381)
+#define TARG_FORCE_ONE_BIT_BIT_FIELD_TO_BE_UNSIGNED_win64 1
+#define TARG_HAS_SIGNED_CHARS_win64 1
+#define TARG_HOST_STRING_CHAR_BIT_win64 8
+#define TARG_INT_FIELD_ALIGNMENT_win64 4
+#define TARG_INT128_FIELD_ALIGNMENT_win64 16
+#define TARG_JMP_BUF_ELEMENTS_ARE_FLOAT_win64 0
+#define TARG_JMP_BUF_ELEMENT_FLOAT_KIND_win64 ((a_float_kind)fk_long_double)
+#define TARG_JMP_BUF_ELEMENT_INT_KIND_win64 ((an_integer_kind)ik_int)
+#define TARG_JMP_BUF_NUM_ELEMENTS_win64 16
+#define TARG_SETJMP_FUNC_win64 "setjmp"
+#define TARG_LDBL_MANT_DIG_win64 53
+#define TARG_LDBL_MAX_EXP_win64 1024
+#define TARG_LDBL_MIN_EXP_win64 (-1021)
+#define TARG_LIBGCC_CMP_RETURN_MODE_win64 ((a_type_mode_kind)tmk_SI)
+#define TARG_LIBGCC_SHIFT_COUNT_MODE_win64 ((a_type_mode_kind)tmk_SI)
+#define TARG_LITTLE_ENDIAN_win64 1
+#define TARG_LONG_DOUBLE_FIELD_ALIGNMENT_win64 8
+#define TARG_LONG_FIELD_ALIGNMENT_win64 4
+#define TARG_LONG_LONG_FIELD_ALIGNMENT_win64 8
+#define TARG_MAXIMUM_INTRINSIC_ALIGNMENT_win64 8
+#define TARG_MAX_BASE_CLASS_OFFSET_win64 0
+#define TARG_MAX_CLASS_OBJECT_SIZE_win64 0
+#define TARG_MICROSOFT_BIT_FIELD_ALLOCATION_win64 1
+#define TARG_MICROSOFT_PTR_TO_MEMBER_SIZING_win64 0
+#define TARG_MINIMUM_STRUCT_ALIGNMENT_win64 1
+#define TARG_NONNEGATIVE_ENUM_BIT_FIELD_IS_UNSIGNED_win64 0
+#define TARG_OPTIMIZE_EMPTY_BASE_CLASS_LAYOUT_win64 1
+#define TARG_PAD_BIT_FIELDS_LARGER_THAN_BASE_TYPE_win64 1
+#define TARG_PLAIN_INT_BIT_FIELD_IS_UNSIGNED_win64 ( !1)
+#define TARG_POINTER_MODE_win64 ((a_type_mode_kind)tmk_DI)
+#define TARG_PTRDIFF_T_INT_KIND_win64 ((an_integer_kind)ik_long_long)
+#define TARG_REGION_NUMBER_INT_KIND_win64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_ETS_FLAG_TYPE_INT_KIND_win64 ((an_integer_kind)ik_unsigned_int)
+#define TARG_RIGHT_SHIFT_IS_ARITHMETIC_win64 1
+#define TARG_RUNTIME_ELEM_COUNT_INT_KIND_win64 ((an_integer_kind)ik_long_long)
+#define TARG_SHORT_FIELD_ALIGNMENT_win64 2
+#define TARG_SIZEOF_DOUBLE_win64 8
+#define TARG_SIZEOF_FAR_POINTER_win64 4
+#define TARG_SIZEOF_FLOAT_win64 4
+#define TARG_SIZEOF_FLOAT128_win64 16
+#define TARG_SIZEOF_FLOAT80_win64 16
+#define TARG_SIZEOF_INT_win64 4
+#define TARG_SIZEOF_INT128_win64 16
+#define TARG_SIZEOF_LONG_win64 4
+#define TARG_SIZEOF_LONG_DOUBLE_win64 8
+#define TARG_SIZEOF_LONG_LONG_win64 8
+#define TARG_SIZEOF_NEAR_POINTER_win64 2
+#define TARG_SIZEOF_POINTER_win64 8
+#define TARG_SIZEOF_PTR_TO_DATA_MEMBER_win64 8
+#define TARG_SIZEOF_PTR_TO_MEMBER_FUNCTION_win64 ((((2*2+8-1)/8)+1)* 8)
+#define TARG_SIZEOF_PTR_TO_VIRTUAL_BASE_CLASS_win64 8
+#define TARG_SIZEOF_SHORT_win64 2
+#define TARG_SIZEOF_VIRTUAL_FUNCTION_INFO_win64 8
+#define TARG_SIZE_T_INT_KIND_win64 ((an_integer_kind)ik_unsigned_long_long)
+#define TARG_SIZE_T_MAX_win64 ((a_targ_size_t)0xffffffffUL)
+#define TARG_SSIZE_T_INT_KIND_win64 ((an_integer_kind)ik_long_long)
+#define TARG_SUPPORTS_ARM32_win64 0
+#define TARG_SUPPORTS_ARM64_win64 0
+#define TARG_SUPPORTS_X86_64_win64 1
+#define TARG_TOO_LARGE_SHIFT_COUNT_IS_TAKEN_MODULO_SIZE_win64 0
+#define TARG_UNNAMED_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_win64 1
+#define TARG_UNWIND_WORD_MODE_win64 ((a_type_mode_kind)tmk_SI)
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BASE_CLASSES_win64 1
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BIT_FIELDS_win64 1
+#define TARG_VAR_HANDLE_INT_KIND_win64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_VIRTUAL_FUNCTION_INDEX_INT_KIND_win64 ((an_integer_kind)ik_short)
+#define TARG_WCHAR_T_INT_KIND_win64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_WINT_T_INT_KIND_win64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_WORD_MODE_win64 ((a_type_mode_kind)tmk_SI)
+#define TARG_ZERO_WIDTH_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_win64 1
+#define TARG_ZERO_WIDTH_BIT_FIELD_ALIGNMENT_win64 (-1)
+
+#define TARG_ALIGNOF_SIGNED_ACCUM_win64 4
+#define TARG_ALIGNOF_SIGNED_FRACT_win64 2
+#define TARG_ALIGNOF_SIGNED_LONG_ACCUM_win64 8
+#define TARG_ALIGNOF_SIGNED_LONG_FRACT_win64 4
+#define TARG_ALIGNOF_SIGNED_SHORT_ACCUM_win64 2
+#define TARG_ALIGNOF_SIGNED_SHORT_FRACT_win64 1
+#define TARG_ALIGNOF_UNSIGNED_ACCUM_win64 4
+#define TARG_ALIGNOF_UNSIGNED_FRACT_win64 2
+#define TARG_ALIGNOF_UNSIGNED_LONG_ACCUM_win64 8
+#define TARG_ALIGNOF_UNSIGNED_LONG_FRACT_win64 4
+#define TARG_ALIGNOF_UNSIGNED_SHORT_ACCUM_win64 2
+#define TARG_ALIGNOF_UNSIGNED_SHORT_FRACT_win64 1
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_ACCUM_win64 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_FRACT_win64 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_ACCUM_win64 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_FRACT_win64 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_ACCUM_win64 7
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_FRACT_win64 7
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_ACCUM_win64 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_FRACT_win64 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_ACCUM_win64 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_FRACT_win64 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_ACCUM_win64 8
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_FRACT_win64 8
+#define TARG_SIZEOF_LARGEST_FIXED_POINT_win64 8
+#define TARG_SIZEOF_LARGEST_ATOMIC_win64 16
+#define TARG_SIZEOF_SIGNED_ACCUM_win64 4
+#define TARG_SIZEOF_SIGNED_FRACT_win64 2
+#define TARG_SIZEOF_SIGNED_LONG_ACCUM_win64 8
+#define TARG_SIZEOF_SIGNED_LONG_FRACT_win64 4
+#define TARG_SIZEOF_SIGNED_SHORT_ACCUM_win64 2
+#define TARG_SIZEOF_SIGNED_SHORT_FRACT_win64 1
+#define TARG_SIZEOF_UNSIGNED_ACCUM_win64 4
+#define TARG_SIZEOF_UNSIGNED_FRACT_win64 2
+#define TARG_SIZEOF_UNSIGNED_LONG_ACCUM_win64 8
+#define TARG_SIZEOF_UNSIGNED_LONG_FRACT_win64 4
+#define TARG_SIZEOF_UNSIGNED_SHORT_ACCUM_win64 2
+#define TARG_SIZEOF_UNSIGNED_SHORT_FRACT_win64 1
+
+#endif /* TARG_SUPPORTS_X86_64 */
+
+/* Target configuration: linux_x86_64 */
+#define TARGET_CONFIGURATION_2 linux_x86_64
+#define TARG_ALIGNOF_DOUBLE_linux_x86_64 8
+#define TARG_ALIGNOF_FAR_POINTER_linux_x86_64 4
+#define TARG_ALIGNOF_FLOAT_linux_x86_64 4
+#define TARG_ALIGNOF_FLOAT128_linux_x86_64 16
+#define TARG_ALIGNOF_FLOAT80_linux_x86_64 16
+#define TARG_ALIGNOF_INT_linux_x86_64 4
+#define TARG_ALIGNOF_INT128_linux_x86_64 16
+#define TARG_ALIGNOF_LONG_linux_x86_64 8
+#define TARG_ALIGNOF_LONG_DOUBLE_linux_x86_64 16
+#define TARG_ALIGNOF_LONG_LONG_linux_x86_64 8
+#define TARG_ALIGNOF_NEAR_POINTER_linux_x86_64 2
+#define TARG_ALIGNOF_POINTER_linux_x86_64 8
+#define TARG_ALIGNOF_PTR_TO_DATA_MEMBER_linux_x86_64 8
+#define TARG_ALIGNOF_PTR_TO_MEMBER_FUNCTION_linux_x86_64 8
+#define TARG_ALIGNOF_PTR_TO_VIRTUAL_BASE_CLASS_linux_x86_64 8
+#define TARG_ALIGNOF_SHORT_linux_x86_64 2
+#define TARG_ALIGNOF_SIGNED_ACCUM_linux_x86_64 4
+#define TARG_ALIGNOF_SIGNED_FRACT_linux_x86_64 2
+#define TARG_ALIGNOF_SIGNED_LONG_ACCUM_linux_x86_64 8
+#define TARG_ALIGNOF_SIGNED_LONG_FRACT_linux_x86_64 4
+#define TARG_ALIGNOF_SIGNED_SHORT_ACCUM_linux_x86_64 2
+#define TARG_ALIGNOF_SIGNED_SHORT_FRACT_linux_x86_64 1
+#define TARG_ALIGNOF_UNSIGNED_ACCUM_linux_x86_64 4
+#define TARG_ALIGNOF_UNSIGNED_FRACT_linux_x86_64 2
+#define TARG_ALIGNOF_UNSIGNED_LONG_ACCUM_linux_x86_64 8
+#define TARG_ALIGNOF_UNSIGNED_LONG_FRACT_linux_x86_64 4
+#define TARG_ALIGNOF_UNSIGNED_SHORT_ACCUM_linux_x86_64 2
+#define TARG_ALIGNOF_UNSIGNED_SHORT_FRACT_linux_x86_64 1
+#define TARG_ALIGNOF_VIRTUAL_FUNCTION_INFO_linux_x86_64 8
+#define TARG_ALL_POINTERS_SAME_SIZE_linux_x86_64 1
+#define TARG_BIT_FIELD_AFFECTS_UNION_ALIGNMENT_linux_x86_64 1
+#define TARG_BIT_FIELD_CONTAINER_SIZE_linux_x86_64 (-1)
+#define TARG_BOOL_INT_KIND_linux_x86_64 ((an_integer_kind)ik_char)
+#define TARG_C_BOOL_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_char)
+#define TARG_CHAR16_T_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_CHAR32_T_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_int)
+#define TARG_CHAR_BIT_linux_x86_64 8
+#define TARG_CHAR_CONSTANT_FIRST_CHAR_MOST_SIGNIFICANT_linux_x86_64 1
+#define TARG_DBL_MANT_DIG_linux_x86_64 53
+#define TARG_DBL_MAX_EXP_linux_x86_64 1024
+#define TARG_DBL_MIN_EXP_linux_x86_64 (-1021)
+#define TARG_DEFAULT_NEW_ALIGNMENT_linux_x86_64 16
+#define TARG_DELTA_INT_KIND_linux_x86_64 ((an_integer_kind)ik_short)
+#define TARG_DOUBLE_FIELD_ALIGNMENT_linux_x86_64 8
+#define TARG_DUAL_ALIGNMENTS_FOR_BUILTIN_TYPES_linux_x86_64 0
+#define TARG_ENUM_BIT_FIELDS_ARE_ALWAYS_UNSIGNED_linux_x86_64 0
+#define TARG_ENUM_TYPES_CAN_BE_SMALLER_THAN_INT_linux_x86_64 0
+#define TARG_FIELD_ALLOC_SEQUENCE_EQUALS_DECL_SEQUENCE_linux_x86_64 1
+#define TARG_FLOAT_FIELD_ALIGNMENT_linux_x86_64 4
+#define TARG_FLOAT128_FIELD_ALIGNMENT_linux_x86_64 16
+#define TARG_FLOAT80_FIELD_ALIGNMENT_linux_x86_64 16
+#define TARG_FLT_MANT_DIG_linux_x86_64 24
+#define TARG_FLT_MAX_EXP_linux_x86_64 128
+#define TARG_FLT_MIN_EXP_linux_x86_64 (-125)
+#define TARG_FLT128_MANT_DIG_linux_x86_64 113
+#define TARG_FLT128_MAX_EXP_linux_x86_64 (16384)
+#define TARG_FLT128_MIN_EXP_linux_x86_64 (-16381)
+#define TARG_FLT80_MANT_DIG_linux_x86_64 64
+#define TARG_FLT80_MAX_EXP_linux_x86_64 (16384)
+#define TARG_FLT80_MIN_EXP_linux_x86_64 (-16381)
+#define TARG_FORCE_ONE_BIT_BIT_FIELD_TO_BE_UNSIGNED_linux_x86_64 1
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_ACCUM_linux_x86_64 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_FRACT_linux_x86_64 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_ACCUM_linux_x86_64 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_FRACT_linux_x86_64 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_ACCUM_linux_x86_64 7
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_FRACT_linux_x86_64 7
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_ACCUM_linux_x86_64 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_FRACT_linux_x86_64 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_ACCUM_linux_x86_64 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_FRACT_linux_x86_64 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_ACCUM_linux_x86_64 8
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_FRACT_linux_x86_64 8
+#define TARG_HAS_SIGNED_CHARS_linux_x86_64 1
+#define TARG_HOST_STRING_CHAR_BIT_linux_x86_64 8
+#define TARG_INT_FIELD_ALIGNMENT_linux_x86_64 4
+#define TARG_INT128_FIELD_ALIGNMENT_linux_x86_64 16
+#define TARG_JMP_BUF_ELEMENTS_ARE_FLOAT_linux_x86_64 0
+#define TARG_JMP_BUF_ELEMENT_FLOAT_KIND_linux_x86_64 ((a_float_kind)fk_long_double)
+#define TARG_JMP_BUF_ELEMENT_INT_KIND_linux_x86_64 ((an_integer_kind)ik_long)
+#define TARG_JMP_BUF_NUM_ELEMENTS_linux_x86_64 25
+#define TARG_SETJMP_FUNC_linux_x86_64 "_setjmp"
+#define TARG_LDBL_MANT_DIG_linux_x86_64 64
+#define TARG_LDBL_MAX_EXP_linux_x86_64 16384
+#define TARG_LDBL_MIN_EXP_linux_x86_64 (-16381)
+#define TARG_LIBGCC_CMP_RETURN_MODE_linux_x86_64 ((a_type_mode_kind)tmk_DI)
+#define TARG_LIBGCC_SHIFT_COUNT_MODE_linux_x86_64 ((a_type_mode_kind)tmk_DI)
+#define TARG_LITTLE_ENDIAN_linux_x86_64 1
+#define TARG_LONG_DOUBLE_FIELD_ALIGNMENT_linux_x86_64 16
+#define TARG_LONG_FIELD_ALIGNMENT_linux_x86_64 8
+#define TARG_LONG_LONG_FIELD_ALIGNMENT_linux_x86_64 8
+#define TARG_MAXIMUM_INTRINSIC_ALIGNMENT_linux_x86_64 16
+#define TARG_MAX_BASE_CLASS_OFFSET_linux_x86_64 0
+#define TARG_MAX_CLASS_OBJECT_SIZE_linux_x86_64 0
+#define TARG_MICROSOFT_BIT_FIELD_ALLOCATION_linux_x86_64 0
+#define TARG_MICROSOFT_PTR_TO_MEMBER_SIZING_linux_x86_64 0
+#define TARG_MINIMUM_STRUCT_ALIGNMENT_linux_x86_64 1
+#define TARG_NONNEGATIVE_ENUM_BIT_FIELD_IS_UNSIGNED_linux_x86_64 1
+#define TARG_OPTIMIZE_EMPTY_BASE_CLASS_LAYOUT_linux_x86_64 1
+#define TARG_PAD_BIT_FIELDS_LARGER_THAN_BASE_TYPE_linux_x86_64 1
+#define TARG_PLAIN_INT_BIT_FIELD_IS_UNSIGNED_linux_x86_64 0
+#define TARG_POINTER_MODE_linux_x86_64 ((a_type_mode_kind)tmk_DI)
+#define TARG_PTRDIFF_T_INT_KIND_linux_x86_64 ((an_integer_kind)ik_long)
+#define TARG_REGION_NUMBER_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_ETS_FLAG_TYPE_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_int)
+#define TARG_RIGHT_SHIFT_IS_ARITHMETIC_linux_x86_64 1
+#define TARG_RUNTIME_ELEM_COUNT_INT_KIND_linux_x86_64 ((an_integer_kind)ik_long)
+#define TARG_SHORT_FIELD_ALIGNMENT_linux_x86_64 2
+#define TARG_SIZEOF_DOUBLE_linux_x86_64 8
+#define TARG_SIZEOF_FAR_POINTER_linux_x86_64 4
+#define TARG_SIZEOF_FLOAT_linux_x86_64 4
+#define TARG_SIZEOF_FLOAT128_linux_x86_64 16
+#define TARG_SIZEOF_FLOAT80_linux_x86_64 12
+#define TARG_SIZEOF_INT_linux_x86_64 4
+#define TARG_SIZEOF_INT128_linux_x86_64 16
+#define TARG_SIZEOF_LARGEST_FIXED_POINT_linux_x86_64 8
+#define TARG_SIZEOF_LARGEST_ATOMIC_linux_x86_64 16
+#define TARG_SIZEOF_LONG_linux_x86_64 8
+#define TARG_SIZEOF_LONG_DOUBLE_linux_x86_64 16
+#define TARG_SIZEOF_LONG_LONG_linux_x86_64 8
+#define TARG_SIZEOF_NEAR_POINTER_linux_x86_64 2
+#define TARG_SIZEOF_POINTER_linux_x86_64 8
+#define TARG_SIZEOF_PTR_TO_DATA_MEMBER_linux_x86_64 8
+#define TARG_SIZEOF_PTR_TO_MEMBER_FUNCTION_linux_x86_64 ((((2*2+8-1)/8)+1)* 8)
+#define TARG_SIZEOF_PTR_TO_VIRTUAL_BASE_CLASS_linux_x86_64 8
+#define TARG_SIZEOF_SHORT_linux_x86_64 2
+#define TARG_SIZEOF_SIGNED_ACCUM_linux_x86_64 4
+#define TARG_SIZEOF_SIGNED_FRACT_linux_x86_64 2
+#define TARG_SIZEOF_SIGNED_LONG_ACCUM_linux_x86_64 8
+#define TARG_SIZEOF_SIGNED_LONG_FRACT_linux_x86_64 4
+#define TARG_SIZEOF_SIGNED_SHORT_ACCUM_linux_x86_64 2
+#define TARG_SIZEOF_SIGNED_SHORT_FRACT_linux_x86_64 1
+#define TARG_SIZEOF_UNSIGNED_ACCUM_linux_x86_64 4
+#define TARG_SIZEOF_UNSIGNED_FRACT_linux_x86_64 2
+#define TARG_SIZEOF_UNSIGNED_LONG_ACCUM_linux_x86_64 8
+#define TARG_SIZEOF_UNSIGNED_LONG_FRACT_linux_x86_64 4
+#define TARG_SIZEOF_UNSIGNED_SHORT_ACCUM_linux_x86_64 2
+#define TARG_SIZEOF_UNSIGNED_SHORT_FRACT_linux_x86_64 1
+#define TARG_SIZEOF_VIRTUAL_FUNCTION_INFO_linux_x86_64 8
+#define TARG_SIZE_T_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_long)
+#define TARG_SIZE_T_MAX_linux_x86_64 ((a_targ_size_t)(9223372036854775807ULL * 2ULL + 1ULL))
+#define TARG_SSIZE_T_INT_KIND_linux_x86_64 ((an_integer_kind)ik_long)
+#define TARG_SUPPORTS_ARM32_linux_x86_64 0
+#define TARG_SUPPORTS_ARM64_linux_x86_64 0
+#define TARG_SUPPORTS_X86_64_linux_x86_64 1
+#define TARG_TOO_LARGE_SHIFT_COUNT_IS_TAKEN_MODULO_SIZE_linux_x86_64 0
+#define TARG_UNNAMED_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_linux_x86_64 0
+#define TARG_UNWIND_WORD_MODE_linux_x86_64 ((a_type_mode_kind)tmk_DI)
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BASE_CLASSES_linux_x86_64 1
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BIT_FIELDS_linux_x86_64 1
+#define TARG_VAR_HANDLE_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_short)
+#define TARG_VIRTUAL_FUNCTION_INDEX_INT_KIND_linux_x86_64 ((an_integer_kind)ik_short)
+#define TARG_WCHAR_T_INT_KIND_linux_x86_64 ((an_integer_kind)ik_int)
+#define TARG_WINT_T_INT_KIND_linux_x86_64 ((an_integer_kind)ik_unsigned_int)
+#define TARG_WORD_MODE_linux_x86_64 ((a_type_mode_kind)tmk_DI)
+#define TARG_ZERO_WIDTH_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_linux_x86_64 1
+#define TARG_ZERO_WIDTH_BIT_FIELD_ALIGNMENT_linux_x86_64 4
+
+/* Target configuration: linux_i686 */
+#define TARGET_CONFIGURATION_3 linux_i686
+#define TARG_ALIGNOF_DOUBLE_linux_i686 8
+#define TARG_ALIGNOF_FAR_POINTER_linux_i686 4
+#define TARG_ALIGNOF_FLOAT_linux_i686 4
+#define TARG_ALIGNOF_FLOAT128_linux_i686 16
+#define TARG_ALIGNOF_FLOAT80_linux_i686 4
+#define TARG_ALIGNOF_INT_linux_i686 4
+#define TARG_ALIGNOF_INT128_linux_i686 16
+#define TARG_ALIGNOF_LONG_linux_i686 4
+#define TARG_ALIGNOF_LONG_DOUBLE_linux_i686 4
+#define TARG_ALIGNOF_LONG_LONG_linux_i686 8
+#define TARG_ALIGNOF_NEAR_POINTER_linux_i686 2
+#define TARG_ALIGNOF_POINTER_linux_i686 4
+#define TARG_ALIGNOF_PTR_TO_DATA_MEMBER_linux_i686 4
+#define TARG_ALIGNOF_PTR_TO_MEMBER_FUNCTION_linux_i686 4
+#define TARG_ALIGNOF_PTR_TO_VIRTUAL_BASE_CLASS_linux_i686 4
+#define TARG_ALIGNOF_SHORT_linux_i686 2
+#define TARG_ALIGNOF_SIGNED_ACCUM_linux_i686 4
+#define TARG_ALIGNOF_SIGNED_FRACT_linux_i686 2
+#define TARG_ALIGNOF_SIGNED_LONG_ACCUM_linux_i686 8
+#define TARG_ALIGNOF_SIGNED_LONG_FRACT_linux_i686 4
+#define TARG_ALIGNOF_SIGNED_SHORT_ACCUM_linux_i686 2
+#define TARG_ALIGNOF_SIGNED_SHORT_FRACT_linux_i686 1
+#define TARG_ALIGNOF_UNSIGNED_ACCUM_linux_i686 4
+#define TARG_ALIGNOF_UNSIGNED_FRACT_linux_i686 2
+#define TARG_ALIGNOF_UNSIGNED_LONG_ACCUM_linux_i686 8
+#define TARG_ALIGNOF_UNSIGNED_LONG_FRACT_linux_i686 4
+#define TARG_ALIGNOF_UNSIGNED_SHORT_ACCUM_linux_i686 2
+#define TARG_ALIGNOF_UNSIGNED_SHORT_FRACT_linux_i686 1
+#define TARG_ALIGNOF_VIRTUAL_FUNCTION_INFO_linux_i686 4
+#define TARG_ALL_POINTERS_SAME_SIZE_linux_i686 1
+#define TARG_BIT_FIELD_AFFECTS_UNION_ALIGNMENT_linux_i686 1
+#define TARG_BIT_FIELD_CONTAINER_SIZE_linux_i686 (-1)
+#define TARG_BOOL_INT_KIND_linux_i686 ((an_integer_kind)ik_char)
+#define TARG_C_BOOL_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_char)
+#define TARG_CHAR16_T_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_short)
+#define TARG_CHAR32_T_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_int)
+#define TARG_CHAR_BIT_linux_i686 8
+#define TARG_CHAR_CONSTANT_FIRST_CHAR_MOST_SIGNIFICANT_linux_i686 1
+#define TARG_DBL_MANT_DIG_linux_i686 53
+#define TARG_DBL_MAX_EXP_linux_i686 1024
+#define TARG_DBL_MIN_EXP_linux_i686 (-1021)
+#define TARG_DEFAULT_NEW_ALIGNMENT_linux_i686 16
+#define TARG_DELTA_INT_KIND_linux_i686 ((an_integer_kind)ik_short)
+#define TARG_DOUBLE_FIELD_ALIGNMENT_linux_i686 4
+#define TARG_DUAL_ALIGNMENTS_FOR_BUILTIN_TYPES_linux_i686 1
+#define TARG_ENUM_BIT_FIELDS_ARE_ALWAYS_UNSIGNED_linux_i686 0
+#define TARG_ENUM_TYPES_CAN_BE_SMALLER_THAN_INT_linux_i686 0
+#define TARG_FIELD_ALLOC_SEQUENCE_EQUALS_DECL_SEQUENCE_linux_i686 1
+#define TARG_FLOAT_FIELD_ALIGNMENT_linux_i686 4
+#define TARG_FLOAT128_FIELD_ALIGNMENT_linux_i686 16
+#define TARG_FLOAT80_FIELD_ALIGNMENT_linux_i686 4
+#define TARG_FLT_MANT_DIG_linux_i686 24
+#define TARG_FLT_MAX_EXP_linux_i686 128
+#define TARG_FLT_MIN_EXP_linux_i686 (-125)
+#define TARG_FLT128_MANT_DIG_linux_i686 113
+#define TARG_FLT128_MAX_EXP_linux_i686 (16384)
+#define TARG_FLT128_MIN_EXP_linux_i686 (-16381)
+#define TARG_FLT80_MANT_DIG_linux_i686 64
+#define TARG_FLT80_MAX_EXP_linux_i686 (16384)
+#define TARG_FLT80_MIN_EXP_linux_i686 (-16381)
+#define TARG_FORCE_ONE_BIT_BIT_FIELD_TO_BE_UNSIGNED_linux_i686 1
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_ACCUM_linux_i686 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_FRACT_linux_i686 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_ACCUM_linux_i686 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_FRACT_linux_i686 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_ACCUM_linux_i686 7
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_FRACT_linux_i686 7
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_ACCUM_linux_i686 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_FRACT_linux_i686 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_ACCUM_linux_i686 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_FRACT_linux_i686 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_ACCUM_linux_i686 8
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_FRACT_linux_i686 8
+#define TARG_HAS_SIGNED_CHARS_linux_i686 1
+#define TARG_HOST_STRING_CHAR_BIT_linux_i686 8
+#define TARG_INT_FIELD_ALIGNMENT_linux_i686 4
+#define TARG_INT128_FIELD_ALIGNMENT_linux_i686 16
+#define TARG_JMP_BUF_ELEMENTS_ARE_FLOAT_linux_i686 0
+#define TARG_JMP_BUF_ELEMENT_FLOAT_KIND_linux_i686 ((a_float_kind)fk_long_double)
+#define TARG_JMP_BUF_ELEMENT_INT_KIND_linux_i686 ((an_integer_kind)ik_int)
+#define TARG_JMP_BUF_NUM_ELEMENTS_linux_i686 39
+#define TARG_SETJMP_FUNC_linux_i686 "_setjmp"
+#define TARG_LDBL_MANT_DIG_linux_i686 64
+#define TARG_LDBL_MAX_EXP_linux_i686 16384
+#define TARG_LDBL_MIN_EXP_linux_i686 (-16381)
+#define TARG_LIBGCC_CMP_RETURN_MODE_linux_i686 ((a_type_mode_kind)tmk_SI)
+#define TARG_LIBGCC_SHIFT_COUNT_MODE_linux_i686 ((a_type_mode_kind)tmk_SI)
+#define TARG_LITTLE_ENDIAN_linux_i686 1
+#define TARG_LONG_DOUBLE_FIELD_ALIGNMENT_linux_i686 4
+#define TARG_LONG_FIELD_ALIGNMENT_linux_i686 4
+#define TARG_LONG_LONG_FIELD_ALIGNMENT_linux_i686 4
+#define TARG_MAXIMUM_INTRINSIC_ALIGNMENT_linux_i686 16
+#define TARG_MAX_BASE_CLASS_OFFSET_linux_i686 0
+#define TARG_MAX_CLASS_OBJECT_SIZE_linux_i686 0
+#define TARG_MICROSOFT_BIT_FIELD_ALLOCATION_linux_i686 0
+#define TARG_MICROSOFT_PTR_TO_MEMBER_SIZING_linux_i686 0
+#define TARG_MINIMUM_STRUCT_ALIGNMENT_linux_i686 1
+#define TARG_NONNEGATIVE_ENUM_BIT_FIELD_IS_UNSIGNED_linux_i686 1
+#define TARG_OPTIMIZE_EMPTY_BASE_CLASS_LAYOUT_linux_i686 1
+#define TARG_PAD_BIT_FIELDS_LARGER_THAN_BASE_TYPE_linux_i686 1
+#define TARG_PLAIN_INT_BIT_FIELD_IS_UNSIGNED_linux_i686 0
+#define TARG_POINTER_MODE_linux_i686 ((a_type_mode_kind)tmk_SI)
+#define TARG_PTRDIFF_T_INT_KIND_linux_i686 ((an_integer_kind)ik_int)
+#define TARG_REGION_NUMBER_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_short)
+#define TARG_ETS_FLAG_TYPE_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_int)
+#define TARG_RIGHT_SHIFT_IS_ARITHMETIC_linux_i686 1
+#define TARG_RUNTIME_ELEM_COUNT_INT_KIND_linux_i686 ((an_integer_kind)ik_int)
+#define TARG_SHORT_FIELD_ALIGNMENT_linux_i686 2
+#define TARG_SIZEOF_DOUBLE_linux_i686 8
+#define TARG_SIZEOF_FAR_POINTER_linux_i686 4
+#define TARG_SIZEOF_FLOAT_linux_i686 4
+#define TARG_SIZEOF_FLOAT128_linux_i686 16
+#define TARG_SIZEOF_FLOAT80_linux_i686 12
+#define TARG_SIZEOF_INT_linux_i686 4
+#define TARG_SIZEOF_INT128_linux_i686 16
+#define TARG_SIZEOF_LARGEST_FIXED_POINT_linux_i686 8
+#define TARG_SIZEOF_LARGEST_ATOMIC_linux_i686 8
+#define TARG_SIZEOF_LONG_linux_i686 4
+#define TARG_SIZEOF_LONG_DOUBLE_linux_i686 12
+#define TARG_SIZEOF_LONG_LONG_linux_i686 8
+#define TARG_SIZEOF_NEAR_POINTER_linux_i686 2
+#define TARG_SIZEOF_POINTER_linux_i686 4
+#define TARG_SIZEOF_PTR_TO_DATA_MEMBER_linux_i686 4
+#define TARG_SIZEOF_PTR_TO_MEMBER_FUNCTION_linux_i686 ((((2*2+4-1)/4)+1)* 4)
+#define TARG_SIZEOF_PTR_TO_VIRTUAL_BASE_CLASS_linux_i686 4
+#define TARG_SIZEOF_SHORT_linux_i686 2
+#define TARG_SIZEOF_SIGNED_ACCUM_linux_i686 4
+#define TARG_SIZEOF_SIGNED_FRACT_linux_i686 2
+#define TARG_SIZEOF_SIGNED_LONG_ACCUM_linux_i686 8
+#define TARG_SIZEOF_SIGNED_LONG_FRACT_linux_i686 4
+#define TARG_SIZEOF_SIGNED_SHORT_ACCUM_linux_i686 2
+#define TARG_SIZEOF_SIGNED_SHORT_FRACT_linux_i686 1
+#define TARG_SIZEOF_UNSIGNED_ACCUM_linux_i686 4
+#define TARG_SIZEOF_UNSIGNED_FRACT_linux_i686 2
+#define TARG_SIZEOF_UNSIGNED_LONG_ACCUM_linux_i686 8
+#define TARG_SIZEOF_UNSIGNED_LONG_FRACT_linux_i686 4
+#define TARG_SIZEOF_UNSIGNED_SHORT_ACCUM_linux_i686 2
+#define TARG_SIZEOF_UNSIGNED_SHORT_FRACT_linux_i686 1
+#define TARG_SIZEOF_VIRTUAL_FUNCTION_INFO_linux_i686 4
+#define TARG_SIZE_T_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_int)
+#define TARG_SIZE_T_MAX_linux_i686 ((a_targ_size_t)(2147483647 * 2U + 1U))
+#define TARG_SSIZE_T_INT_KIND_linux_i686 ((an_integer_kind)ik_int)
+#define TARG_SUPPORTS_ARM32_linux_i686 0
+#define TARG_SUPPORTS_ARM64_linux_i686 0
+#define TARG_SUPPORTS_X86_64_linux_i686 0
+#define TARG_TOO_LARGE_SHIFT_COUNT_IS_TAKEN_MODULO_SIZE_linux_i686 0
+#define TARG_UNNAMED_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_linux_i686 0
+#define TARG_UNWIND_WORD_MODE_linux_i686 ((a_type_mode_kind)tmk_SI)
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BASE_CLASSES_linux_i686 1
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BIT_FIELDS_linux_i686 1
+#define TARG_VAR_HANDLE_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_short)
+#define TARG_VIRTUAL_FUNCTION_INDEX_INT_KIND_linux_i686 ((an_integer_kind)ik_short)
+#define TARG_WCHAR_T_INT_KIND_linux_i686 ((an_integer_kind)ik_long)
+#define TARG_WINT_T_INT_KIND_linux_i686 ((an_integer_kind)ik_unsigned_int)
+#define TARG_WORD_MODE_linux_i686 ((a_type_mode_kind)tmk_SI)
+#define TARG_ZERO_WIDTH_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_linux_i686 1
+#define TARG_ZERO_WIDTH_BIT_FIELD_ALIGNMENT_linux_i686 4
+
+/* Target configuration: Cygwin */
+#define TARGET_CONFIGURATION_4 cygwin
+#define TARG_ALIGNOF_DOUBLE_cygwin 8
+#define TARG_ALIGNOF_FAR_POINTER_cygwin 4
+#define TARG_ALIGNOF_FLOAT_cygwin 4
+#define TARG_ALIGNOF_FLOAT128_cygwin 16
+#define TARG_ALIGNOF_FLOAT80_cygwin 16
+#define TARG_ALIGNOF_INT_cygwin 4
+#define TARG_ALIGNOF_INT128_cygwin 16
+#define TARG_ALIGNOF_LONG_cygwin 4
+#define TARG_ALIGNOF_LONG_DOUBLE_cygwin 4
+#define TARG_ALIGNOF_LONG_LONG_cygwin 8
+#define TARG_ALIGNOF_NEAR_POINTER_cygwin 2
+#define TARG_ALIGNOF_POINTER_cygwin 4
+#define TARG_ALIGNOF_PTR_TO_DATA_MEMBER_cygwin 4
+#define TARG_ALIGNOF_PTR_TO_MEMBER_FUNCTION_cygwin 4
+#define TARG_ALIGNOF_PTR_TO_VIRTUAL_BASE_CLASS_cygwin 4
+#define TARG_ALIGNOF_SHORT_cygwin 2
+#define TARG_ALIGNOF_SIGNED_ACCUM_cygwin 4
+#define TARG_ALIGNOF_SIGNED_FRACT_cygwin 2
+#define TARG_ALIGNOF_SIGNED_LONG_ACCUM_cygwin 8
+#define TARG_ALIGNOF_SIGNED_LONG_FRACT_cygwin 4
+#define TARG_ALIGNOF_SIGNED_SHORT_ACCUM_cygwin 2
+#define TARG_ALIGNOF_SIGNED_SHORT_FRACT_cygwin 1
+#define TARG_ALIGNOF_UNSIGNED_ACCUM_cygwin 4
+#define TARG_ALIGNOF_UNSIGNED_FRACT_cygwin 2
+#define TARG_ALIGNOF_UNSIGNED_LONG_ACCUM_cygwin 8
+#define TARG_ALIGNOF_UNSIGNED_LONG_FRACT_cygwin 4
+#define TARG_ALIGNOF_UNSIGNED_SHORT_ACCUM_cygwin 2
+#define TARG_ALIGNOF_UNSIGNED_SHORT_FRACT_cygwin 1
+#define TARG_ALIGNOF_VIRTUAL_FUNCTION_INFO_cygwin 4
+#define TARG_ALL_POINTERS_SAME_SIZE_cygwin 1
+#define TARG_BIT_FIELD_AFFECTS_UNION_ALIGNMENT_cygwin 0
+#define TARG_BIT_FIELD_CONTAINER_SIZE_cygwin -1
+#define TARG_BOOL_INT_KIND_cygwin ((an_integer_kind)ik_char)
+#define TARG_C_BOOL_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_char)
+#define TARG_CHAR16_T_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_short)
+#define TARG_CHAR32_T_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_int)
+#define TARG_CHAR_BIT_cygwin 8
+#define TARG_CHAR_CONSTANT_FIRST_CHAR_MOST_SIGNIFICANT_cygwin 1
+#define TARG_DBL_MANT_DIG_cygwin 53
+#define TARG_DBL_MAX_EXP_cygwin 1024
+#define TARG_DBL_MIN_EXP_cygwin (-1021)
+#define TARG_DEFAULT_NEW_ALIGNMENT_cygwin 16
+#define TARG_DELTA_INT_KIND_cygwin ((an_integer_kind)ik_short)
+#define TARG_DOUBLE_FIELD_ALIGNMENT_cygwin 8
+#define TARG_DUAL_ALIGNMENTS_FOR_BUILTIN_TYPES_cygwin 1
+#define TARG_ENUM_BIT_FIELDS_ARE_ALWAYS_UNSIGNED_cygwin 0
+#define TARG_ENUM_TYPES_CAN_BE_SMALLER_THAN_INT_cygwin 0
+#define TARG_ETS_FLAG_TYPE_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_int)
+#define TARG_FIELD_ALLOC_SEQUENCE_EQUALS_DECL_SEQUENCE_cygwin 1
+#define TARG_FLOAT_FIELD_ALIGNMENT_cygwin 4
+#define TARG_FLOAT128_FIELD_ALIGNMENT_cygwin 16
+#define TARG_FLOAT80_FIELD_ALIGNMENT_cygwin 16
+#define TARG_FLT_MANT_DIG_cygwin 24
+#define TARG_FLT_MAX_EXP_cygwin 128
+#define TARG_FLT_MIN_EXP_cygwin -125
+#define TARG_FLT128_MANT_DIG_cygwin 113
+#define TARG_FLT128_MAX_EXP_cygwin 16384
+#define TARG_FLT128_MIN_EXP_cygwin -16381
+#define TARG_FLT80_MANT_DIG_cygwin 64
+#define TARG_FLT80_MAX_EXP_cygwin 16384
+#define TARG_FLT80_MIN_EXP_cygwin -16381
+#define TARG_FORCE_ONE_BIT_BIT_FIELD_TO_BE_UNSIGNED_cygwin 1
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_ACCUM_cygwin 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_FRACT_cygwin 15
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_ACCUM_cygwin 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_LONG_FRACT_cygwin 31
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_ACCUM_cygwin 7
+#define TARG_FRACTIONAL_BITS_FOR_SIGNED_SHORT_FRACT_cygwin 7
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_ACCUM_cygwin 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_FRACT_cygwin 16
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_ACCUM_cygwin 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_LONG_FRACT_cygwin 32
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_ACCUM_cygwin 8
+#define TARG_FRACTIONAL_BITS_FOR_UNSIGNED_SHORT_FRACT_cygwin 8
+#define TARG_HAS_SIGNED_CHARS_cygwin 1
+#define TARG_HOST_STRING_CHAR_BIT_cygwin 8
+#define TARG_INT_FIELD_ALIGNMENT_cygwin 4
+#define TARG_INT128_FIELD_ALIGNMENT_cygwin 16
+#define TARG_JMP_BUF_ELEMENTS_ARE_FLOAT_cygwin 0
+#define TARG_JMP_BUF_ELEMENT_FLOAT_KIND_cygwin ((a_float_kind)fk_long_double)
+#define TARG_JMP_BUF_ELEMENT_INT_KIND_cygwin ((an_integer_kind)ik_int)
+#define TARG_JMP_BUF_NUM_ELEMENTS_cygwin 52
+#define TARG_SETJMP_FUNC_cygwin "setjmp"
+#define TARG_LDBL_MANT_DIG_cygwin 64
+#define TARG_LDBL_MAX_EXP_cygwin 16384
+#define TARG_LDBL_MIN_EXP_cygwin -16381
+#define TARG_LIBGCC_CMP_RETURN_MODE_cygwin ((a_type_mode_kind)tmk_SI)
+#define TARG_LIBGCC_SHIFT_COUNT_MODE_cygwin ((a_type_mode_kind)tmk_SI)
+#define TARG_LITTLE_ENDIAN_cygwin 1
+#define TARG_LONG_DOUBLE_FIELD_ALIGNMENT_cygwin 4
+#define TARG_LONG_FIELD_ALIGNMENT_cygwin 4
+#define TARG_LONG_LONG_FIELD_ALIGNMENT_cygwin 8
+#define TARG_MAXIMUM_INTRINSIC_ALIGNMENT_cygwin 16
+#define TARG_MAX_BASE_CLASS_OFFSET_cygwin 0
+#define TARG_MAX_CLASS_OBJECT_SIZE_cygwin 0
+#define TARG_MICROSOFT_BIT_FIELD_ALLOCATION_cygwin 1
+#define TARG_MICROSOFT_PTR_TO_MEMBER_SIZING_cygwin 0
+#define TARG_MINIMUM_STRUCT_ALIGNMENT_cygwin 1
+#define TARG_NONNEGATIVE_ENUM_BIT_FIELD_IS_UNSIGNED_cygwin 0
+#define TARG_OPTIMIZE_EMPTY_BASE_CLASS_LAYOUT_cygwin 1
+#define TARG_PAD_BIT_FIELDS_LARGER_THAN_BASE_TYPE_cygwin 1
+#define TARG_PLAIN_INT_BIT_FIELD_IS_UNSIGNED_cygwin 0
+#define TARG_POINTER_MODE_cygwin ((a_type_mode_kind)tmk_SI)
+#define TARG_PTRDIFF_T_INT_KIND_cygwin ((an_integer_kind)ik_int)
+#define TARG_REGION_NUMBER_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_short)
+#define TARG_RIGHT_SHIFT_IS_ARITHMETIC_cygwin 1
+#define TARG_RUNTIME_ELEM_COUNT_INT_KIND_cygwin ((an_integer_kind)ik_int)
+#define TARG_SHORT_FIELD_ALIGNMENT_cygwin 2
+#define TARG_SIZEOF_DOUBLE_cygwin 8
+#define TARG_SIZEOF_FAR_POINTER_cygwin 4
+#define TARG_SIZEOF_FLOAT_cygwin 4
+#define TARG_SIZEOF_FLOAT80_cygwin 16
+#define TARG_SIZEOF_FLOAT128_cygwin 16
+#define TARG_SIZEOF_INT_cygwin 4
+#define TARG_SIZEOF_INT128_cygwin 16
+#define TARG_SIZEOF_LARGEST_FIXED_POINT_cygwin 8
+#define TARG_SIZEOF_LARGEST_ATOMIC_cygwin 8
+#define TARG_SIZEOF_LARGEST_INTEGER_cygwin 16
+#define TARG_SIZEOF_LONG_cygwin 4
+#define TARG_SIZEOF_LONG_DOUBLE_cygwin 12
+#define TARG_SIZEOF_LONG_LONG_cygwin 8
+#define TARG_SIZEOF_NEAR_POINTER_cygwin 2
+#define TARG_SIZEOF_POINTER_cygwin 4
+#define TARG_SIZEOF_PTR_TO_DATA_MEMBER_cygwin 4
+#define TARG_SIZEOF_PTR_TO_MEMBER_FUNCTION_cygwin 8
+#define TARG_SIZEOF_PTR_TO_VIRTUAL_BASE_CLASS_cygwin 4
+#define TARG_SIZEOF_SHORT_cygwin 2
+#define TARG_SIZEOF_SIGNED_ACCUM_cygwin 4
+#define TARG_SIZEOF_SIGNED_FRACT_cygwin 2
+#define TARG_SIZEOF_SIGNED_LONG_ACCUM_cygwin 8
+#define TARG_SIZEOF_SIGNED_LONG_FRACT_cygwin 4
+#define TARG_SIZEOF_SIGNED_SHORT_ACCUM_cygwin 2
+#define TARG_SIZEOF_SIGNED_SHORT_FRACT_cygwin 1
+#define TARG_SIZEOF_UNSIGNED_ACCUM_cygwin 4
+#define TARG_SIZEOF_UNSIGNED_FRACT_cygwin 2
+#define TARG_SIZEOF_UNSIGNED_LONG_ACCUM_cygwin 8
+#define TARG_SIZEOF_UNSIGNED_LONG_FRACT_cygwin 4
+#define TARG_SIZEOF_UNSIGNED_SHORT_ACCUM_cygwin 2
+#define TARG_SIZEOF_UNSIGNED_SHORT_FRACT_cygwin 1
+#define TARG_SIZEOF_VIRTUAL_FUNCTION_INFO_cygwin 4
+#define TARG_SIZE_T_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_long)
+#define TARG_SIZE_T_MAX_cygwin ((a_targ_size_t)0xffffffffUL)
+#define TARG_SSIZE_T_INT_KIND_cygwin ((an_integer_kind)ik_long)
+#define TARG_SUPPORTS_ARM32_cygwin 0
+#define TARG_SUPPORTS_ARM64_cygwin 0
+#define TARG_SUPPORTS_X86_64_cygwin 1
+#define TARG_TOO_LARGE_SHIFT_COUNT_IS_TAKEN_MODULO_SIZE_cygwin 0
+#define TARG_UNNAMED_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_cygwin 1
+#define TARG_UNWIND_WORD_MODE_cygwin ((a_type_mode_kind)tmk_SI)
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BASE_CLASSES_cygwin 1
+#define TARG_USER_CONTROL_OF_STRUCT_PACKING_AFFECTS_BIT_FIELDS_cygwin 1
+#define TARG_VAR_HANDLE_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_short)
+#define TARG_VIRTUAL_FUNCTION_INDEX_INT_KIND_cygwin ((an_integer_kind)ik_short)
+#define TARG_WCHAR_T_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_short)
+#define TARG_WINT_T_INT_KIND_cygwin ((an_integer_kind)ik_unsigned_short)
+#define TARG_WORD_MODE_cygwin ((a_type_mode_kind)tmk_SI)
+#define TARG_ZERO_WIDTH_BIT_FIELD_AFFECTS_STRUCT_ALIGNMENT_cygwin 1
+#define TARG_ZERO_WIDTH_BIT_FIELD_ALIGNMENT_cygwin -1
+
+#endif /* INCLUDE_ADDITIONAL_TARGET_CONFIGURATION */
+
+#define COMPILE_MULTIPLE_SOURCE_FILES 0
+#define LITERALS_AS_STRINGS_SUPPORT 1
+#define FLOAT_SUPPORT_MAX_SIZE_OF_FLOAT_LEXEMES 128
+#define INT_SUPPORT_MAX_SIZE_OF_INT_LEXEMES 24
+
+#define ROSE_MISC 1
+#define EXTRA_SOURCE_POSITIONS_IN_IL 1
+
+#define USE_EDG_NAMESPACE 0
+#define BSEARCH_QSORT_FUNCTION_IS_EXTERN_C 0
+
+#define USER_CONTROL_OF_STRUCT_PACKING TRUE
+
+#define TEMPORARILY_EXTEND_USE_OF_SSI_CP_GEN_BE 1
+
+#define RECORD_NAME_IN_PARAM_TYPE_ENTRY 1
+#define RECORD_FORM_OF_NAME_REFERENCE 1
+#define DEFAULT_REMOVE_UNNEEDED_ENTITIES 0
+#define DO_IL_LOWERING 0
+#define GENERATE_SOURCE_SEQUENCE_LISTS 1
+#define INSTANTIATE_TEMPLATES_EVERYWHERE_USED 1
+#define AUTOMATIC_TEMPLATE_INSTANTIATION 1
+#define PRAGMA_DEFINE_TYPE_INFO_IS_REQUIRED 0
+#define DEFAULT_INSTANTIATIONS_PERMITTED_IN_CLASS_SRC_SEQ_LIST 1
+#define FRIEND_AND_MEMBER_DEFINITIONS_MAY_BE_MOVED_OUT_OF_CLASS 0
+#define INCLUDE_UNRECOGNIZED_PRAGMAS_IN_IL 1
+#define RECORD_TEMPLATE_STRINGS 1
+#define RECORD_MACROS_IN_IL 1
+#define EDG_AUXILIARY_INFO_DIR_NAME "."
+#define BACK_END_IS_C_GEN_BE 0
+#define BACK_END_IS_CP_GEN_BE 1
+#define IA64_ABI 1
+#define TYPE_FOR_AN_INTEGER_VALUE unsigned long long
+
+#endif /* ifndef DEFINES_WIN32_H */
+
+/******************************************************************************
+*                                                             \  ___  /       *
+*                                                               /   \         *
+* Edison Design Group C++/C Front End                        - | \^/ | -      *
+*                                                               \   /         *
+* Proprietary information of Edison Design Group Inc.         /  | |  \       *
+* Copyright 1988-2023 Edison Design Group Inc.                   [_]          *
+*                                                                             *
+******************************************************************************/
