@@ -1,7 +1,6 @@
 variables:
-    TEST_SCRIPTS_BRANCH: "master"
+    TEST_SCRIPTS_BRANCH: "simon29/test-edg"
     TEST_DIRECTORY: "testing-scripts"
-    GIT_SUBMODULE_STRATEGY: recursive
     GIT_STRATEGY: clone
     PIPE_LOCK: "false"
     FULL_TEST: "false"
@@ -65,7 +64,9 @@ Smoke-Test:
           when: on_success
         - when: never
     before_script:
-        - echo "No before script."
+        - git submodule set-url src/frontend/CxxFrontend/EDG/edg_compiler $INTERNAL_EDG_SUBMODULE
+        - git submodule init
+        - git submodule update
     stage: Smoke-Tests
     tags:
         - workpool
@@ -104,6 +105,9 @@ Build-Pack:
     tags:
         - workpool
     before_script:
+        - git submodule set-url src/frontend/CxxFrontend/EDG/edg_compiler $INTERNAL_EDG_SUBMODULE
+        - git submodule init
+        - git submodule update
         - if [ -d $TEST_DIRECTORY ] ; then cd $TEST_DIRECTORY ; git pull origin master ; cd .. ; else git clone -b $TEST_SCRIPTS_BRANCH $TEST_SCRIPTS $TEST_DIRECTORY ; fi
         - git pull origin develop
     script:
@@ -261,6 +265,9 @@ RHEL10-Status:
         - workpool
     allow_failure: true
     before_script:
+        - git submodule set-url src/frontend/CxxFrontend/EDG/edg_compiler $INTERNAL_EDG_SUBMODULE
+        - git submodule init
+        - git submodule update
         - if [ -d $TEST_DIRECTORY ] ; then cd $TEST_DIRECTORY ; git pull origin master ; cd .. ; else git clone -b $TEST_SCRIPTS_BRANCH $TEST_SCRIPTS $TEST_DIRECTORY ; fi
     script:
         - ./$TEST_DIRECTORY/status_launcher.sh $CI_JOB_NAME
@@ -294,6 +301,9 @@ Push-Develop:
     variables:
         GIT_STRATEGY: clone
     before_script:
+        - git submodule set-url src/frontend/CxxFrontend/EDG/edg_compiler $INTERNAL_EDG_SUBMODULE
+        - git submodule init
+        - git submodule update
         - if [ -d $TEST_DIRECTORY ] ; then cd $TEST_DIRECTORY ; git pull origin master ; cd .. ; else git clone -b $TEST_SCRIPTS_BRANCH $TEST_SCRIPTS $TEST_DIRECTORY ; fi
     script:
         - ./$TEST_DIRECTORY/util/push_develop.sh
@@ -324,6 +334,9 @@ Push-Weekly:
     variables:
         GIT_STRATEGY: clone
     before_script:
+        - git submodule set-url src/frontend/CxxFrontend/EDG/edg_compiler $INTERNAL_EDG_SUBMODULE
+        - git submodule init
+        - git submodule update
         - if [ -d $TEST_DIRECTORY ] ; then cd $TEST_DIRECTORY ; git pull origin master ; cd .. ; else git clone -b $TEST_SCRIPTS_BRANCH $TEST_SCRIPTS $TEST_DIRECTORY ; fi
     script:
         - ./$TEST_DIRECTORY/util/push_weekly.sh
@@ -339,6 +352,9 @@ Push-Weekly:
         - workpool
     allow_failure: true
     before_script:
+        - git submodule set-url src/frontend/CxxFrontend/EDG/edg_compiler $INTERNAL_EDG_SUBMODULE
+        - git submodule init
+        - git submodule update
         - if [ -d $TEST_DIRECTORY ] ; then cd $TEST_DIRECTORY ; git pull origin master ; cd .. ; else git clone -b $TEST_SCRIPTS_BRANCH $TEST_SCRIPTS $TEST_DIRECTORY ; fi
     script:
         - ./$TEST_DIRECTORY/release_launcher.sh $CI_JOB_NAME
