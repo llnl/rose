@@ -68,6 +68,18 @@ namespace Rose::Common::Analysis
 {
 
 /// Describes one inheritance relationship for a class.
+///
+/// \note
+///   isVirtual() also expresses interface implementation (Java and CIL
+///   interfaces are modeled as abstract virtual base classes). C++ virtual
+///   inheritance semantics derived from it (virtualBaseClassOrder,
+///   hasVirtualInheritance, hasVirtualTable) have no meaning for them, and
+///   the implied-override computation relies on this mapping.
+///   \code{.cs}
+///   interface IFoo {}
+///   class Base {}
+///   class Derived : Base, IFoo {}  // Derived->Base: non-virtual edge, Derived->IFoo: virtual edge
+///   \endcode
 struct InheritanceDesc : std::tuple<ClassKeyType, bool, bool>
 {
 
@@ -154,6 +166,32 @@ using OverrideContainer = std::vector<OverrideDesc>;
 using VirtualFunctionDescBase = std::tuple<ClassKeyType, bool, OverrideContainer, OverrideContainer>;
 
 /// Stores override metadata for one virtual function.
+///
+/// \todo TODO(CIL): The descriptor does not record CIL dispatch attributes.
+///   Whether a pair may override is decided by the bridge through
+///   AbstractCompatibilityBridge::canOverride, but clients cannot query the
+///   result afterwards. Possible additions:
+///   - newslot: the method starts a new slot instead of overriding
+///     (`new virtual`, which also fits the commented-out shadows() list);
+///   - final: the method has no possible overriders (`sealed override`, and
+///     the `virtual final newslot` emitted for implicit interface
+///     implementations);
+///   and, because canOverride can only reject pairs,
+///   - explicit overrides (MethodImpl), which are not found by name matching
+///     and need a hook that adds pairs.
+///   \code{.cs}
+///   interface IFoo { void F(); }
+///   class Base : IFoo {
+///     public virtual void F() {}              // virtual newslot
+///     public virtual void G() {}
+///   }
+///   class Derived : Base {
+///     public new virtual void G() {}          // newslot: hides, does not override Base.G
+///     public sealed override void F() {}      // final: no further overriders
+///     void IFoo.F() {}                        // explicit: overrides IFoo.F via MethodImpl
+///   }
+///   \endcode
+// PRIORITY: LOW
 struct VirtualFunctionDesc : VirtualFunctionDescBase
 {
 
@@ -228,6 +266,17 @@ struct VirtualFunctionDesc : VirtualFunctionDescBase
 
 
 /// holds data a class in a program
+///
+/// \todo TODO(CIL): ClassData has no explicit notion of sealed class, value
+///   type, external (unloaded) class, or enclosing class. Interfaces are
+///   modeled as abstract classes reached through virtual edges (as for the JVM).
+///   \code{.cs}
+///   sealed class Leaf {}                  // sealed: no descendants
+///   struct Point {}                       // value type
+///   class Outer { class Inner {} }        // nested type
+///   class Err : System.Exception {}       // external base, assembly not loaded
+///   \endcode
+// PRIORITY: LOW
 class ClassData
 {
   public:

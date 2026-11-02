@@ -146,13 +146,99 @@ extractVirtualFunctions(SgAsmCilTypeDef* typeDef, SgAsmCilMetadataHeap* metadata
 
     // Only virtual instance methods participate in override matching.
     //
-    // C# test case for the remaining NewSlot handling:
-    //   class Base { public virtual string Name() => "Base"; }
+    // TODO(CIL): NewSlot is not honored.
+    //   The common analysis matches virtual functions by name and signature
+    //   against all ancestors, so a method that starts a new vtable slot is
+    //   reported as an override. The hook for this is
+    //   AbstractCompatibilityBridge::canOverride(drv, bas), which
+    //   CilCompatibility does not implement yet. It must reject the pair when
+    //   drv is NewSlot (it hides bas). Because canOverride sees only the two
+    //   functions, it must also reject (Leaf.Name, Base.Name) when a NewSlot
+    //   method of the same signature lies between the two classes; either walk
+    //   the base chain in the bridge, or extend the hook to receive the
+    //   ClassAnalysis. The transitive rule of the common analysis does not
+    //   restore such pairs: Derived.Name does not override Base.Name.
+    //   \code{.cs}
+    //   class Base    { public virtual string Name() => "Base"; }
     //   class Derived : Base { public new virtual string Name() => "Derived"; }
+    //   class Leaf    : Derived { public override string Name() => "Leaf"; }
+    //   \endcode
+    //   Derived.Name is FLG_VIRTUAL | FLG_NEW_SLOT and must not override
+    //   Base.Name. Leaf.Name reuses the slot of Derived.Name and must
+    //   override only Derived.Name, not Base.Name.
+    // PRIORITY: MEDIUM
     //
-    // Derived.Name is FLG_VIRTUAL | FLG_NEW_SLOT and must not override
-    // Base.Name. Handling NewSlot (and final virtual methods) awaits a common
-    // hierarchy descriptor that preserves those CIL dispatch attributes.
+    // TODO(CIL): FLG_FINAL is not recorded and not enforced.
+    //   canOverride (see above) should reject a pair whose base method is
+    //   final, again taking an intervening final method into account.
+    //   C# also emits `virtual final newslot` for implicit interface
+    //   implementations, which currently cannot be told apart from a plain
+    //   virtual method. As in the JVM bridge (ACC_FINAL TODO), clients also
+    //   have no way to learn that a method has no possible overriders.
+    //   \code{.cs}
+    //   interface IShape { double Area(); }
+    //   class Square : IShape { public double Area() => 1.0; } // virtual final newslot
+    //   class Base { public virtual void F() {} }
+    //   class Mid : Base { public sealed override void F() {} } // final
+    //   class Leaf : Mid { public new void F() {} }             // cannot override Mid.F
+    //   \endcode
+    // PRIORITY: HIGH
+    //
+    // TODO(CIL): Access modifiers (FLG_MEMBERACCESS_MASK, FLG_STRICT) are not considered.
+    //   Implement them in canOverride, as the JVM bridge does for JVMS 5.4.5:
+    //   private and compiler-controlled virtuals are never overridable by
+    //   name (they are removed from the pair, as the JVM bridge removes
+    //   private methods), and assembly / family-and-assembly virtuals are not
+    //   overridable from another assembly (the derived method gets a new slot
+    //   instead). The assembly identity takes the place of the JVM run-time
+    //   package; InternalsVisibleTo is not modeled. The transitive rule of
+    //   the common analysis applies as for the JVM.
+    //   \code{.cs}
+    //   // assembly A
+    //   public class Base { internal virtual void F() {} }
+    //   // assembly B (no InternalsVisibleTo)
+    //   public class Derived : Base { internal virtual void F() {} } // new slot, not an override
+    //   \endcode
+    //
+    // Note: static virtual / static abstract interface members (C# 11) are
+    //   excluded by the isStatic test on purpose. They are not dispatched
+    //   through an object. The runtime resolves a constrained call on a type
+    //   parameter to one static method per concrete type when the generic is
+    //   instantiated, so there is no override relation to model.
+    //   \code{.cs}
+    //   interface IAdd<T> { static abstract T Zero { get; } }
+    //   struct MyInt : IAdd<MyInt> { public static MyInt Zero => default; }
+    //   \endcode
+    // PRIORITY: HIGH
+    //
+    // TODO(CIL): The MethodImpl table (.override) is not consulted.
+    //   Explicit interface implementations, overrides under a different
+    //   name, covariant returns (C# 9), and default-interface-method
+    //   overrides are expressed there and are missed by name matching.
+    //   canOverride can only reject pairs and cannot add them, so this needs
+    //   a new hook in the common analysis (for example, a bridge query that
+    //   reports explicit override pairs for a class).
+    //   \code{.cs}
+    //   interface IFoo { void Bar(); }
+    //   class C : IFoo { void IFoo.Bar() {} } // private virtual final newslot "Ns.IFoo.Bar" + MethodImpl
+    //   \endcode
+    // PRIORITY: HIGH
+    //
+    // TODO(CIL): Implied overrides are not enabled.
+    //   CIL, like Java, lets a method inherited from a base class implement an
+    //   interface method of a subclass (ECMA-335 II.12.2). The common analysis
+    //   records this when the bridge returns true from
+    //   inheritedMethodsImplementVirtualBaseMethods, and
+    //   isInheritableImplementation selects the qualifying methods (the JVM
+    //   bridge accepts public, non-abstract methods; the CIL condition must be
+    //   checked against II.12.2). CilCompatibility overrides neither.
+    //   \code{.cs}
+    //   interface IFoo { void M(); }
+    //   class B { public virtual void M() {} }
+    //   class C : B, IFoo {}   // B.M implements IFoo.M; witness class is C
+    //   // if B.M were not virtual, C# emits a forwarding stub C.M (virtual final newslot)
+    //   \endcode
+    // PRIORITY: MEDIUM
     if (!isStatic && isVirtual)
     {
       FunctionKeyType funcKey = functionToKey(method);
@@ -203,6 +289,15 @@ extractDataMembers(SgAsmCilTypeDef* typeDef, SgAsmCilMetadataHeap* metadataHeap,
     bool isStatic = (flags & SgAsmCilField::FLG_STATIC) != 0;
 
     // Only add non-static fields (instance data members)
+    //
+    // TODO(CIL): The field's type is not recorded here (see typeOf). For a
+    //   value-type field the declaring type embeds the field type, which
+    //   matters for layout and composition relations.
+    //   \code{.cs}
+    //   struct Point { int x, y; }
+    //   class Shape { Point origin; }  // Shape embeds Point; not visible in the hierarchy
+    //   \endcode
+    // PRIORITY: MEDIUM
     if (!isStatic)
     {
       VariableKeyType varKey = variableToKey(field);
@@ -233,6 +328,20 @@ namespace
     }
   };
 
+  // TODO(CIL): Memory-pool extraction mixes all loaded metadata roots, while
+  //   extractFromProject restricts classes to one project. Inheritance edges
+  //   (inheritanceEdges) are always resolved against the memory pool, so an
+  //   analysis built from a project can contain an edge to a class that was
+  //   never added to ClassAnalysis, and addInheritanceEdge then throws
+  //   std::out_of_range. Resolution must be limited to the analyzed set, or
+  //   missing bases must be modeled as external classes.
+  //   \code{.cs}
+  //   // Lib.dll (loaded in the memory pool, but not under the analyzed root)
+  //   public class Base {}
+  //   // App.exe (analyzed project)
+  //   class Derived : Base {}  // edge Derived -> Base has no ClassAnalysis entry
+  //   \endcode
+  // PRIORITY: LOW
   std::vector<SgAsmCilMetadataRoot*>
   loadedCilMetadataRoots()
   {
@@ -279,6 +388,38 @@ namespace
     return assemblyRef ? cilString(assemblyRef->get_Name_string()) : std::string();
   }
 
+  // TODO(CIL): Performance. inheritanceEdges constructs a resolver per class,
+  //   and each construction traverses the memory pool and indexes every
+  //   TypeDef. Build the index once per analysis (or cache it per metadata
+  //   root) and pass it to inheritanceEdges. The JVM bridge has the same
+  //   problem (a memory-pool traversal per edge and per name lookup).
+  // PRIORITY: LOW
+  //
+  // TODO(CIL): Type identity is {assembly, namespace, name}.
+  //   - Nested types have an empty namespace and a simple name, so nested
+  //     types with the same name in different enclosing types collide, and
+  //     findUnique then returns nullptr (the edge is silently dropped).
+  //     The NestedClass table must be part of the identity.
+  //   - The same assembly loaded twice produces duplicate identities and
+  //     drops all edges to its types.
+  //   \code{.cs}
+  //   class A { public class Enumerator {} }
+  //   class B { public class Enumerator {} }  // same {asm, "", "Enumerator"} as A.Enumerator
+  //   class C : A.Enumerator {}               // TypeRef resolution is ambiguous
+  //   \endcode
+  // PRIORITY: MEDIUM
+  //
+  // TODO(CIL): Unresolvable types (bases from assemblies that are not
+  //   loaded, e.g., System.Object, System.ValueType, System.Exception) are
+  //   dropped without a trace. The JVM bridge at least warns once per missing
+  //   ancestor name (warnUnresolvedAncestor); CIL should do the same in
+  //   inheritanceEdges. Beyond that, the hierarchy cannot distinguish "derives
+  //   from an external class" from "has no base class". Consider
+  //   synthesizing an opaque external ClassData entry keyed on the TypeRef.
+  //   \code{.cs}
+  //   class MyError : System.Exception {}  // corelib not loaded => no base edge
+  //   \endcode
+  // PRIORITY: HIGH
   class CilMetadataResolver
   {
     public:
@@ -297,6 +438,21 @@ namespace
           return typeDef;
 
         const SgAsmCilTypeRef* typeRef = isSgAsmCilTypeRef(metadata);
+
+        // TODO(CIL): TypeSpec (generic instantiations) is not resolved, so
+        //   base and interface edges to instantiated generic types are
+        //   dropped. Resolve the TypeSpec blob to the generic type definition
+        //   so that the hierarchy stays connected. The type arguments are not
+        //   kept: per-instantiation class identity, variance, and constraints
+        //   are not modeled. Matching overrides through the instantiation
+        //   (Base<int>.Put(int) vs. Base<T>.Put(T)) additionally requires
+        //   substitution, see compareFunctionsByType.
+        //   \code{.cs}
+        //   class Base<T> { public virtual void Put(T t) {} }
+        //   class IntBox : Base<int> { public override void Put(int t) {} }
+        //   class Cmp : System.IComparable<Cmp> { public int CompareTo(Cmp o) => 0; }
+        //   \endcode
+        //   Extends of IntBox and the InterfaceImpl of Cmp are TypeSpec rows.
         if (!typeRef)
           return nullptr;
 
@@ -353,6 +509,23 @@ namespace
         // TODO: Support all ECMA-335 TypeRef ResolutionScope variants.  This
         // resolver currently accepts only AssemblyRef, so Module, ModuleRef,
         // and nested TypeRef scopes can silently omit base or interface edges.
+        // PRIORITY: LOW
+        //
+        // TODO(CIL): Type forwarding is not followed. A reference assembly
+        //   names the type in the facade assembly, while the definition lives
+        //   elsewhere, so the {assembly, namespace, name} lookup misses it.
+        //   \code{.cs}
+        //   // compiled against System.Runtime.dll (facade); the type is
+        //   // defined in System.Private.CoreLib.dll
+        //   class MyList : System.Collections.Generic.List<int> {}
+        //   \endcode
+        // PRIORITY: LOW
+        //
+        // TODO(CIL): A nested TypeRef has another TypeRef as ResolutionScope.
+        //   \code{.cs}
+        //   class Derived : Lib.Outer.Inner {}  // TypeRef(Inner) scope = TypeRef(Outer)
+        //   \endcode
+        // PRIORITY: LOW
         const SgAsmCilMetadata* scope = typeRef->get_ResolutionScope_object();
         const SgAsmCilAssemblyRef* assemblyRef = isSgAsmCilAssemblyRef(scope);
 
@@ -396,6 +569,22 @@ namespace
         ClassKeyType clKey = classToKey(typeDef);
         ClassData& classData = classes[clKey];
 
+        // TODO(CIL): The first TypeDef row is the pseudo type <Module>, which
+        //   holds global methods and fields. It is currently registered as an
+        //   ordinary class and should be skipped (or marked) here.
+        // PRIORITY: HIGH
+        //
+        // TODO(CIL): ClassData has no notion of sealed or value types, and CIL
+        //   types nest. Only the abstract flag is transferred. (Interfaces
+        //   are modeled as abstract virtual base classes, as in the JVM
+        //   bridge; see inheritanceEdges.)
+        //   \code{.cs}
+        //   sealed class Leaf {}               // no descendants possible
+        //   struct Point {}                    // value type, implicitly sealed
+        //   class Outer { class Inner {} }     // NestedClass table is not read
+        //   \endcode
+        // PRIORITY: MEDIUM
+
         // Set abstract flag
         classData.abstractClass(compat.isAbstract(clKey));
 
@@ -412,6 +601,15 @@ namespace
 std::string
 CilCompatibility::nameOf(FunctionKeyType key) const
 {
+  // TODO(CIL): The name has neither declaring class nor signature, so
+  //   overloads and explicit interface implementations print ambiguously in
+  //   the text and JSON exports. Unnamed methods all compare equal in
+  //   compareNames.
+  //   \code{.cs}
+  //   class C { public virtual void F(int i) {}  public virtual void F(string s) {} }
+  //   // both are printed as "F"
+  //   \endcode
+  // PRIORITY: MEDIUM
   sg::NotNull<SgAsmCilMethodDef> method = keyToFunction(key);
   const uint8_t* nameBytes = method->get_Name_string();
 
@@ -424,6 +622,14 @@ CilCompatibility::nameOf(FunctionKeyType key) const
 std::string
 CilCompatibility::nameOf(ClassKeyType key) const
 {
+  // TODO(CIL): The name is {namespace}.{type name} only. It lacks the
+  //   enclosing type (NestedClass table) and the assembly, so nested types
+  //   and same-named types from different assemblies are ambiguous.
+  //   \code{.cs}
+  //   namespace N { class A { public class Inner {} } class B { public class Inner {} } }
+  //   // both nested types are printed as "Inner" (the namespace of a nested TypeDef is empty)
+  //   \endcode
+  // PRIORITY: MEDIUM
   sg::NotNull<SgAsmCilTypeDef> typeDef = keyToClass(key);
 
   // Get namespace and type name
@@ -454,6 +660,18 @@ CilCompatibility::isAbstract(ClassKeyType key) const
   bool const     isAbstract  = (flags & SgAsmCilTypeDef::FLG_ABSTRACT) != 0;
 
   // A type is abstract if it has the Abstract flag or is an Interface
+  //
+  // Note: Interfaces are modeled as abstract classes (as in the JVM bridge),
+  //   so a client cannot tell an interface from an abstract class through
+  //   this query; it can through the virtual inheritance edge (inheritanceEdges).
+  //
+  // TODO(CIL): Static classes (abstract and sealed) are also reported as abstract.
+  //   \code{.cs}
+  //   interface IFoo { void F(); }               // FLG_INTERFACE | FLG_ABSTRACT
+  //   abstract class Base { public abstract void F(); }  // FLG_ABSTRACT
+  //   static class Util {}                       // FLG_ABSTRACT | FLG_SEALED
+  //   \endcode
+  // PRIORITY: HIGH
   return isInterface | isAbstract;
 }
 
@@ -507,6 +725,50 @@ CilCompatibility::compareFunctionsByType(FunctionKeyType lhs, FunctionKeyType rh
   //      modules, and covariant-return overrides.
   //
   // Until then, offset comparison is insufficient for override matching.
+  // PRIORITY: HIGH
+  //
+  // TODO(CIL): Because the offset includes the return type, a covariant
+  //   override never compares equal to its base method, so the override edge
+  //   is lost. This is correct for slot matching: the CLR selects a slot by
+  //   the full signature including the return type, and IL allows overloading
+  //   by return type. Therefore, do not ignore the return type here. The JVM
+  //   bridge currently does, but it carries a TODO to move to full-descriptor
+  //   matching, because javac emits synthetic bridge methods that make the
+  //   two compare equal. CIL has no bridge methods.
+  //   C# 9 covariant returns are expressed with a MethodImpl (.override)
+  //   and should be reported through an explicit-override hook (see the
+  //   MethodImpl TODO in extractVirtualFunctions).
+  //   \code{.cs}
+  //   class Animal {}
+  //   class Dog : Animal {}
+  //   class Base    { public virtual Animal Make() => new Animal(); }
+  //   class Derived : Base { public override Dog Make() => new Dog(); }  // C# 9 covariant return
+  //   \endcode
+  // PRIORITY: HIGH
+  //
+  // TODO(CIL): Offsets are module-local. A method in App.exe overriding a
+  //   method of Lib.dll can never compare equal, and equal offsets from
+  //   different modules compare equal for unrelated signatures. Compare a
+  //   canonical signature string instead (as the JVM bridge does with
+  //   descriptors), resolving type tokens to type identities.
+  //   \code{.cs}
+  //   // Lib.dll
+  //   public class Base { public virtual void Run(int x) {} }
+  //   // App.exe
+  //   class Derived : Base { public override void Run(int x) {} }
+  //   \endcode
+  // PRIORITY: LOW
+  //
+  // TODO(CIL): Overrides under generic instantiation need substitution of
+  //   the base type's type arguments, which a pairwise comparator without
+  //   class context cannot do. Generic method arity and method type
+  //   parameters (!!0) compare structurally and need no substitution.
+  //   \code{.cs}
+  //   class Base<T> { public virtual void Put(T t) {} }                // Put(!0)
+  //   class IntBox : Base<int> { public override void Put(int t) {} }  // Put(int32)
+  //   class Gen { public virtual void M<U>(U u) {} }                   // generic arity 1, M(!!0)
+  //   \endcode
+  // PRIORITY: LOW
   uint32_t lhsSigIdx = lhsMethod->get_Signature();
   uint32_t rhsSigIdx = rhsMethod->get_Signature();
 
@@ -557,6 +819,16 @@ parseReturnTypeFromSignature(const std::vector<uint8_t>& blobHeap, uint32_t sigI
   if (idx >= blobHeap.size()) return 0;
 
   // Skip calling convention byte
+  //
+  // TODO(CIL): The calling convention byte is skipped without being
+  //   interpreted. If its GENERIC bit (0x10) is set, a compressed generic
+  //   parameter count precedes ParamCount, and the code below then reads the
+  //   generic arity as the parameter count and the real ParamCount as the
+  //   return type.
+  //   \code{.cs}
+  //   class C { public virtual T Id<T>(T t) => t; }  // blob: 0x30 <arity=1> <params=1> !!0 !!0
+  //   \endcode
+  // PRIORITY: HIGH
   idx += 1;
 
   if (idx >= blobHeap.size()) return 0;
@@ -580,6 +852,21 @@ parseReturnTypeFromSignature(const std::vector<uint8_t>& blobHeap, uint32_t sigI
   if (idx >= blobHeap.size()) return 0;
 
   // Read at least one byte for the element type
+  //
+  // TODO(CIL): Only the first byte (and the token for CLASS / VALUETYPE) is
+  //   captured. The following return types therefore compare as identical
+  //   although they differ: VAR / MVAR with different indices, SZARRAY,
+  //   GENERICINST, PTR, and BYREF with different element types. Custom
+  //   modifiers (CMOD_REQD / CMOD_OPT) and BYREF prefixes are not skipped, so
+  //   the element type is misread. The compressed-integer decoding above also
+  //   lacks bounds checks.
+  //   \code{.cs}
+  //   class A { public virtual int[]          F() => null; }
+  //   class B : A { public override int[]     F() => null; }  // same
+  //   class C { public virtual string[]       F() => null; }  // different, but starts with SZARRAY like A.F
+  //   class D { public virtual ref int        R() => ref x;  int x; }  // BYREF prefix
+  //   \endcode
+  // PRIORITY: LOW
   returnType.push_back(blobHeap[idx]);
   idx += 1;
 
@@ -673,6 +960,12 @@ CilCompatibility::haveSameOrCovariantReturn(const ClassAnalysis& classes, Functi
   }
 
   // If return types are identical, they have the same type
+  //
+  // TODO(CIL): The byte-wise comparison is wrong across modules. A
+  //   TypeDefOrRef token is module-local, so equal bytes can denote different
+  //   types, and different bytes (TypeRef vs. TypeDef) can denote the same
+  //   type. Tokens must be resolved to classes before comparing.
+  // PRIORITY: LOW
   if (basReturnType == drvReturnType)
     return FunctionTypeRelation::sametype;
 
@@ -723,6 +1016,20 @@ CilCompatibility::haveSameOrCovariantReturn(const ClassAnalysis& classes, Functi
     }
     // Note: TypeRef resolution would require loading external assemblies
     // For now, we only handle TypeDef (types in the current assembly)
+    //
+    // TODO(CIL): TypeRef and TypeSpec return types are not resolved, and
+    //   covariance is only recognized for class types. Reuse
+    //   CilMetadataResolver here once it handles TypeSpec and cross-module
+    //   references. The caller reports "covariant return assertion failed"
+    //   and drops the override edge when this returns unrelated.
+    //   \code{.cs}
+    //   // Lib.dll: public class Animal {}
+    //   // App.exe
+    //   class Dog : Lib.Animal {}
+    //   class Base    { public virtual Lib.Animal Make() => null; }  // TypeRef return type
+    //   class Derived : Base { public override Dog Make() => null; } // TypeDef return type
+    //   \endcode
+    // PRIORITY: LOW
 
     // Decode derived type token
     uint32_t drvTableKind = drvTypeToken & 0x3;
@@ -792,6 +1099,10 @@ CilCompatibility::extractFromProject(ClassAnalysis& classes, ASTRootType root) c
     return;
 
   // Query for all MetadataRoot nodes in the AST
+  //
+  // TODO(CIL): Classes are limited to this project, but inheritanceEdges
+  //   resolves bases through the memory pool (see loadedCilMetadataRoots).
+  // PRIORITY: LOW
   std::vector<SgNode*> metadataRootNodes = NodeQuery::querySubTree(rootNode, V_SgAsmCilMetadataRoot);
 
   MetadataRootProcessor processor{*this, classes};
@@ -812,6 +1123,10 @@ void
 CilCompatibility::inheritanceEdges(ClassKeyType clkey, std::function<void(ClassKeyType, ClassKeyType, bool)> fn) const
 {
   sg::NotNull<SgAsmCilTypeDef> typeDef = keyToClass(clkey);
+
+  // TODO(CIL): A resolver (memory-pool traversal plus type index) is built
+  //   on every call, i.e., once per class. Hoist it out of this function.
+  // PRIORITY: LOW
   CilMetadataResolver resolver;
 
   // Get the base class (Extends field)
@@ -826,6 +1141,13 @@ CilCompatibility::inheritanceEdges(ClassKeyType clkey, std::function<void(ClassK
       ClassKeyType baseKey = classToKey(baseTypeDef);
 
       // Check if base is an interface (interfaces are virtually inherited in our mapping)
+      //
+      // Note: "virtual edge" means "interface edge", as in the JVM bridge.
+      //   The common analysis also attaches C++ virtual-inheritance semantics
+      //   to such edges (virtualBaseClassOrder, hasVirtualInheritance, and
+      //   thus hasVirtualTable), which do not apply to CIL. Clients should
+      //   ignore those properties. The implied-override computation relies on
+      //   this mapping.
       uint32_t baseFlags = baseTypeDef->get_Flags();
       bool isVirtual = (baseFlags & SgAsmCilTypeDef::FLG_INTERFACE) != 0;
 
@@ -836,6 +1158,20 @@ CilCompatibility::inheritanceEdges(ClassKeyType clkey, std::function<void(ClassK
   // Handle implemented interfaces via InterfaceImpl table
   // In CIL, class-to-interface relationships are stored in a separate InterfaceImpl table
   // We need to find all InterfaceImpl entries where Class field matches this TypeDef
+  //
+  // TODO(CIL): Scanning the metadata tree per class is O(classes * tree).
+  //   Iterate the InterfaceImpl table once and group the entries by class.
+  // PRIORITY: LOW
+  //
+  // TODO(CIL): Interface re-implementation is not modeled. Listing an
+  //   interface again in a derived class changes interface dispatch, but the
+  //   duplicate edge is merged away by the common analysis.
+  //   \code{.cs}
+  //   interface IFoo { void F(); }
+  //   class Base : IFoo { public virtual void F() {} }
+  //   class Derived : Base, IFoo { void IFoo.F() {} }  // re-implements IFoo.F
+  //   \endcode
+  // PRIORITY: HIGH
   SgAsmCilMetadataRoot* metadataRoot = getMetadataRootFromNode(typeDef);
 
   if (metadataRoot)
@@ -881,6 +1217,25 @@ CilCompatibility::typeOf(VariableKeyType var) const
 
   // For now, return basic type information
   // A full implementation would parse the signature blob
+  //
+  // TODO(CIL): Only isConst is filled in, and it is derived from InitOnly
+  //   (readonly), which is not C++ const. The JVM bridge reports false for
+  //   final fields; decide on one convention for both (this bridge should
+  //   follow unless the common model defines isConst as "assigned only in a
+  //   constructor"). The class type, reference, array, and initializer
+  //   information require decoding the field signature blob; the JVM bridge
+  //   does this for descriptors (but resolves class names by substring, which
+  //   should not be copied).
+  //   \code{.cs}
+  //   struct Point { int x; }
+  //   class Shape {
+  //     readonly int id;       // InitOnly => reported as const
+  //     Point origin;          // value-type field: classType should be Point
+  //     int[] values;          // hasArray should be true
+  //     ref int alias;         // (ref struct only) hasReference should be true
+  //   }
+  //   \endcode
+  // PRIORITY: MEDIUM
   uint16_t flags = field->get_Flags();
   bool isConst = (flags & SgAsmCilField::FLG_INIT_ONLY) != 0;
 
