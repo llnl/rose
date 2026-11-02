@@ -846,38 +846,30 @@ namespace
                    }
                  );
 
-    // signature matches rejected by the bridge's direct rule; resolved transitively below
-    DeferredOverrides deferred;
+    // TODO(CIL): Matching is done by name and signature against all flattened
+    //   ancestors, so slot semantics are not respected. A reuse-slot method
+    //   is related to every ancestor with the same name and signature, even
+    //   past a newslot method that hides the ancestor's method. Final methods
+    //   are still offered as overridable, and private or inaccessible
+    //   ancestors are not excluded. Explicit overrides (MethodImpl) are never
+    //   matched, since they do not rely on name equality.
+    //   \code{.cs}
+    //   class A { public virtual void F() {} }
+    //   class B : A { public new virtual void F() {} }  // newslot: hides A.F
+    //   class C : B { public override void F() {} }     // overrides B.F only; related to A.F here
+    //   \endcode
+    for (const rca::InheritanceDesc& parentDesc : entry.second.ancestors())
+    {
+      using ComputeRelation = ComputeVirtualFunctionRelation;
 
-    // declared overrides: functions declared by this class against functions
-    // declared by its ancestors; non-virtual ancestors first, then virtual ones.
-    auto declaredOverrides =
-        [&](bool virtualAncestors) -> void
-        {
-          for (const rca::InheritanceDesc& parentDesc : entry.second.ancestors())
-          {
-            if (parentDesc.isVirtual() != virtualAncestors)
-              continue;
+      VirtualFunctionContainer& parentVFunSorted = sortedVFunMap.at(parentDesc.getClass());
 
-            const VirtualFunctionContainer& parentVFunSorted = tables.declared.at(parentDesc.getClass());
-
-            mergeOrderedSequences( vfunSorted.begin(), vfunSorted.end(),
-                                   parentVFunSorted.begin(), parentVFunSorted.end(),
-                                   ComputeVirtualFunctionRelation{compat, classes, vfunAnalysis, deferred},
-                                   VFNameTypeOrder{compat}
-                                 );
-          }
-        };
-
-    declaredOverrides(false /* non-virtual ancestors */);
-    declaredOverrides(true  /* virtual ancestors */);
-
-    // implied overrides (language dependent)
-    if (compat.inheritedMethodsImplementVirtualBaseMethods())
-      computeImpliedOverriders(classes, vfunAnalysis, entry, tables, deferred);
-
-    // transitive rule for pairs the bridge rejected directly
-    resolveDeferredOverrides(compat, classes, vfunAnalysis, deferred);
+      mergeOrderedSequences( vfunSorted.begin(), vfunSorted.end(),
+                             parentVFunSorted.begin(), parentVFunSorted.end(),
+                             ComputeRelation{compat, classes, vfunAnalysis, entry.first, parentDesc.getClass()},
+                             VFNameTypeOrder{compat}
+                           );
+    }
   }
 }
 
@@ -888,13 +880,13 @@ VirtualFunctionAnalysis
 analyzeVirtualFunctions(const ClassAnalysis& all, bool normalizedSignature)
 {
   VirtualFunctionAnalysis      res{all.compatibilityBridge()};
-  VirtualFunctionTables        tables;
+  SortedVirtualMemberFunctions tmpSorted;
 
   topDownTraversal( all,
-                    [&all, &res, &tables, &normalizedSignature]
+                    [&all, &res, &tmpSorted, &normalizedSignature]
                     (const ClassAnalysis::value_type& clrep) -> void
                     {
-                      computeOverriders(all, res, clrep, normalizedSignature, tables);
+                      computeOverriders(all, res, clrep, normalizedSignature, tmpSorted);
                     }
                   );
 
