@@ -407,17 +407,10 @@ namespace
   //   \endcode
   // PRIORITY: MEDIUM
   //
-  // TODO(CIL): Unresolvable types (bases from assemblies that are not
-  //   loaded, e.g., System.Object, System.ValueType, System.Exception) are
-  //   dropped without a trace. The JVM bridge at least warns once per missing
-  //   ancestor name (warnUnresolvedAncestor); CIL should do the same in
-  //   inheritanceEdges. Beyond that, the hierarchy cannot distinguish "derives
-  //   from an external class" from "has no base class". Consider
-  //   synthesizing an opaque external ClassData entry keyed on the TypeRef.
-  //   \code{.cs}
-  //   class MyError : System.Exception {}  // corelib not loaded => no base edge
-  //   \endcode
-  // PRIORITY: HIGH
+  // Note: Unresolvable types (bases from assemblies that are not loaded,
+  //   e.g., System.Object, System.ValueType, System.Exception) are dropped
+  //   from the hierarchy. inheritanceEdges warns once per missing type
+  //   (warnUnresolvedAncestor), as the JVM bridge does.
   class CilMetadataResolver
   {
     public:
@@ -1202,13 +1195,16 @@ CilCompatibility::isAbstract(ClassKeyType key) const
   //   so a client cannot tell an interface from an abstract class through
   //   this query; it can through the virtual inheritance edge (inheritanceEdges).
   //
-  // TODO(CIL): Static classes (abstract and sealed) are also reported as abstract.
+  // Note: Static classes (abstract and sealed) are also reported as abstract
+  //   on purpose. isAbstract tells whether a class can be the runtime type of
+  //   an object (see ClassAnalysis::concreteDescendants), which a static
+  //   class never is. The JSON "abstract" label is therefore also true for
+  //   static classes.
   //   \code{.cs}
   //   interface IFoo { void F(); }               // FLG_INTERFACE | FLG_ABSTRACT
   //   abstract class Base { public abstract void F(); }  // FLG_ABSTRACT
   //   static class Util {}                       // FLG_ABSTRACT | FLG_SEALED
   //   \endcode
-  // PRIORITY: HIGH
   return isInterface | isAbstract;
 }
 
@@ -1706,6 +1702,50 @@ CilCompatibility::languageSpecificProcessing() const
   return [](ClassAnalysis&) {};
 }
 
+namespace
+{
+  /// warns once per missing type that an inheritance edge was dropped.
+  void
+  warnUnresolvedAncestor( CilMetadataCache& cache,
+                          const CilCompatibility& bridge,
+                          ClassKeyType clkey,
+                          const char* kind,
+                          const SgAsmCilMetadata* metadata
+                        )
+  {
+    SgAsmCilMetadataRoot* root = getMetadataRootFromNode(keyToClass(clkey));
+
+    if (!root)
+      return;
+
+    ModuleInfo&   mi = moduleInfo(cache, root);
+    std::string   name;
+    const char*   reason = "is not loaded or its identity is ambiguous";
+
+    if (const SgAsmCilTypeRef* typeRef = isSgAsmCilTypeRef(metadata))
+    {
+      name = typeRefIdentity(mi, typeRef);
+    }
+    else if (const SgAsmCilTypeSpec* typeSpec = isSgAsmCilTypeSpec(metadata))
+    {
+      name   = typeSpecGenericIdentity(cache, mi, typeSpec);
+      reason = "is a generic instantiation, which is not resolved";
+    }
+
+    if (name.empty())
+      name = "<unknown type>";
+
+    if (!cache.warnings.insert(std::string(kind) + " " + name).second)
+      return;
+
+    msgWarn() << "CIL class hierarchy: " << kind << " " << name
+              << " of " << bridge.nameOf(clkey) << " " << reason << ";"
+              << " the inheritance edge and the methods inherited from it are not represented."
+              << " (further occurrences of " << name << " are not reported)"
+              << std::endl;
+  }
+}
+
 void
 CilCompatibility::inheritanceEdges(ClassKeyType clkey, std::function<void(ClassKeyType, ClassKeyType, bool)> fn) const
 {
@@ -1723,7 +1763,18 @@ CilCompatibility::inheritanceEdges(ClassKeyType clkey, std::function<void(ClassK
   {
     SgAsmCilTypeDef* baseTypeDef = resolver.resolve(baseMetadata);
 
-    if (baseTypeDef)
+    if (!baseTypeDef)
+    {
+      // TODO(CIL): The hierarchy cannot distinguish "derives from an external
+      //   class" from "has no base class". Consider synthesizing an opaque
+      //   external ClassData entry keyed on the TypeRef.
+      //   \code{.cs}
+      //   class MyError : System.Exception {}  // corelib not loaded => no base edge
+      //   \endcode
+      // PRIORITY: MEDIUM
+      warnUnresolvedAncestor(cache(), *this, clkey, "base class", baseMetadata);
+    }
+    else
     {
       ClassKeyType baseKey = classToKey(baseTypeDef);
 
@@ -1791,6 +1842,9 @@ CilCompatibility::inheritanceEdges(ClassKeyType clkey, std::function<void(ClassK
         if (interfaceMetadata)
         {
           SgAsmCilTypeDef* interfaceTypeDef = resolver.resolve(interfaceMetadata);
+
+          if (!interfaceTypeDef)
+            warnUnresolvedAncestor(cache(), *this, clkey, "interface", interfaceMetadata);
 
           if (interfaceTypeDef)
           {
