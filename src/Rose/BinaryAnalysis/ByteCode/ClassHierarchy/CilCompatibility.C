@@ -149,61 +149,53 @@ extractVirtualFunctions(SgAsmCilTypeDef* typeDef, SgAsmCilMetadataHeap* metadata
     bool isStatic = (flags & SgAsmCilMethodDef::FLG_STATIC) != 0;
     bool isVirtual = (flags & SgAsmCilMethodDef::FLG_VIRTUAL) != 0;
 
-    // Only virtual instance methods participate in override matching.
+    // Only virtual instance methods participate in override matching. The slot
+    // rules (new slot, final, access, return type) are applied pairwise by
+    // canOverrideInContext, which also sees the classes between the two
+    // methods.
     //
-    // TODO(CIL): NewSlot is not honored.
-    //   The common analysis matches virtual functions by name and signature
-    //   against all ancestors, so a method that starts a new vtable slot is
-    //   reported as an override. The hook for this is
-    //   AbstractCompatibilityBridge::canOverride(drv, bas), which
-    //   CilCompatibility does not implement yet. It must reject the pair when
-    //   drv is NewSlot (it hides bas). Because canOverride sees only the two
-    //   functions, it must also reject (Leaf.Name, Base.Name) when a NewSlot
-    //   method of the same signature lies between the two classes; either walk
-    //   the base chain in the bridge, or extend the hook to receive the
-    //   ClassAnalysis. The transitive rule of the common analysis does not
-    //   restore such pairs: Derived.Name does not override Base.Name.
+    // Note: A method that starts a new slot does not override. A method that
+    //   reuses a slot overrides only the nearest method of that slot, not the
+    //   methods that a new-slot method of an intermediate class hides.
     //   \code{.cs}
     //   class Base    { public virtual string Name() => "Base"; }
     //   class Derived : Base { public new virtual string Name() => "Derived"; }
     //   class Leaf    : Derived { public override string Name() => "Leaf"; }
     //   \endcode
-    //   Derived.Name is FLG_VIRTUAL | FLG_NEW_SLOT and must not override
-    //   Base.Name. Leaf.Name reuses the slot of Derived.Name and must
-    //   override only Derived.Name, not Base.Name.
-    // PRIORITY: MEDIUM
+    //   Derived.Name is FLG_VIRTUAL | FLG_NEW_SLOT and does not override
+    //   Base.Name. Leaf.Name overrides Derived.Name only.
     //
-    // TODO(CIL): FLG_FINAL is not recorded and not enforced.
-    //   canOverride (see above) should reject a pair whose base method is
-    //   final, again taking an intervening final method into account.
-    //   C# also emits `virtual final newslot` for implicit interface
-    //   implementations, which currently cannot be told apart from a plain
-    //   virtual method. As in the JVM bridge (ACC_FINAL TODO), clients also
-    //   have no way to learn that a method has no possible overriders.
+    // Note: C# emits `virtual final newslot` for implicit interface
+    //   implementations. For an interface method neither flag prevents the
+    //   match; the implementing method must be public.
     //   \code{.cs}
     //   interface IShape { double Area(); }
     //   class Square : IShape { public double Area() => 1.0; } // virtual final newslot
-    //   class Base { public virtual void F() {} }
-    //   class Mid : Base { public sealed override void F() {} } // final
-    //   class Leaf : Mid { public new void F() {} }             // cannot override Mid.F
     //   \endcode
-    // PRIORITY: HIGH
     //
-    // TODO(CIL): Access modifiers (FLG_MEMBERACCESS_MASK, FLG_STRICT) are not considered.
-    //   Implement them in canOverride, as the JVM bridge does for JVMS 5.4.5:
-    //   private and compiler-controlled virtuals are never overridable by
-    //   name (they are removed from the pair, as the JVM bridge removes
-    //   private methods), and assembly / family-and-assembly virtuals are not
-    //   overridable from another assembly (the derived method gets a new slot
-    //   instead). The assembly identity takes the place of the JVM run-time
-    //   package; InternalsVisibleTo is not modeled. The transitive rule of
-    //   the common analysis applies as for the JVM.
+    // Note: An assembly (or family-and-assembly) virtual is overridden from
+    //   another assembly only by a public method, and not at all if it is
+    //   marked strict (ECMA-335 II.10.3.3). Private and compiler-controlled
+    //   virtuals never match by name.
     //   \code{.cs}
     //   // assembly A
     //   public class Base { internal virtual void F() {} }
     //   // assembly B (no InternalsVisibleTo)
     //   public class Derived : Base { internal virtual void F() {} } // new slot, not an override
     //   \endcode
+    //
+    // TODO(CIL): InternalsVisibleTo is not modeled. A friend assembly is
+    //   treated as a different assembly, so an override of an internal virtual
+    //   from a friend assembly is missed.
+    // PRIORITY: LOW
+    //
+    // TODO(CIL): FLG_FINAL is enforced when overrides are matched, but clients
+    //   cannot learn that a method has no possible overriders.
+    //   \code{.cs}
+    //   class Base { public virtual void F() {} }
+    //   class Mid : Base { public sealed override void F() {} } // final
+    //   \endcode
+    // PRIORITY: HIGH
     //
     // Note: static virtual / static abstract interface members (C# 11) are
     //   excluded by the isStatic test on purpose. They are not dispatched
@@ -214,7 +206,6 @@ extractVirtualFunctions(SgAsmCilTypeDef* typeDef, SgAsmCilMetadataHeap* metadata
     //   interface IAdd<T> { static abstract T Zero { get; } }
     //   struct MyInt : IAdd<MyInt> { public static MyInt Zero => default; }
     //   \endcode
-    // PRIORITY: HIGH
     //
     // TODO(CIL): The MethodImpl table (.override) is not consulted.
     //   Explicit interface implementations, overrides under a different
@@ -1334,6 +1325,148 @@ CilCompatibility::haveSameOrCovariantReturn(const ClassAnalysis& classes, Functi
       return FunctionTypeRelation::covariant;
 
   return FunctionTypeRelation::unrelated;
+}
+
+namespace
+{
+  bool
+  isInterfaceClass(ClassKeyType cls)
+  {
+    return isValidKey(cls) && (keyToClass(cls)->get_Flags() & SgAsmCilTypeDef::FLG_INTERFACE) != 0;
+  }
+
+  bool
+  inAssembly(CilMetadataCache& metadata, const SgAsmCilMethodDef* method, const std::string& assembly)
+  {
+    SgAsmCilMetadataRoot* root = getMetadataRootFromNode(const_cast<SgAsmCilMethodDef*>(method));
+
+    return root && moduleInfo(metadata, root).assembly == assembly;
+  }
+
+  /// Returns true if a class between \p drvClass and \p basClass declares a
+  /// virtual method with the signature of \p drv that starts a new slot or is
+  /// final. Such a method blocks \p drv from overriding the method of \p basClass.
+  bool
+  blockedByIntermediateMethod( const CilCompatibility& bridge,
+                               const ClassAnalysis& classes,
+                               ClassKeyType drvClass,
+                               FunctionKeyType drv,
+                               ClassKeyType basClass
+                             )
+  {
+    ClassAnalysis::const_iterator drvEntry = classes.find(drvClass);
+
+    if (drvEntry == classes.end())
+      return false;
+
+    for (const InheritanceDesc& mid : drvEntry->second.ancestors())
+    {
+      const ClassKeyType midClass = mid.getClass();
+
+      if (midClass == basClass || isInterfaceClass(midClass))
+        continue;
+
+      ClassAnalysis::const_iterator midEntry = classes.find(midClass);
+
+      if (midEntry == classes.end())
+        continue;
+
+      // only classes that derive from basClass lie between drvClass and basClass
+      const ClassData::AncestorContainer& midAncestors = midEntry->second.ancestors();
+      auto                                isBase = [basClass](const InheritanceDesc& desc) -> bool
+                                                   {
+                                                     return desc.getClass() == basClass;
+                                                   };
+
+      if (std::find_if(midAncestors.begin(), midAncestors.end(), isBase) == midAncestors.end())
+        continue;
+
+      for (FunctionKeyType fn : midEntry->second.virtualFunctions())
+      {
+        if (bridge.compareNames(fn, drv) != 0 || bridge.compareFunctionsByType(fn, drv, false /* incl. return type */) != 0)
+          continue;
+
+        const std::uint16_t flags = keyToFunction(fn)->get_Flags();
+
+        if (flags & (SgAsmCilMethodDef::FLG_NEW_SLOT | SgAsmCilMethodDef::FLG_FINAL))
+          return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+bool
+CilCompatibility::canOverrideInContext( const ClassAnalysis& classes,
+                                        ClassKeyType drvClass,
+                                        FunctionKeyType drv,
+                                        ClassKeyType basClass,
+                                        FunctionKeyType bas
+                                      ) const
+{
+  if (!isValidKey(drv) || !isValidKey(bas))
+    return false;
+
+  sg::NotNull<SgAsmCilMethodDef> drvMethod = keyToFunction(drv);
+  sg::NotNull<SgAsmCilMethodDef> basMethod = keyToFunction(bas);
+  const std::uint16_t            drvFlags  = drvMethod->get_Flags();
+  const std::uint16_t            basFlags  = basMethod->get_Flags();
+  const std::uint16_t            drvAccess = drvFlags & SgAsmCilMethodDef::FLG_MEMBERACCESS_MASK;
+  const std::uint16_t            basAccess = basFlags & SgAsmCilMethodDef::FLG_MEMBERACCESS_MASK;
+  CilMetadataCache&              metadata  = cache();
+
+  // The slot of a virtual method is selected by its full signature (II.10.3.2),
+  // so methods that differ in the return type do not match by name. Covariant
+  // returns (C# 9) are connected through the MethodImpl table.
+  const MethodSig& drvSig = methodSignature(metadata, drvMethod);
+  const MethodSig& basSig = methodSignature(metadata, basMethod);
+
+  if (drvSig.valid && basSig.valid && drvSig.ret != basSig.ret)
+    return false;
+
+  // private and compiler-controlled methods do not take part in name based
+  // matching (explicit interface implementations are private and use MethodImpl).
+  if (drvAccess == SgAsmCilMethodDef::FLG_PRIVATE || drvAccess == SgAsmCilMethodDef::FLG_COMPILER_CONTROLLED)
+    return false;
+
+  if (isInterfaceClass(basClass))
+  {
+    // An interface method that matches by name is implicitly implemented by a
+    // public virtual method of a class. C# emits it as "virtual final newslot",
+    // so neither flag may reject the pair. An interface method that matches
+    // by name hides the base interface method (or overrides it through MethodImpl).
+    if (isInterfaceClass(drvClass))
+      return false;
+
+    return drvAccess == SgAsmCilMethodDef::FLG_PUBLIC;
+  }
+
+  if (basAccess == SgAsmCilMethodDef::FLG_PRIVATE || basAccess == SgAsmCilMethodDef::FLG_COMPILER_CONTROLLED)
+    return false;
+
+  // final methods cannot be overridden, new-slot methods do not override
+  if ((basFlags & SgAsmCilMethodDef::FLG_FINAL) || (drvFlags & SgAsmCilMethodDef::FLG_NEW_SLOT))
+    return false;
+
+  // II.10.3.3: an assembly (or family-and-assembly) method can be overridden
+  // from another assembly only by a public method, and not at all if the base
+  // method is marked strict.
+  if (basAccess == SgAsmCilMethodDef::FLG_ASSEM || basAccess == SgAsmCilMethodDef::FLG_FAM_AND_ASSEM)
+  {
+    SgAsmCilMetadataRoot* basRoot = getMetadataRootFromNode(basMethod);
+
+    if (basRoot && !inAssembly(metadata, drvMethod, moduleInfo(metadata, basRoot).assembly))
+    {
+      if ((basFlags & SgAsmCilMethodDef::FLG_STRICT) || drvAccess != SgAsmCilMethodDef::FLG_PUBLIC)
+        return false;
+    }
+  }
+
+  if (isValidKey(drvClass) && isValidKey(basClass) && blockedByIntermediateMethod(*this, classes, drvClass, drv, basClass))
+    return false;
+
+  return true;
 }
 
 void

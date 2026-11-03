@@ -614,7 +614,7 @@ namespace
         return;
 
       // language rules beyond the signature (e.g., access); may still hold transitively
-      if (!compat.canOverride(drv, bas))
+      if (!compat.canOverrideInContext(classes, drvClass, drv, basClass, bas))
       {
         deferred.push_back(DeferredOverride{drv, bas, witness});
         return;
@@ -635,6 +635,12 @@ namespace
 
     /// witness class of an implied override; invalid for declared overrides.
     rca::ClassKeyType               witness = rca::ClassKeyType{};
+
+    /// class that declares the derived function; invalid for implied overrides.
+    rca::ClassKeyType               drvClass = rca::ClassKeyType{};
+
+    /// class that declares the base function.
+    rca::ClassKeyType               basClass = rca::ClassKeyType{};
   };
 
   /// returns true if \p drv overrides a function whose recorded overridden
@@ -880,7 +886,7 @@ namespace
 
             mergeOrderedSequences( vfunSorted.begin(), vfunSorted.end(),
                                    parentVFunSorted.begin(), parentVFunSorted.end(),
-                                   ComputeVirtualFunctionRelation{compat, classes, vfunAnalysis, deferred},
+                                   ComputeVirtualFunctionRelation{compat, classes, vfunAnalysis, deferred, rca::ClassKeyType{} /* no witness */, entry.first, parentDesc.getClass()},
                                    VFNameTypeOrder{compat}
                                  );
           }

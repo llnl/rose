@@ -92,6 +92,27 @@ class CilCompatibility final : public Rose::Common::Analysis::AbstractCompatibil
     haveSameOrCovariantReturn(const Rose::Common::Analysis::ClassAnalysis& classes, Rose::Common::Analysis::FunctionKeyType basId, Rose::Common::Analysis::FunctionKeyType drvId) const override;
 
 
+    /// tests whether \p drv, declared in \p drvClass, overrides \p bas, declared in \p basClass.
+    /// \param classes   the class analysis
+    /// \param drvClass  class that declares \p drv (invalid for implied overrides)
+    /// \param drv       function in the derived class
+    /// \param basClass  class that declares \p bas
+    /// \param bas       function in the base class
+    /// \return true if the CLI would let \p drv reuse the slot of \p bas.
+    /// \details
+    ///    Implements the slot rules of ECMA-335 II.10.3: new-slot and final
+    ///    methods, access (II.10.3.3), and the return type, which is part of
+    ///    the slot signature. Methods of a class implicitly implement
+    ///    interface methods when they are public.
+    bool
+    canOverrideInContext( const Rose::Common::Analysis::ClassAnalysis& classes,
+                          Rose::Common::Analysis::ClassKeyType drvClass,
+                          Rose::Common::Analysis::FunctionKeyType drv,
+                          Rose::Common::Analysis::ClassKeyType basClass,
+                          Rose::Common::Analysis::FunctionKeyType bas
+                        ) const override;
+
+
     /// extracts class information from the memory pool if available
     /// \param classes analysis object to populate.
     /// \return nothing.

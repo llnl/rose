@@ -258,6 +258,37 @@ class AbstractCompatibilityBridge
       return true;
     }
 
+    /// returns whether \p drv, declared in \p drvClass, may override \p bas,
+    ///   declared in \p basClass, with knowledge of the classes in between.
+    /// \param classes class analysis context; inheritance relations are complete.
+    /// \param drvClass class that declares \p drv; invalid for an implied override,
+    ///        where the declaring class of the inherited function is not known.
+    /// \param drv function in a derived class that matches \p bas by signature.
+    /// \param basClass class that declares \p bas.
+    /// \param bas function in an ancestor class.
+    /// \return true if the override relation may be recorded for the pair;
+    ///         the base implementation forwards to canOverride(drv, bas).
+    /// \details
+    ///    Languages whose override rules depend on the classes between \p drvClass
+    ///    and \p basClass (e.g., a CIL method that starts a new vtable slot in an
+    ///    intermediate class) implement this query. The analysis calls this
+    ///    function; it is not necessary to also implement canOverride(drv, bas).
+    ///    Rejected pairs are resolved transitively as described for canOverride.
+    virtual
+    bool
+    canOverrideInContext( const ClassAnalysis& classes,
+                          ClassKeyType drvClass,
+                          FunctionKeyType drv,
+                          ClassKeyType basClass,
+                          FunctionKeyType bas
+                        ) const
+    {
+      (void)classes;
+      (void)drvClass;
+      (void)basClass;
+      return canOverride(drv, bas);
+    }
+
     // no state
 };
 
