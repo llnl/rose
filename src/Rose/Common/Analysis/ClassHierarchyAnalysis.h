@@ -167,18 +167,18 @@ using VirtualFunctionDescBase = std::tuple<ClassKeyType, bool, OverrideContainer
 
 /// Stores override metadata for one virtual function.
 ///
-/// \todo TODO(CIL): The descriptor does not record CIL dispatch attributes.
+/// \todo TODO(CIL): The descriptor does not record that a method starts a new slot.
 ///   Whether a pair may override is decided by the bridge through
-///   AbstractCompatibilityBridge::canOverride, but clients cannot query the
-///   result afterwards. Possible additions:
+///   AbstractCompatibilityBridge::canOverrideInContext, but clients cannot
+///   query the result afterwards. Possible additions:
 ///   - newslot: the method starts a new slot instead of overriding
 ///     (`new virtual`, which also fits the commented-out shadows() list);
-///   - final: the method has no possible overriders (`sealed override`, and
-///     the `virtual final newslot` emitted for implicit interface
-///     implementations);
 ///   and, because canOverride can only reject pairs,
 ///   - explicit overrides (MethodImpl), which are not found by name matching
 ///     and need a hook that adds pairs.
+///   The final attribute (`sealed override`, and the `virtual final newslot`
+///   emitted for implicit interface implementations) is available through
+///   isFinal().
 ///   \code{.cs}
 ///   interface IFoo { void F(); }
 ///   class Base : IFoo {
@@ -237,6 +237,14 @@ struct VirtualFunctionDesc : VirtualFunctionDescBase
   /// \return true if this virtual function is pure virtual or abstract.
   bool isPureVirtual() const { return std::get<1>(*this); }
 
+  /// Returns true when the represented function cannot be overridden.
+  /// \return true if the bridge reported this function as final.
+  bool isFinal() const { return finalFunction; }
+
+  /// Records whether the represented function cannot be overridden.
+  /// \param val true if the function is final.
+  void isFinal(bool val) { finalFunction = val; }
+
   /// returns a (const) reference to all functions that are overriding this function
   /// \return mutable or const container of overriding functions.
   /// \{
@@ -262,6 +270,9 @@ struct VirtualFunctionDesc : VirtualFunctionDescBase
   //~ const OverrideContainer& shadows() const { return std::get<4>(*this); }
 
   /// \}
+
+  private:
+    bool finalFunction = false;
 };
 
 

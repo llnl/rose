@@ -104,6 +104,7 @@ namespace
       os << "  Function " << funcName(vfnId)
          << " #" << vfnId.key
          << (vfn.isPureVirtual() ? " (pure virtual)" : "")
+         << (vfn.isFinal() ? " (final)" : "")
          << std::endl;
 
       printFunctions(os, "Overriden by", className, funcName, vfuns, vfn.overriders(), false);
@@ -225,6 +226,7 @@ void classHierarchyJson(std::ostream& os,
         if (pos != vfuns->end())
         {
           os << ",\"pureVirtual\":" << (pos->second.isPureVirtual() ? "true" : "false")
+             << ",\"final\":" << (pos->second.isFinal() ? "true" : "false")
              << ",\"overrides\":[";
 
           bool firstOverride = true;

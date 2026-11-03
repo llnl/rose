@@ -849,6 +849,7 @@ namespace
                    [&vfunAnalysis, &entry, &compat](rca::FunctionKeyType id) -> void
                    {
                      vfunAnalysis.emplace(id, rca::VirtualFunctionDesc{entry.first, compat.isPureVirtual(id)});
+                     vfunAnalysis.at(id).isFinal(compat.isFinal(id));
                    }
                  );
 

@@ -258,6 +258,22 @@ class AbstractCompatibilityBridge
       return true;
     }
 
+    /// returns whether the virtual function \p fnkey cannot be overridden.
+    /// \param fnkey virtual function to inspect.
+    /// \return true if \p fnkey is final (e.g., a sealed override in C#); the base implementation returns false.
+    /// \details
+    ///    The result is recorded in the VirtualFunctionDesc so that clients
+    ///    know that the function has no possible overriders. Bridges for
+    ///    languages in which a final function is not part of the override
+    ///    relation also reject such pairs in canOverride.
+    virtual
+    bool
+    isFinal(FunctionKeyType fnkey) const
+    {
+      (void)fnkey;
+      return false;
+    }
+
     /// returns whether \p drv, declared in \p drvClass, may override \p bas,
     ///   declared in \p basClass, with knowledge of the classes in between.
     /// \param classes class analysis context; inheritance relations are complete.

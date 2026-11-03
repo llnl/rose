@@ -54,6 +54,12 @@ class CilCompatibility final : public Rose::Common::Analysis::AbstractCompatibil
     bool isPureVirtual(Rose::Common::Analysis::FunctionKeyType key) const override;
 
 
+    /// returns true if the function represented by \p key is final.
+    /// \param key CIL function key to inspect.
+    /// \return true if \p key denotes a method with the Final attribute (`sealed override`).
+    bool isFinal(Rose::Common::Analysis::FunctionKeyType key) const override;
+
+
     /// compares the source name of the functions \p lhs and \p rhs.
     /// \param  lhs left-hand side function
     /// \param  rhs right-hand side function

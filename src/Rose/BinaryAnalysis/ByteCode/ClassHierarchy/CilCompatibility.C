@@ -189,13 +189,15 @@ extractVirtualFunctions(SgAsmCilTypeDef* typeDef, SgAsmCilMetadataHeap* metadata
     //   from a friend assembly is missed.
     // PRIORITY: LOW
     //
-    // TODO(CIL): FLG_FINAL is enforced when overrides are matched, but clients
-    //   cannot learn that a method has no possible overriders.
+    // Note: FLG_FINAL is enforced when overrides are matched and is reported
+    //   to clients through isFinal (VirtualFunctionDesc::isFinal). A final
+    //   method has no possible overriders; C# emits `virtual final newslot`
+    //   for implicit interface implementations, which can be overridden only
+    //   by an interface re-implementation.
     //   \code{.cs}
     //   class Base { public virtual void F() {} }
     //   class Mid : Base { public sealed override void F() {} } // final
     //   \endcode
-    // PRIORITY: HIGH
     //
     // Note: static virtual / static abstract interface members (C# 11) are
     //   excluded by the isStatic test on purpose. They are not dispatched
@@ -1218,6 +1220,14 @@ CilCompatibility::isPureVirtual(FunctionKeyType key) const
   // Note: ECMA-335 requires Abstract methods to also have Virtual flag set,
   // so we must check both flags
   return isVirtual & isAbstract;
+}
+
+bool
+CilCompatibility::isFinal(FunctionKeyType key) const
+{
+  sg::NotNull<SgAsmCilMethodDef> method = keyToFunction(key);
+
+  return (method->get_Flags() & SgAsmCilMethodDef::FLG_FINAL) != 0;
 }
 
 int
