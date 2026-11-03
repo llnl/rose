@@ -3,6 +3,8 @@
 #define ROSE_BinaryAnalysis_ByteCode_ClassHierarchy_CilCompatibility_H 1
 
 #include <RoseFirst.h>
+#include <functional>
+#include <memory>
 #include <string>
 
 #include <Rose/Common/Analysis/AnalysisTypes.h>
@@ -11,8 +13,17 @@
 namespace Rose::BinaryAnalysis::ByteCode::ClassHierarchy
 {
 
-/// a stateless mapping of CIL related AST nodes in ROSE to fundamental functions
+/// decoded signatures and type identities of the loaded CIL metadata
+///   (defined in CilCompatibility.C).
+struct CilMetadataCache;
+
+/// a mapping of CIL related AST nodes in ROSE to fundamental functions
 ///   of the class hierarchy analysis.
+/// \note
+///   The mapping holds no analysis state. It only caches data that is derived
+///   from the AST (decoded signature blobs, type identities); the cache is
+///   discarded by extractFromMemoryPool and extractFromProject. Consequently,
+///   a CilCompatibility object is not safe for concurrent use.
 class CilCompatibility final : public Rose::Common::Analysis::AbstractCompatibilityBridge
 {
   public:
@@ -126,6 +137,15 @@ class CilCompatibility final : public Rose::Common::Analysis::AbstractCompatibil
     /// \return summarized data member type properties.
     Rose::Common::Analysis::DataMemberType
     typeOf(Rose::Common::Analysis::VariableKeyType var) const override;
+
+  private:
+    /// returns the metadata cache, creating it on first use.
+    CilMetadataCache& cache() const;
+
+    /// discards the metadata cache.
+    void resetCache() const;
+
+    mutable std::shared_ptr<CilMetadataCache> cacheStore;
 };
 
 }

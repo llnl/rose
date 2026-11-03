@@ -3,8 +3,13 @@
 
 #include <sageGeneric.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <Rose/Common/Analysis/ClassHierarchyAnalysis.h>
@@ -566,14 +571,16 @@ namespace
         SgAsmCilTypeDef* typeDef = typeDefs[i];
         if (!typeDef) continue;
 
+        // The first TypeDef row is the pseudo type <Module> (II.22.37). It
+        // only holds global methods and fields, which do not participate in
+        // virtual dispatch. The row stays in typeDefs so that the MethodList
+        // and FieldList ranges of the following rows keep their meaning.
+        if (i == 0 && cilString(typeDef->get_TypeName_string()) == "<Module>")
+          continue;
+
         ClassKeyType clKey = classToKey(typeDef);
         ClassData& classData = classes[clKey];
 
-        // TODO(CIL): The first TypeDef row is the pseudo type <Module>, which
-        //   holds global methods and fields. It is currently registered as an
-        //   ordinary class and should be skipped (or marked) here.
-        // PRIORITY: HIGH
-        //
         // TODO(CIL): ClassData has no notion of sealed or value types, and CIL
         //   types nest. Only the abstract flag is transferred. (Interfaces
         //   are modeled as abstract virtual base classes, as in the JVM
@@ -594,6 +601,539 @@ namespace
       }
     }
   };
+}
+
+// CIL signature services (ECMA-335 II.23.2)
+//
+// Signatures are blobs with module-local type tokens. The services below
+// decode a method signature into canonical text in which every type token has
+// been replaced by a module-independent type identity, so that signatures of
+// different modules can be compared.
+
+namespace
+{
+  /// bounds checked reader for signature blobs
+  struct BlobReader
+  {
+    BlobReader(const std::vector<std::uint8_t>& b, std::size_t p)
+    : blob(b), pos(p), limit(b.size()), good(p <= b.size())
+    {}
+
+    bool ok() const { return good; }
+
+    std::uint8_t byte()
+    {
+      if (pos >= limit)
+      {
+        good = false;
+        return 0;
+      }
+
+      return blob[pos++];
+    }
+
+    std::uint8_t peek()
+    {
+      if (pos >= limit)
+      {
+        good = false;
+        return 0;
+      }
+
+      return blob[pos];
+    }
+
+    /// reads a compressed unsigned integer (II.23.2)
+    std::uint32_t compressed()
+    {
+      const std::uint32_t b0 = byte();
+
+      if ((b0 & 0x80) == 0)
+        return b0;
+
+      if ((b0 & 0xC0) == 0x80)
+      {
+        const std::uint32_t b1 = byte();
+
+        return ((b0 & 0x3F) << 8) | b1;
+      }
+
+      if ((b0 & 0xE0) == 0xC0)
+      {
+        const std::uint32_t b1 = byte();
+        const std::uint32_t b2 = byte();
+        const std::uint32_t b3 = byte();
+
+        return ((b0 & 0x1F) << 24) | (b1 << 16) | (b2 << 8) | b3;
+      }
+
+      good = false;
+      return 0;
+    }
+
+    const std::vector<std::uint8_t>& blob;
+    std::size_t                      pos;
+    std::size_t                      limit;
+    bool                             good;
+  };
+
+  /// per metadata root information needed to decode signatures
+  struct ModuleInfo
+  {
+    SgAsmCilMetadataHeap*                                              heap = nullptr;
+    const std::vector<std::uint8_t>*                                   blob = nullptr;
+    std::string                                                        assembly;
+    std::unordered_map<const SgAsmCilTypeDef*, const SgAsmCilTypeDef*> enclosing;
+  };
+
+  /// decoded method signature (canonical text, see decodeType)
+  struct MethodSig
+  {
+    bool          valid        = false;
+    std::uint32_t genericArity = 0;
+    std::size_t   paramCount   = 0;
+    std::string   params;      ///< calling convention, generic arity, and parameter types
+    std::string   ret;         ///< return type including custom modifiers
+    std::string   retCore;     ///< return type without leading custom modifiers
+    std::string   retClassId;  ///< identity of the return type if it is a plain class type
+  };
+}
+
+/// caches data that is derived from the CIL AST
+struct CilMetadataCache
+{
+  std::unordered_map<const SgAsmCilMetadataRoot*, ModuleInfo> modules;
+  std::unordered_map<const SgAsmCilMethodDef*, MethodSig>     signatures;
+  std::map<std::string, SgAsmCilTypeDef*>                     typeById;  ///< nullptr if ambiguous
+  std::set<std::string>                                       warnings;
+  bool                                                        typeIndexBuilt = false;
+};
+
+namespace
+{
+  void
+  warnOnce(CilMetadataCache& cache, const std::string& msg)
+  {
+    if (cache.warnings.insert(msg).second)
+      msgWarn() << msg << std::endl;
+  }
+
+  ModuleInfo&
+  moduleInfo(CilMetadataCache& cache, SgAsmCilMetadataRoot* root)
+  {
+    std::unordered_map<const SgAsmCilMetadataRoot*, ModuleInfo>::iterator pos = cache.modules.find(root);
+
+    if (pos != cache.modules.end())
+      return pos->second;
+
+    ModuleInfo mi;
+
+    mi.assembly = assemblyName(root);
+    mi.heap     = root->get_MetadataHeap();
+
+    if (SgAsmCilUint8Heap* blobHeap = root->get_BlobHeap())
+      mi.blob = &blobHeap->get_Stream();
+
+    // nested type -> enclosing type (NestedClass table, II.22.32)
+    SgAsmCilNestedClassTable* nestedTable = mi.heap ? mi.heap->get_NestedClassTable() : nullptr;
+
+    if (nestedTable)
+      for (SgAsmCilNestedClass* nested : nestedTable->get_elements())
+      {
+        if (!nested) continue;
+
+        const SgAsmCilTypeDef* nestedDef    = isSgAsmCilTypeDef(nested->get_NestedClass_object());
+        const SgAsmCilTypeDef* enclosingDef = isSgAsmCilTypeDef(nested->get_EnclosingClass_object());
+
+        if (nestedDef && enclosingDef)
+          mi.enclosing[nestedDef] = enclosingDef;
+      }
+
+    return cache.modules.emplace(root, std::move(mi)).first->second;
+  }
+
+  /// the identity of a type defined in a module: [Assembly]Namespace.Name,
+  /// nested types are Enclosing/Name.
+  std::string
+  typeDefIdentity(const ModuleInfo& mi, const SgAsmCilTypeDef* typeDef, int depth = 0)
+  {
+    const std::string name = cilString(typeDef->get_TypeName_string());
+
+    std::unordered_map<const SgAsmCilTypeDef*, const SgAsmCilTypeDef*>::const_iterator outer = mi.enclosing.find(typeDef);
+
+    if (outer != mi.enclosing.end() && depth < 32)
+      return typeDefIdentity(mi, outer->second, depth + 1) + "/" + name;
+
+    const std::string ns = cilString(typeDef->get_TypeNamespace_string());
+
+    return "[" + mi.assembly + "]" + (ns.empty() ? std::string() : ns + ".") + name;
+  }
+
+  /// the identity of a referenced type, in the same format as typeDefIdentity.
+  std::string
+  typeRefIdentity(const ModuleInfo& mi, const SgAsmCilTypeRef* typeRef, int depth = 0)
+  {
+    const std::string       name  = cilString(typeRef->get_TypeName_string());
+    const SgAsmCilMetadata* scope = typeRef->get_ResolutionScope_object();
+
+    if (const SgAsmCilTypeRef* outer = isSgAsmCilTypeRef(scope))
+      if (depth < 32)
+        return typeRefIdentity(mi, outer, depth + 1) + "/" + name;
+
+    // Module, ModuleRef, and a missing scope refer to the current assembly
+    const SgAsmCilAssemblyRef* assemblyRef = isSgAsmCilAssemblyRef(scope);
+    const std::string          ns          = cilString(typeRef->get_TypeNamespace_string());
+
+    return "[" + (assemblyRef ? assemblyName(assemblyRef) : mi.assembly) + "]" + (ns.empty() ? std::string() : ns + ".") + name;
+  }
+
+  std::string decodeType(CilMetadataCache& cache, ModuleInfo& mi, BlobReader& rd, int depth);
+
+  /// returns the identity of the type designated by a TypeDefOrRef coded index
+  /// (II.23.2.8), or an empty string if it cannot be determined.
+  std::string
+  tokenIdentity(CilMetadataCache& cache, ModuleInfo& mi, std::uint32_t token, int depth)
+  {
+    const std::uint32_t tag = token & 0x3;
+    const std::size_t   row = token >> 2;
+
+    if (!mi.heap || row == 0 || depth > 32)
+      return std::string();
+
+    if (tag == 0)
+    {
+      SgAsmCilTypeDefTable* table = mi.heap->get_TypeDefTable();
+
+      if (table && row <= table->get_elements().size() && table->get_elements()[row-1])
+        return typeDefIdentity(mi, table->get_elements()[row-1]);
+    }
+    else if (tag == 1)
+    {
+      SgAsmCilTypeRefTable* table = mi.heap->get_TypeRefTable();
+
+      if (table && row <= table->get_elements().size() && table->get_elements()[row-1])
+        return typeRefIdentity(mi, table->get_elements()[row-1]);
+    }
+    else if (tag == 2 && mi.blob)
+    {
+      SgAsmCilTypeSpecTable* table = mi.heap->get_TypeSpecTable();
+
+      if (table && row <= table->get_elements().size() && table->get_elements()[row-1])
+      {
+        BlobReader rd(*mi.blob, table->get_elements()[row-1]->get_Signature());
+        const std::uint32_t len = rd.compressed();
+
+        if (rd.pos + len > rd.blob.size())
+          return std::string();
+
+        rd.limit = rd.pos + len;
+
+        const std::string res = decodeType(cache, mi, rd, depth + 1);
+
+        return rd.ok() ? res : std::string();
+      }
+    }
+
+    return std::string();
+  }
+
+  std::string
+  classTokenText(CilMetadataCache& cache, ModuleInfo& mi, BlobReader& rd, int depth)
+  {
+    std::string id = tokenIdentity(cache, mi, rd.compressed(), depth + 1);
+
+    if (id.empty())
+    {
+      rd.good = false;
+      id = "?";
+    }
+
+    return id;
+  }
+
+  /// reads a custom modifier (after CMOD_REQD / CMOD_OPT) and returns its text.
+  std::string
+  modifierText(CilMetadataCache& cache, ModuleInfo& mi, BlobReader& rd, bool required, int depth)
+  {
+    return std::string(required ? "modreq(" : "modopt(") + classTokenText(cache, mi, rd, depth) + ") ";
+  }
+
+  bool parseMethodSig(CilMetadataCache& cache, ModuleInfo& mi, BlobReader& rd, MethodSig& sig, int depth);
+
+  std::string
+  joinTexts(const std::vector<std::string>& parts)
+  {
+    std::string res;
+
+    for (const std::string& part : parts)
+    {
+      if (!res.empty()) res += ",";
+      res += part;
+    }
+
+    return res;
+  }
+
+  /// decodes a Type (II.23.2.12) into canonical text.
+  std::string
+  decodeType(CilMetadataCache& cache, ModuleInfo& mi, BlobReader& rd, int depth)
+  {
+    if (depth > 32)
+    {
+      rd.good = false;
+      return "?";
+    }
+
+    const std::uint8_t elementType = rd.byte();
+
+    switch (elementType)
+    {
+      case 0x01: return "void";
+      case 0x02: return "bool";
+      case 0x03: return "char";
+      case 0x04: return "int8";
+      case 0x05: return "uint8";
+      case 0x06: return "int16";
+      case 0x07: return "uint16";
+      case 0x08: return "int32";
+      case 0x09: return "uint32";
+      case 0x0A: return "int64";
+      case 0x0B: return "uint64";
+      case 0x0C: return "float32";
+      case 0x0D: return "float64";
+      case 0x0E: return "string";
+      case 0x16: return "typedref";
+      case 0x18: return "native int";
+      case 0x19: return "native uint";
+      case 0x1C: return "object";
+
+      case 0x0F: return decodeType(cache, mi, rd, depth + 1) + "*";
+      case 0x10: return decodeType(cache, mi, rd, depth + 1) + "&";
+      case 0x1D: return decodeType(cache, mi, rd, depth + 1) + "[]";
+      case 0x45: return "pinned " + decodeType(cache, mi, rd, depth + 1);
+
+      case 0x11: // VALUETYPE
+      case 0x12: // CLASS
+        return classTokenText(cache, mi, rd, depth);
+
+      case 0x13: return "!"  + std::to_string(rd.compressed());
+      case 0x1E: return "!!" + std::to_string(rd.compressed());
+
+      case 0x1F: // CMOD_REQD
+      case 0x20: // CMOD_OPT
+      {
+        const std::string mod = modifierText(cache, mi, rd, elementType == 0x1F, depth);
+
+        return mod + decodeType(cache, mi, rd, depth + 1);
+      }
+
+      case 0x14: // ARRAY
+      {
+        const std::string               elem = decodeType(cache, mi, rd, depth + 1);
+        const std::uint32_t             rank = rd.compressed();
+        const std::uint32_t             numSizes = rd.compressed();
+        std::vector<std::string>        sizes;
+        std::vector<std::string>        lowerBounds;
+
+        for (std::uint32_t i = 0; i < numSizes && rd.ok(); ++i)
+          sizes.push_back(std::to_string(rd.compressed()));
+
+        const std::uint32_t numBounds = rd.compressed();
+
+        for (std::uint32_t i = 0; i < numBounds && rd.ok(); ++i)
+          lowerBounds.push_back(std::to_string(rd.compressed()));
+
+        return elem + "[" + std::to_string(rank) + ":" + joinTexts(sizes) + ":" + joinTexts(lowerBounds) + "]";
+      }
+
+      case 0x15: // GENERICINST
+      {
+        rd.byte(); // CLASS or VALUETYPE
+
+        const std::string        generic = classTokenText(cache, mi, rd, depth);
+        const std::uint32_t      numArgs = rd.compressed();
+        std::vector<std::string> args;
+
+        for (std::uint32_t i = 0; i < numArgs && rd.ok(); ++i)
+          args.push_back(decodeType(cache, mi, rd, depth + 1));
+
+        return generic + "<" + joinTexts(args) + ">";
+      }
+
+      case 0x1B: // FNPTR
+      {
+        MethodSig inner;
+
+        parseMethodSig(cache, mi, rd, inner, depth + 1);
+        return "fnptr " + inner.params + "->" + inner.ret;
+      }
+
+      default:
+        rd.good = false;
+        return "?";
+    }
+  }
+
+  /// decodes a MethodDefSig (II.23.2.1), positioned at the calling convention byte.
+  bool
+  parseMethodSig(CilMetadataCache& cache, ModuleInfo& mi, BlobReader& rd, MethodSig& sig, int depth)
+  {
+    const std::uint8_t callConv = rd.byte();
+    const std::uint8_t kind     = callConv & 0x0F;
+
+    // FIELD, LOCAL_SIG, PROPERTY, and GENERICINST (MethodSpec) are not method signatures
+    if (kind == 0x06 || kind == 0x07 || kind == 0x08 || kind == 0x0A)
+      return false;
+
+    if (callConv & 0x10) // GENERIC
+      sig.genericArity = rd.compressed();
+
+    const std::uint32_t numParams = rd.compressed();
+
+    // return type: custom modifiers, then the type
+    std::string mods;
+
+    while (rd.ok() && (rd.peek() == 0x1F || rd.peek() == 0x20))
+    {
+      const bool required = rd.byte() == 0x1F;
+
+      mods += modifierText(cache, mi, rd, required, depth);
+    }
+
+    if (rd.ok() && rd.peek() == 0x12)
+    {
+      rd.byte();
+      sig.retClassId = classTokenText(cache, mi, rd, depth);
+      sig.retCore    = sig.retClassId;
+    }
+    else
+    {
+      sig.retCore = decodeType(cache, mi, rd, depth + 1);
+    }
+
+    sig.ret = mods + sig.retCore;
+
+    // parameters
+    std::vector<std::string> params;
+    std::uint32_t            seen = 0;
+
+    while (seen < numParams && rd.ok())
+    {
+      if (rd.peek() == 0x41) // SENTINEL
+      {
+        rd.byte();
+        params.push_back("...");
+        continue;
+      }
+
+      params.push_back(decodeType(cache, mi, rd, depth + 1));
+      ++seen;
+    }
+
+    sig.paramCount = params.size();
+    sig.params     = std::string(kind == 0x05 ? "vararg" : "")
+                   + (callConv & 0x10 ? "<" + std::to_string(sig.genericArity) + ">" : std::string())
+                   + "(" + joinTexts(params) + ")";
+
+    return rd.ok();
+  }
+
+  /// returns the decoded signature of \p method (cached).
+  const MethodSig&
+  methodSignature(CilMetadataCache& cache, const SgAsmCilMethodDef* method)
+  {
+    std::unordered_map<const SgAsmCilMethodDef*, MethodSig>::iterator pos = cache.signatures.find(method);
+
+    if (pos != cache.signatures.end())
+      return pos->second;
+
+    MethodSig sig;
+
+    if (SgAsmCilMetadataRoot* root = getMetadataRootFromNode(const_cast<SgAsmCilMethodDef*>(method)))
+    {
+      ModuleInfo& mi = moduleInfo(cache, root);
+
+      if (mi.blob)
+      {
+        BlobReader          rd(*mi.blob, method->get_Signature());
+        const std::uint32_t len = rd.compressed(); // blob length prefix
+
+        if (rd.ok() && rd.pos + len <= rd.blob.size())
+        {
+          rd.limit  = rd.pos + len;
+          sig.valid = parseMethodSig(cache, mi, rd, sig, 0);
+        }
+      }
+    }
+
+    if (!sig.valid)
+      warnOnce(cache, "CIL class hierarchy: cannot decode the signature of method "
+                      + cilString(method->get_Name_string()) + "; override matching may be incomplete.");
+
+    return cache.signatures.emplace(method, std::move(sig)).first->second;
+  }
+
+  void
+  buildTypeIndex(CilMetadataCache& cache)
+  {
+    if (cache.typeIndexBuilt)
+      return;
+
+    cache.typeIndexBuilt = true;
+
+    for (SgAsmCilMetadataRoot* root : loadedCilMetadataRoots())
+    {
+      ModuleInfo&           mi    = moduleInfo(cache, root);
+      SgAsmCilTypeDefTable* table = mi.heap ? mi.heap->get_TypeDefTable() : nullptr;
+
+      if (!table) continue;
+
+      for (SgAsmCilTypeDef* typeDef : table->get_elements())
+      {
+        if (!typeDef) continue;
+
+        std::pair<std::map<std::string, SgAsmCilTypeDef*>::iterator, bool> ins =
+            cache.typeById.emplace(typeDefIdentity(mi, typeDef), typeDef);
+
+        if (!ins.second)
+          ins.first->second = nullptr; // ambiguous identity
+      }
+    }
+  }
+
+  /// returns the loaded type with identity \p id, or nullptr if there is none or it is ambiguous.
+  SgAsmCilTypeDef*
+  typeByIdentity(CilMetadataCache& cache, const std::string& id)
+  {
+    buildTypeIndex(cache);
+
+    std::map<std::string, SgAsmCilTypeDef*>::const_iterator pos = cache.typeById.find(id);
+
+    return pos != cache.typeById.end() ? pos->second : nullptr;
+  }
+
+  int
+  compareText(const std::string& lhs, const std::string& rhs)
+  {
+    const int res = lhs.compare(rhs);
+
+    return res < 0 ? -1 : (res > 0 ? 1 : 0);
+  }
+}
+
+CilMetadataCache&
+CilCompatibility::cache() const
+{
+  if (!cacheStore)
+    cacheStore = std::make_shared<CilMetadataCache>();
+
+  return *cacheStore;
+}
+
+void
+CilCompatibility::resetCache() const
+{
+  cacheStore.reset();
 }
 
 // CilCompatibility implementation
@@ -703,61 +1243,19 @@ CilCompatibility::compareNames(FunctionKeyType lhs, FunctionKeyType rhs) const
 int
 CilCompatibility::compareFunctionsByType(FunctionKeyType lhs, FunctionKeyType rhs, bool exclReturnType) const
 {
-  sg::NotNull<SgAsmCilMethodDef> lhsMethod = keyToFunction(lhs);
-  sg::NotNull<SgAsmCilMethodDef> rhsMethod = keyToFunction(rhs);
-
-  // TODO(CIL): Signature is a module-local offset into the blob heap, not a
-  // canonical method type. Comparing offsets makes separately encoded but
-  // equivalent signatures different, and can make unrelated signatures in
-  // different metadata heaps compare equal. exclReturnType is therefore only
-  // a placeholder and currently has no effect.
+  // Signatures are compared by their canonical text (see methodSignature),
+  // in which type tokens are replaced by module-independent type identities.
+  // This makes methods of different modules comparable and distinguishes
+  // generic arity and parameter types (including by-reference, arrays, and
+  // custom modifiers).
   //
-  // To implement this correctly:
-  //   1. Obtain each method's metadata root and blob heap.
-  //   2. Decode the complete method signature, preserving the return type
-  //      separately from calling convention, generic arity, and parameter
-  //      types (including modifiers, arrays, by-reference, and generic types).
-  //   3. Compare normalized parameter signatures when exclReturnType is true;
-  //      compare the normalized return type as well when it is false.
-  //   4. Resolve TypeDefOrRef identities across metadata heaps before comparing
-  //      types, and provide a deterministic semantic ordering.
-  //   5. Add fixtures for duplicate blobs, colliding offsets in separate
-  //      modules, and covariant-return overrides.
-  //
-  // Until then, offset comparison is insufficient for override matching.
-  // PRIORITY: HIGH
-  //
-  // TODO(CIL): Because the offset includes the return type, a covariant
-  //   override never compares equal to its base method, so the override edge
-  //   is lost. This is correct for slot matching: the CLR selects a slot by
-  //   the full signature including the return type, and IL allows overloading
-  //   by return type. Therefore, do not ignore the return type here. The JVM
-  //   bridge currently does, but it carries a TODO to move to full-descriptor
-  //   matching, because javac emits synthetic bridge methods that make the
-  //   two compare equal. CIL has no bridge methods.
-  //   C# 9 covariant returns are expressed with a MethodImpl (.override)
-  //   and should be reported through an explicit-override hook (see the
-  //   MethodImpl TODO in extractVirtualFunctions).
-  //   \code{.cs}
-  //   class Animal {}
-  //   class Dog : Animal {}
-  //   class Base    { public virtual Animal Make() => new Animal(); }
-  //   class Derived : Base { public override Dog Make() => new Dog(); }  // C# 9 covariant return
-  //   \endcode
-  // PRIORITY: HIGH
-  //
-  // TODO(CIL): Offsets are module-local. A method in App.exe overriding a
-  //   method of Lib.dll can never compare equal, and equal offsets from
-  //   different modules compare equal for unrelated signatures. Compare a
-  //   canonical signature string instead (as the JVM bridge does with
-  //   descriptors), resolving type tokens to type identities.
-  //   \code{.cs}
-  //   // Lib.dll
-  //   public class Base { public virtual void Run(int x) {} }
-  //   // App.exe
-  //   class Derived : Base { public override void Run(int x) {} }
-  //   \endcode
-  // PRIORITY: LOW
+  // Note: The slot of a CIL virtual method is selected by its full signature,
+  //   including the return type, and IL allows overloading by return type.
+  //   The common analysis passes exclReturnType = true when it orders
+  //   functions. This comparison honors the request; a pair whose return types
+  //   differ must therefore be rejected where the slot rules are applied
+  //   (canOverride). C# 9 covariant returns are expressed with a MethodImpl
+  //   (.override) and are not found by name matching.
   //
   // TODO(CIL): Overrides under generic instantiation need substitution of
   //   the base type's type arguments, which a pairwise comparator without
@@ -769,311 +1267,72 @@ CilCompatibility::compareFunctionsByType(FunctionKeyType lhs, FunctionKeyType rh
   //   class Gen { public virtual void M<U>(U u) {} }                   // generic arity 1, M(!!0)
   //   \endcode
   // PRIORITY: LOW
-  uint32_t lhsSigIdx = lhsMethod->get_Signature();
-  uint32_t rhsSigIdx = rhsMethod->get_Signature();
+  if (lhs == rhs) return 0;
+  if (!isValidKey(lhs)) return -1;
+  if (!isValidKey(rhs)) return 1;
 
-  if (exclReturnType)
+  CilMetadataCache& metadata = cache();
+  const MethodSig&  lhsSig   = methodSignature(metadata, keyToFunction(lhs));
+  const MethodSig&  rhsSig   = methodSignature(metadata, keyToFunction(rhs));
+
+  // undecodable signatures are ordered by key and precede all decodable ones
+  if (!lhsSig.valid || !rhsSig.valid)
   {
-    // For now, use simple comparison
-    // A full implementation would parse the signature blob and compare parameter types
-    if (lhsSigIdx < rhsSigIdx) return -1;
-    if (lhsSigIdx > rhsSigIdx) return 1;
-    return 0;
-  }
-  else
-  {
-    // Compare including return type
-    if (lhsSigIdx < rhsSigIdx) return -1;
-    if (lhsSigIdx > rhsSigIdx) return 1;
-    return 0;
-  }
-}
+    if (lhsSig.valid != rhsSig.valid)
+      return lhsSig.valid ? 1 : -1;
 
-// Helper to parse return type from CIL method signature blob
-// Returns the index into the blob where the return type starts, or 0 if parsing fails
-static
-uint32_t
-parseReturnTypeFromSignature(const std::vector<uint8_t>& blobHeap, uint32_t sigIndex, std::vector<uint8_t>& returnType)
-{
-  returnType.clear();
-
-  if (sigIndex >= blobHeap.size())
-    return 0;
-
-  // Read blob size (compressed integer at sigIndex)
-  uint32_t idx = sigIndex;
-
-  // Decompress blob size (ECMA-335 II.23.2) and skip past it
-  if ((blobHeap[idx] & 0x80) == 0) {
-    idx += 1;
-  } else if ((blobHeap[idx] & 0xC0) == 0x80) {
-    if (idx + 1 >= blobHeap.size()) return 0;
-    idx += 2;
-  } else if ((blobHeap[idx] & 0xE0) == 0xC0) {
-    if (idx + 3 >= blobHeap.size()) return 0;
-    idx += 4;
-  } else {
-    return 0;
+    return lhs.key < rhs.key ? -1 : 1;
   }
 
-  if (idx >= blobHeap.size()) return 0;
+  if (int res = compareText(lhsSig.params, rhsSig.params))
+    return res;
 
-  // Skip calling convention byte
-  //
-  // TODO(CIL): The calling convention byte is skipped without being
-  //   interpreted. If its GENERIC bit (0x10) is set, a compressed generic
-  //   parameter count precedes ParamCount, and the code below then reads the
-  //   generic arity as the parameter count and the real ParamCount as the
-  //   return type.
-  //   \code{.cs}
-  //   class C { public virtual T Id<T>(T t) => t; }  // blob: 0x30 <arity=1> <params=1> !!0 !!0
-  //   \endcode
-  // PRIORITY: HIGH
-  idx += 1;
-
-  if (idx >= blobHeap.size()) return 0;
-
-  // Skip parameter count (compressed integer)
-  if ((blobHeap[idx] & 0x80) == 0) {
-    idx += 1;
-  } else if ((blobHeap[idx] & 0xC0) == 0x80) {
-    idx += 2;
-  } else if ((blobHeap[idx] & 0xE0) == 0xC0) {
-    idx += 4;
-  } else {
-    return 0;
-  }
-
-  // Now at return type
-  // Read the type signature (simplified - just read the next few bytes as the type encoding)
-  // A full implementation would parse the entire type signature recursively
-  uint32_t returnTypeStart = idx;
-
-  if (idx >= blobHeap.size()) return 0;
-
-  // Read at least one byte for the element type
-  //
-  // TODO(CIL): Only the first byte (and the token for CLASS / VALUETYPE) is
-  //   captured. The following return types therefore compare as identical
-  //   although they differ: VAR / MVAR with different indices, SZARRAY,
-  //   GENERICINST, PTR, and BYREF with different element types. Custom
-  //   modifiers (CMOD_REQD / CMOD_OPT) and BYREF prefixes are not skipped, so
-  //   the element type is misread. The compressed-integer decoding above also
-  //   lacks bounds checks.
-  //   \code{.cs}
-  //   class A { public virtual int[]          F() => null; }
-  //   class B : A { public override int[]     F() => null; }  // same
-  //   class C { public virtual string[]       F() => null; }  // different, but starts with SZARRAY like A.F
-  //   class D { public virtual ref int        R() => ref x;  int x; }  // BYREF prefix
-  //   \endcode
-  // PRIORITY: LOW
-  returnType.push_back(blobHeap[idx]);
-  idx += 1;
-
-  // For class/valuetype types, also read the TypeDefOrRef token
-  if ((returnType[0] == 0x11 || returnType[0] == 0x12) && idx < blobHeap.size()) {
-    // Read compressed TypeDefOrRef token
-    if ((blobHeap[idx] & 0x80) == 0) {
-      returnType.push_back(blobHeap[idx]);
-      idx += 1;
-    } else if ((blobHeap[idx] & 0xC0) == 0x80 && idx + 1 < blobHeap.size()) {
-      returnType.push_back(blobHeap[idx]);
-      returnType.push_back(blobHeap[idx + 1]);
-      idx += 2;
-    } else if ((blobHeap[idx] & 0xE0) == 0xC0 && idx + 3 < blobHeap.size()) {
-      returnType.push_back(blobHeap[idx]);
-      returnType.push_back(blobHeap[idx + 1]);
-      returnType.push_back(blobHeap[idx + 2]);
-      returnType.push_back(blobHeap[idx + 3]);
-      idx += 4;
-    }
-  }
-
-  return returnTypeStart;
-}
-
-// Helper to extract TypeDef/TypeRef from return type encoding
-static
-uint32_t
-getTypeTokenFromReturnType(const std::vector<uint8_t>& returnType)
-{
-  if (returnType.empty())
-    return 0;
-
-  uint8_t elementType = returnType[0];
-
-  // 0x11 = ELEMENT_TYPE_VALUETYPE, 0x12 = ELEMENT_TYPE_CLASS
-  if ((elementType == 0x11 || elementType == 0x12) && returnType.size() > 1) {
-    // Decompress token
-    uint32_t token = 0;
-    size_t idx = 1;
-
-    if ((returnType[idx] & 0x80) == 0) {
-      token = returnType[idx];
-    } else if ((returnType[idx] & 0xC0) == 0x80 && idx + 1 < returnType.size()) {
-      token = ((returnType[idx] & 0x3F) << 8) | returnType[idx + 1];
-    } else if ((returnType[idx] & 0xE0) == 0xC0 && idx + 3 < returnType.size()) {
-      token = ((returnType[idx] & 0x1F) << 24) | (returnType[idx + 1] << 16) |
-              (returnType[idx + 2] << 8) | returnType[idx + 3];
-    }
-
-    return token;
-  }
-
-  return 0;
+  return exclReturnType ? 0 : compareText(lhsSig.ret, rhsSig.ret);
 }
 
 FunctionTypeRelation
 CilCompatibility::haveSameOrCovariantReturn(const ClassAnalysis& classes, FunctionKeyType basId, FunctionKeyType drvId) const
 {
-  sg::NotNull<SgAsmCilMethodDef> basMethod = keyToFunction(basId);
-  sg::NotNull<SgAsmCilMethodDef> drvMethod = keyToFunction(drvId);
+  CilMetadataCache& metadata = cache();
+  const MethodSig&  basSig   = methodSignature(metadata, keyToFunction(basId));
+  const MethodSig&  drvSig   = methodSignature(metadata, keyToFunction(drvId));
 
-  // Get metadata root to access blob heap
-  SgAsmCilMetadataRoot* basRoot = getMetadataRootFromNode(basMethod);
-  SgAsmCilMetadataRoot* drvRoot = getMetadataRootFromNode(drvMethod);
-
-  if (!basRoot || !drvRoot)
+  if (!basSig.valid || !drvSig.valid)
     return FunctionTypeRelation::unrelated;
 
-  // Get blob heaps
-  SgAsmCilUint8Heap* basBlobHeap = basRoot->get_BlobHeap();
-  SgAsmCilUint8Heap* drvBlobHeap = drvRoot->get_BlobHeap();
-
-  if (!basBlobHeap || !drvBlobHeap)
-    return FunctionTypeRelation::unrelated;
-
-  const std::vector<uint8_t>& basBlob = basBlobHeap->get_Stream();
-  const std::vector<uint8_t>& drvBlob = drvBlobHeap->get_Stream();
-
-  // Get signature indices
-  uint32_t basSigIdx = basMethod->get_Signature();
-  uint32_t drvSigIdx = drvMethod->get_Signature();
-
-  // Parse return types from signatures
-  std::vector<uint8_t> basReturnType;
-  std::vector<uint8_t> drvReturnType;
-
-  if (!parseReturnTypeFromSignature(basBlob, basSigIdx, basReturnType) ||
-      !parseReturnTypeFromSignature(drvBlob, drvSigIdx, drvReturnType)) {
-    return FunctionTypeRelation::unrelated;
-  }
-
-  // If return types are identical, they have the same type
-  //
-  // TODO(CIL): The byte-wise comparison is wrong across modules. A
-  //   TypeDefOrRef token is module-local, so equal bytes can denote different
-  //   types, and different bytes (TypeRef vs. TypeDef) can denote the same
-  //   type. Tokens must be resolved to classes before comparing.
-  // PRIORITY: LOW
-  if (basReturnType == drvReturnType)
+  // identical return types (the custom modifiers may differ)
+  if (basSig.retCore == drvSig.retCore)
     return FunctionTypeRelation::sametype;
 
-  // Check for covariance: derived return type must be derived from base return type
-  // This requires both to be reference types (CLASS)
-  if (basReturnType.empty() || drvReturnType.empty())
+  // Only class types are covariant; value types have an exact return type.
+  // retClassId is empty unless the return type is a plain class type.
+  if (drvSig.retClassId.empty())
     return FunctionTypeRelation::unrelated;
 
-  // Both must be class types for covariance
-  if (basReturnType[0] != 0x12 || drvReturnType[0] != 0x12)
+  // every class type is covariant to System.Object (ELEMENT_TYPE_OBJECT)
+  if (basSig.retCore == "object")
+    return FunctionTypeRelation::covariant;
+
+  if (basSig.retClassId.empty())
     return FunctionTypeRelation::unrelated;
 
-  // Extract type tokens (TypeDefOrRef coded indices)
-  uint32_t basTypeToken = getTypeTokenFromReturnType(basReturnType);
-  uint32_t drvTypeToken = getTypeTokenFromReturnType(drvReturnType);
+  SgAsmCilTypeDef* basType = typeByIdentity(metadata, basSig.retClassId);
+  SgAsmCilTypeDef* drvType = typeByIdentity(metadata, drvSig.retClassId);
 
-  if (basTypeToken == 0 || drvTypeToken == 0)
+  if (!basType || !drvType)
     return FunctionTypeRelation::unrelated;
 
-  // Decode TypeDefOrRef tokens and find corresponding TypeDef nodes
-  // TypeDefOrRef encoding (ECMA-335 II.24.2.6):
-  //   Lower 2 bits: 00=TypeDef, 01=TypeRef, 10=TypeSpec
-  //   Upper bits: row index
-  SgAsmCilTypeDef* basTypeDef = nullptr;
-  SgAsmCilTypeDef* drvTypeDef = nullptr;
+  // covariant if the derived return type has the base return type as ancestor
+  const ClassKeyType basClassKey  = classToKey(basType);
+  auto               drvClassIter = classes.find(classToKey(drvType));
 
-  // Get metadata heap to access TypeDef/TypeRef tables
-  SgAsmCilMetadataHeap* basMetadataHeap = basRoot->get_MetadataHeap();
-  SgAsmCilMetadataHeap* drvMetadataHeap = drvRoot->get_MetadataHeap();
-
-  if (basMetadataHeap && drvMetadataHeap)
-  {
-    // Decode base type token
-    uint32_t basTableKind = basTypeToken & 0x3;
-    uint32_t basRowIndex = basTypeToken >> 2;
-
-    if (basTableKind == 0) // TypeDef
-    {
-      // Query TypeDef table for the row
-      SgAsmCilTypeDefTable* typeDefTable = basMetadataHeap->get_TypeDefTable();
-      if (typeDefTable && basRowIndex > 0)
-      {
-        const std::vector<SgAsmCilTypeDef*>& typeDefs = typeDefTable->get_elements();
-        // Row indices are 1-based in CIL
-        if (basRowIndex <= typeDefs.size())
-          basTypeDef = typeDefs[basRowIndex - 1];
-      }
-    }
-    // Note: TypeRef resolution would require loading external assemblies
-    // For now, we only handle TypeDef (types in the current assembly)
-    //
-    // TODO(CIL): TypeRef and TypeSpec return types are not resolved, and
-    //   covariance is only recognized for class types. Reuse
-    //   CilMetadataResolver here once it handles TypeSpec and cross-module
-    //   references. The caller reports "covariant return assertion failed"
-    //   and drops the override edge when this returns unrelated.
-    //   \code{.cs}
-    //   // Lib.dll: public class Animal {}
-    //   // App.exe
-    //   class Dog : Lib.Animal {}
-    //   class Base    { public virtual Lib.Animal Make() => null; }  // TypeRef return type
-    //   class Derived : Base { public override Dog Make() => null; } // TypeDef return type
-    //   \endcode
-    // PRIORITY: LOW
-
-    // Decode derived type token
-    uint32_t drvTableKind = drvTypeToken & 0x3;
-    uint32_t drvRowIndex = drvTypeToken >> 2;
-
-    if (drvTableKind == 0) // TypeDef
-    {
-      SgAsmCilTypeDefTable* typeDefTable = drvMetadataHeap->get_TypeDefTable();
-      if (typeDefTable && drvRowIndex > 0)
-      {
-        const std::vector<SgAsmCilTypeDef*>& typeDefs = typeDefTable->get_elements();
-        if (drvRowIndex <= typeDefs.size())
-          drvTypeDef = typeDefs[drvRowIndex - 1];
-      }
-    }
-  }
-
-  // If we couldn't resolve both types, we can't determine covariance
-  if (!basTypeDef || !drvTypeDef)
-    return FunctionTypeRelation::unrelated;
-
-  // Map TypeDef nodes to ClassKeyType
-  ClassKeyType basClassKey = classToKey(basTypeDef);
-  ClassKeyType drvClassKey = classToKey(drvTypeDef);
-
-  // Check if derived class inherits from base class
-  // Use the ClassAnalysis to check inheritance relationship
-  auto drvClassIter = classes.find(drvClassKey);
   if (drvClassIter == classes.end())
     return FunctionTypeRelation::unrelated;
 
-  const ClassData& drvClassData = drvClassIter->second;
-
-  // Check if basClassKey is in the ancestor list of drvClassKey
-  for (const InheritanceDesc& ancestor : drvClassData.ancestors())
-  {
-    if (std::get<0>(ancestor) == basClassKey)
-    {
-      // Found covariant return type: drvType inherits from basType
+  for (const InheritanceDesc& ancestor : drvClassIter->second.ancestors())
+    if (ancestor.getClass() == basClassKey)
       return FunctionTypeRelation::covariant;
-    }
-  }
 
-  // Types are different and not in inheritance relationship
   return FunctionTypeRelation::unrelated;
 }
 
@@ -1081,6 +1340,9 @@ void
 CilCompatibility::extractFromMemoryPool(ClassAnalysis& classes) const
 {
   msgTrace() << "Extracting CIL classes from memory pool" << std::endl;
+
+  // the AST may have changed since the last extraction
+  resetCache();
 
   // Process each metadata root
   MetadataRootProcessor processor{*this, classes};
@@ -1097,6 +1359,9 @@ CilCompatibility::extractFromProject(ClassAnalysis& classes, ASTRootType root) c
   SgNode* rootNode = keyToRoot(root);
   if (!rootNode)
     return;
+
+  // the AST may have changed since the last extraction
+  resetCache();
 
   // Query for all MetadataRoot nodes in the AST
   //
