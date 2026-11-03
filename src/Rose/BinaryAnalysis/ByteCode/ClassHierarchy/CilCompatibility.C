@@ -209,18 +209,18 @@ extractVirtualFunctions(SgAsmCilTypeDef* typeDef, SgAsmCilMetadataHeap* metadata
     //   struct MyInt : IAdd<MyInt> { public static MyInt Zero => default; }
     //   \endcode
     //
-    // TODO(CIL): The MethodImpl table (.override) is not consulted.
+    // Note: The MethodImpl table (.override) is reported by explicitOverrides.
     //   Explicit interface implementations, overrides under a different
     //   name, covariant returns (C# 9), and default-interface-method
-    //   overrides are expressed there and are missed by name matching.
-    //   canOverride can only reject pairs and cannot add them, so this needs
-    //   a new hook in the common analysis (for example, a bridge query that
-    //   reports explicit override pairs for a class).
+    //   overrides are expressed there and are not found by name matching.
     //   \code{.cs}
     //   interface IFoo { void Bar(); }
     //   class C : IFoo { void IFoo.Bar() {} } // private virtual final newslot "Ns.IFoo.Bar" + MethodImpl
     //   \endcode
-    // PRIORITY: HIGH
+    //   A declaration that is not loaded (e.g., an interface of an assembly
+    //   that is not available) is skipped, and so is a declaration that is a
+    //   MemberRef of an instantiated generic type whose signature cannot be
+    //   matched uniquely.
     //
     // TODO(CIL): Implied overrides are not enabled.
     //   CIL, like Java, lets a method inherited from a base class implement an
@@ -700,6 +700,10 @@ struct CilMetadataCache
   std::map<std::string, SgAsmCilTypeDef*>                     typeById;  ///< nullptr if ambiguous
   std::set<std::string>                                       warnings;
   bool                                                        typeIndexBuilt = false;
+
+  /// MethodImpl rows (explicit overrides) by the type that declares them
+  std::unordered_map<const SgAsmCilTypeDef*, std::vector<const SgAsmCilMethodImpl*> > methodImpls;
+  std::set<const SgAsmCilMetadataRoot*>                                               methodImplRoots; ///< roots in methodImpls
 };
 
 namespace
@@ -1479,6 +1483,181 @@ CilCompatibility::canOverrideInContext( const ClassAnalysis& classes,
   return true;
 }
 
+namespace
+{
+  /// returns the identity of the type that a TypeSpec designates; for a
+  /// generic instantiation, the identity of the generic type definition
+  /// (the type arguments are dropped).
+  std::string
+  typeSpecGenericIdentity(CilMetadataCache& cache, ModuleInfo& mi, const SgAsmCilTypeSpec* spec)
+  {
+    if (!mi.blob)
+      return std::string();
+
+    BlobReader          rd(*mi.blob, spec->get_Signature());
+    const std::uint32_t len = rd.compressed();
+
+    if (!rd.ok() || rd.pos + len > rd.blob.size())
+      return std::string();
+
+    rd.limit = rd.pos + len;
+
+    std::uint8_t elementType = rd.byte();
+
+    if (elementType == 0x15) // GENERICINST: followed by CLASS or VALUETYPE
+      elementType = rd.byte();
+
+    if (elementType != 0x11 && elementType != 0x12)
+      return std::string();
+
+    const std::string id = tokenIdentity(cache, mi, rd.compressed(), 0);
+
+    return rd.ok() ? id : std::string();
+  }
+
+  /// returns the type that declares the member designated by a MemberRef.
+  SgAsmCilTypeDef*
+  memberRefOwner(CilMetadataCache& cache, ModuleInfo& mi, const SgAsmCilMemberRef* ref)
+  {
+    const SgAsmCilMetadata* parent = ref->get_Class_object();
+
+    if (const SgAsmCilTypeDef* typeDef = isSgAsmCilTypeDef(parent))
+      return const_cast<SgAsmCilTypeDef*>(typeDef);
+
+    if (const SgAsmCilTypeRef* typeRef = isSgAsmCilTypeRef(parent))
+      return typeByIdentity(cache, typeRefIdentity(mi, typeRef));
+
+    if (const SgAsmCilTypeSpec* typeSpec = isSgAsmCilTypeSpec(parent))
+    {
+      const std::string id = typeSpecGenericIdentity(cache, mi, typeSpec);
+
+      return id.empty() ? nullptr : typeByIdentity(cache, id);
+    }
+
+    return nullptr;
+  }
+
+  /// returns the virtual method that a MemberRef designates, or an invalid
+  /// key if the method is not loaded or the reference is ambiguous.
+  /// The signature of a MemberRef to a member of a generic instantiation
+  /// uses the type parameters of the generic definition (!0), so it can be
+  /// compared with the signature of the definition without substitution.
+  FunctionKeyType
+  resolveMemberRef(CilMetadataCache& cache, ModuleInfo& mi, const ClassAnalysis& classes, const SgAsmCilMemberRef* ref)
+  {
+    SgAsmCilTypeDef* owner = memberRefOwner(cache, mi, ref);
+
+    if (!owner || !mi.blob)
+      return FunctionKeyType{};
+
+    ClassAnalysis::const_iterator ownerEntry = classes.find(classToKey(owner));
+
+    if (ownerEntry == classes.end())
+      return FunctionKeyType{};
+
+    BlobReader          rd(*mi.blob, ref->get_Signature());
+    const std::uint32_t len = rd.compressed();
+    MethodSig           refSig;
+
+    if (!rd.ok() || rd.pos + len > rd.blob.size())
+      return FunctionKeyType{};
+
+    rd.limit = rd.pos + len;
+
+    if (!parseMethodSig(cache, mi, rd, refSig, 0))
+      return FunctionKeyType{};
+
+    const std::string name = cilString(ref->get_Name_string());
+    FunctionKeyType   found{};
+
+    for (FunctionKeyType fn : ownerEntry->second.virtualFunctions())
+    {
+      sg::NotNull<SgAsmCilMethodDef> method = keyToFunction(fn);
+
+      if (cilString(method->get_Name_string()) != name)
+        continue;
+
+      const MethodSig& sig = methodSignature(cache, method);
+
+      if (!sig.valid || sig.params != refSig.params || sig.ret != refSig.ret)
+        continue;
+
+      if (isValidKey(found))
+        return FunctionKeyType{}; // ambiguous
+
+      found = fn;
+    }
+
+    return found;
+  }
+}
+
+void
+CilCompatibility::explicitOverrides( const ClassAnalysis& classes,
+                                     ClassKeyType cls,
+                                     std::function<void(FunctionKeyType, FunctionKeyType)> fn
+                                   ) const
+{
+  if (!isValidKey(cls))
+    return;
+
+  sg::NotNull<SgAsmCilTypeDef> typeDef = keyToClass(cls);
+  SgAsmCilMetadataRoot*        root    = getMetadataRootFromNode(typeDef);
+
+  if (!root)
+    return;
+
+  CilMetadataCache& metadata = cache();
+  ModuleInfo&       mi       = moduleInfo(metadata, root);
+
+  // index the MethodImpl table (II.22.27) of this module by declaring type
+  if (metadata.methodImplRoots.insert(root).second)
+  {
+    SgAsmCilMethodImplTable* table = mi.heap ? mi.heap->get_MethodImplTable() : nullptr;
+
+    if (table)
+      for (SgAsmCilMethodImpl* impl : table->get_elements())
+      {
+        if (!impl) continue;
+
+        if (const SgAsmCilTypeDef* owner = isSgAsmCilTypeDef(impl->get_Class_object()))
+          metadata.methodImpls[owner].push_back(impl);
+      }
+  }
+
+  std::unordered_map<const SgAsmCilTypeDef*, std::vector<const SgAsmCilMethodImpl*> >::const_iterator impls =
+      metadata.methodImpls.find(typeDef);
+
+  if (impls == metadata.methodImpls.end())
+    return;
+
+  for (const SgAsmCilMethodImpl* impl : impls->second)
+  {
+    const SgAsmCilMethodDef* body = isSgAsmCilMethodDef(impl->get_MethodBody_object());
+
+    if (!body)
+      continue; // the body is not defined in this module; not expected for a MethodImpl of this type
+
+    const SgAsmCilMetadata* decl    = impl->get_MethodDeclaration_object();
+    FunctionKeyType         declKey{};
+
+    if (const SgAsmCilMethodDef* declDef = isSgAsmCilMethodDef(decl))
+      declKey = functionToKey(const_cast<SgAsmCilMethodDef*>(declDef));
+    else if (const SgAsmCilMemberRef* declRef = isSgAsmCilMemberRef(decl))
+      declKey = resolveMemberRef(metadata, mi, classes, declRef);
+
+    if (!isValidKey(declKey))
+    {
+      msgTrace() << "CIL class hierarchy: the declaration of an explicit override in "
+                 << nameOf(cls) << " is not loaded; the override is not recorded."
+                 << std::endl;
+      continue;
+    }
+
+    fn(functionToKey(const_cast<SgAsmCilMethodDef*>(body)), declKey);
+  }
+}
+
 void
 CilCompatibility::extractFromMemoryPool(ClassAnalysis& classes) const
 {
@@ -1571,15 +1750,23 @@ CilCompatibility::inheritanceEdges(ClassKeyType clkey, std::function<void(ClassK
   //   Iterate the InterfaceImpl table once and group the entries by class.
   // PRIORITY: LOW
   //
-  // TODO(CIL): Interface re-implementation is not modeled. Listing an
-  //   interface again in a derived class changes interface dispatch, but the
-  //   duplicate edge is merged away by the common analysis.
+  // Note: Interface re-implementation is covered by the explicit overrides.
+  //   Listing an interface again in a derived class (the duplicate edge is
+  //   merged away by the common analysis) changes interface dispatch for
+  //   objects of the derived class. The MethodImpl of Derived records
+  //   Derived.IFoo.F as an overrider of IFoo.F next to Base.F, which is the
+  //   correct over-approximation for a receiver of static type IFoo.
   //   \code{.cs}
   //   interface IFoo { void F(); }
   //   class Base : IFoo { public virtual void F() {} }
   //   class Derived : Base, IFoo { void IFoo.F() {} }  // re-implements IFoo.F
   //   \endcode
-  // PRIORITY: HIGH
+  //
+  // TODO(CIL): The analysis cannot tell which implementation of IFoo.F is
+  //   selected for a runtime type: for Derived it is Derived.IFoo.F and not
+  //   Base.F. Such a result needs a per-class interface map (the witness of
+  //   OverrideDesc could carry it).
+  // PRIORITY: LOW
   SgAsmCilMetadataRoot* metadataRoot = getMetadataRootFromNode(typeDef);
 
   if (metadataRoot)

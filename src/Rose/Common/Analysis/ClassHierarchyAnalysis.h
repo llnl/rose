@@ -170,15 +170,13 @@ using VirtualFunctionDescBase = std::tuple<ClassKeyType, bool, OverrideContainer
 /// \todo TODO(CIL): The descriptor does not record that a method starts a new slot.
 ///   Whether a pair may override is decided by the bridge through
 ///   AbstractCompatibilityBridge::canOverrideInContext, but clients cannot
-///   query the result afterwards. Possible additions:
+///   query the result afterwards. A possible addition is
 ///   - newslot: the method starts a new slot instead of overriding
-///     (`new virtual`, which also fits the commented-out shadows() list);
-///   and, because canOverride can only reject pairs,
-///   - explicit overrides (MethodImpl), which are not found by name matching
-///     and need a hook that adds pairs.
+///     (`new virtual`, which also fits the commented-out shadows() list).
 ///   The final attribute (`sealed override`, and the `virtual final newslot`
 ///   emitted for implicit interface implementations) is available through
-///   isFinal().
+///   isFinal(). Explicit overrides (MethodImpl) are reported by the bridge
+///   through AbstractCompatibilityBridge::explicitOverrides.
 ///   \code{.cs}
 ///   interface IFoo { void F(); }
 ///   class Base : IFoo {

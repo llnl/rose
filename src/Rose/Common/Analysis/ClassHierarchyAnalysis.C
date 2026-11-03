@@ -605,6 +605,35 @@ namespace
     vfunAnalysis.at(bas).overriders().emplace_back(drv, covariant, witness);
   }
 
+  /// records \p drv as overrider of \p bas for an override that the bridge
+  /// declared explicitly (see AbstractCompatibilityBridge::explicitOverrides).
+  /// \details
+  ///   The pair is authoritative: it is recorded without consulting canOverride
+  ///   and also if the return types are not related. Pairs that involve
+  ///   unknown functions, and pairs that are already recorded (e.g., because
+  ///   the signatures also matched by name), are ignored.
+  void recordExplicitOverride( const rca::AbstractCompatibilityBridge& compat,
+                               const rca::ClassAnalysis& classes,
+                               rca::VirtualFunctionAnalysis& vfunAnalysis,
+                               rca::FunctionKeyType drv,
+                               rca::FunctionKeyType bas
+                             )
+  {
+    if (vfunAnalysis.find(drv) == vfunAnalysis.end() || vfunAnalysis.find(bas) == vfunAnalysis.end() || drv == bas)
+      return;
+
+    auto isBas = [bas](const rca::OverrideDesc& desc) -> bool { return desc.function() == bas; };
+    const rca::OverrideContainer& known = vfunAnalysis.at(drv).overridden();
+
+    if (std::find_if(known.begin(), known.end(), isBas) != known.end())
+      return;
+
+    const bool covariant = compat.haveSameOrCovariantReturn(classes, bas, drv) == rca::FunctionTypeRelation::covariant;
+
+    vfunAnalysis.at(drv).overridden().emplace_back(bas, covariant, rca::ClassKeyType{});
+    vfunAnalysis.at(bas).overriders().emplace_back(drv, covariant, rca::ClassKeyType{});
+  }
+
   struct ComputeVirtualFunctionRelation
   {
     void operator()(rca::FunctionKeyType drv, rca::FunctionKeyType bas) const
@@ -856,25 +885,22 @@ namespace
     // signature matches rejected by the bridge's direct rule; resolved transitively below
     DeferredOverrides deferred;
 
-    // TODO(CIL): CilCompatibility implements none of canOverride,
-    //   inheritedMethodsImplementVirtualBaseMethods, and
-    //   isInheritableImplementation, so name and signature matching alone
-    //   decides and CIL slot semantics are not respected. canOverride(drv, bas)
-    //   sees only the two functions. A reuse-slot method is related to every
-    //   flattened ancestor with the same signature, so rejecting a pair that
-    //   crosses a newslot or final method requires the bridge to walk the
-    //   base chain itself, or this hook to receive the ClassAnalysis. The
-    //   transitive rule below cannot restore hidden pairs, which is correct.
-    //   Explicit overrides (MethodImpl) are never matched, because they do not
-    //   rely on name equality and no hook can add a pair.
+    // TODO(CIL): CilCompatibility implements neither
+    //   inheritedMethodsImplementVirtualBaseMethods nor
+    //   isInheritableImplementation, so a method that a class inherits from a
+    //   base class does not implement the interface method of a subclass that
+    //   lists the interface (ECMA-335 II.12.2). The slot, final, and access
+    //   rules are applied through canOverrideInContext, and explicit overrides
+    //   (MethodImpl) through explicitOverrides.
     //   \code{.cs}
-    //   class A { public virtual void F() {} }
-    //   class B : A { public new virtual void F() {} }  // newslot: hides A.F
-    //   class C : B { public override void F() {} }     // overrides B.F only; related to A.F here
+    //   interface IFoo { void M(); }
+    //   class B { public virtual void M() {} }
+    //   class C : B, IFoo {}   // B.M implements IFoo.M; witness class is C
     //   \endcode
+    // PRIORITY: MEDIUM
+    //
     // declared overrides: functions declared by this class against functions
     // declared by its ancestors; non-virtual ancestors first, then virtual ones.
-    // PRIORITY: HIGH
     auto declaredOverrides =
         [&](bool virtualAncestors) -> void
         {
@@ -899,6 +925,14 @@ namespace
     // implied overrides (language dependent)
     if (compat.inheritedMethodsImplementVirtualBaseMethods())
       computeImpliedOverriders(classes, vfunAnalysis, entry, tables, deferred);
+
+    // explicit overrides (language dependent, e.g., the CIL MethodImpl table)
+    compat.explicitOverrides( classes, entry.first,
+                              [&](rca::FunctionKeyType drv, rca::FunctionKeyType bas) -> void
+                              {
+                                recordExplicitOverride(compat, classes, vfunAnalysis, drv, bas);
+                              }
+                            );
 
     // transitive rule for pairs the bridge rejected directly
     resolveDeferredOverrides(compat, classes, vfunAnalysis, deferred);

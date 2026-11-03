@@ -274,6 +274,31 @@ class AbstractCompatibilityBridge
       return false;
     }
 
+    /// reports override relations that are declared explicitly instead of being
+    ///   derived from names and signatures.
+    /// \param classes class analysis context; inheritance relations are complete.
+    /// \param cls class whose explicit overrides are requested.
+    /// \param fn callback invoked as fn(overrider, overridden) for each explicit pair
+    ///        where \p overrider is a virtual function declared in \p cls.
+    /// \details
+    ///    CIL expresses explicit interface implementations, overrides under a
+    ///    different name, covariant returns, and default interface method
+    ///    overrides in the MethodImpl table. The analysis records each reported
+    ///    pair as an override, without consulting canOverride, but only if both
+    ///    functions are known virtual functions. Return types are not required
+    ///    to be identical. The base implementation reports nothing.
+    virtual
+    void
+    explicitOverrides( const ClassAnalysis& classes,
+                       ClassKeyType cls,
+                       std::function<void(FunctionKeyType, FunctionKeyType)> fn
+                     ) const
+    {
+      (void)classes;
+      (void)cls;
+      (void)fn;
+    }
+
     /// returns whether \p drv, declared in \p drvClass, may override \p bas,
     ///   declared in \p basClass, with knowledge of the classes in between.
     /// \param classes class analysis context; inheritance relations are complete.

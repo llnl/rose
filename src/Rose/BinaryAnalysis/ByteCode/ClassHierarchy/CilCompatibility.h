@@ -98,7 +98,21 @@ class CilCompatibility final : public Rose::Common::Analysis::AbstractCompatibil
     haveSameOrCovariantReturn(const Rose::Common::Analysis::ClassAnalysis& classes, Rose::Common::Analysis::FunctionKeyType basId, Rose::Common::Analysis::FunctionKeyType drvId) const override;
 
 
-    /// tests whether \p drv, declared in \p drvClass, overrides \p bas, declared in \p basClass.
+    /// reports the explicit overrides (MethodImpl table) of \p cls.
+    /// \param classes the class analysis
+    /// \param cls     class whose MethodImpl rows are reported
+    /// \param fn      callback invoked as fn(overrider, overridden)
+    /// \details
+    ///    Reports explicit interface implementations, overrides under a
+    ///    different name, and covariant returns. Rows whose declaration is
+    ///    not loaded (e.g., an interface of an assembly that is not
+    ///    available) are skipped.
+    void
+    explicitOverrides( const Rose::Common::Analysis::ClassAnalysis& classes,
+                       Rose::Common::Analysis::ClassKeyType cls,
+                       std::function<void(Rose::Common::Analysis::FunctionKeyType, Rose::Common::Analysis::FunctionKeyType)> fn
+                     ) const override;
+
     /// \param classes   the class analysis
     /// \param drvClass  class that declares \p drv (invalid for implied overrides)
     /// \param drv       function in the derived class
