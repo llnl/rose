@@ -14638,26 +14638,33 @@ SgSourceFile::set_tokenSubsequenceMap(std::map<SgNode*,TokenStreamSequenceToNode
 // DQ (9/26/2018): Added so that we can call the display function for TokenStreamSequenceToNodeMapping (for debugging).
 #include "tokenStreamMapping.h"
 
+// lin32 (11/06/2026): newer optimized version to fix null dereference in SgSourceFile::get_tokenSubsequenceMap
+
 std::map<SgNode*,TokenStreamSequenceToNodeMapping*> &
 SgSourceFile::get_tokenSubsequenceMap()
    {
   // DQ (1/23/2021): Newer version, uses the "this" pointer as a key so that multiple SgSourceFile IR nodes
   // can use the same file (reading the same filename).
-     std::map<SgNode*,TokenStreamSequenceToNodeMapping*>* result = NULL;
 
-     if (Rose::tokenSubsequenceMapOfMapsBySourceFile.find(this) != Rose::tokenSubsequenceMapOfMapsBySourceFile.end())
+  // lin32 (11/06/2026) Returns the token subsequence map for this SgSourceFile. The map is keyed by the "this" pointer
+  // rather than the filename, so multiple SgSourceFile IR nodes can read the same file and each still
+  // gets its own map.
+  //
+  // If there is no entry for this file, a new empty map is created and registered. This happens, for
+  // example, after an AST read (following an AST write), because the token stream map isn't restored.
+  // The empty map lets the unparser fall back to ordinary unparsing. If a null map was registered for
+  // this file, it is replaced the same way.
+  //
+  // insert() adds {this, nullptr} only if there is no entry for this file yet. Either way, it returns
+  // an iterator to the entry for this file, so finding and inserting take a single map lookup.
+     auto pos = Rose::tokenSubsequenceMapOfMapsBySourceFile.insert(std::make_pair(this, nullptr)).first;
+
+     if (pos->second == nullptr)
         {
-          result = Rose::tokenSubsequenceMapOfMapsBySourceFile[this];
-        }
-       else
-        {
-       // DQ (2/19/2021): Disable this as an error since the AST read (after the AST write) will not have this data structure.
-       // We are not trying to currently support the token-based unparsing after an AST write and AST read.
-       // DQ (1/30/2021): Added an assertion.
-       // ROSE_ASSERT(false);
+          pos->second = new std::map<SgNode*,TokenStreamSequenceToNodeMapping*>();
         }
 
-     return *result;
+     return *pos->second;
    }
 
 void
