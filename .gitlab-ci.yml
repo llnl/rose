@@ -247,6 +247,9 @@ Clang-Mac:
 Memory-Poisoning:
     extends: .develop-base
 
+RHEL10-Status:
+    extends: .develop-base
+
 #AS (07/22/26): Disabling this for the upgrade from gcc8->gcc10
 #Check-Warnings:
 #    extends: .develop-base
