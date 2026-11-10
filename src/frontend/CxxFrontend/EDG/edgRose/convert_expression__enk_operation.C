@@ -7,6 +7,41 @@ namespace EDG_ROSE_Translation {
 
 #define DEBUG__convert_expression__enk_operation 0
 
+// Inside a lambda body EDG represents the enclosing "this" as a selection of the closure class's
+// unnamed captured-"this" field from the closure object: "<closure this>-><captured this>" (or the
+// "." form).  Converted literally, that is an SgArrowExp whose two operands both unparse as
+// nothing, so "this->f()" came out as "-> f()".  EDG's own C++ generator (cp_gen_be.c,
+// gen_simple_field_selection) prints "this" for such a selection; do the same and represent it as
+// an SgThisExp of the enclosing class.  Only by-copy captures of the pointer ([this], [=], [&]) have
+// a pointer-typed field; a C++17 [*this] capture (a class-typed copy of the object) is left as is.
+// Returns nullptr when the selection is not of a captured "this".
+static SgExpression * convert_captured_this_selection(an_expr_node_ptr e, std::vector<SgExpression*> & operands) {
+  an_expr_node_ptr field_node = e->variant.operation.operands != nullptr ? e->variant.operation.operands->next : nullptr;
+  if (field_node == nullptr || field_node->kind != enk_field || field_node->variant.field.ptr == nullptr ||
+      !field_node->variant.field.ptr->is_captured_this || operands.size() != 2) {
+    return nullptr;
+  }
+  SgType * field_type = operands[1]->get_type();
+  ROSE_ASSERT(field_type != nullptr);
+  SgPointerType * pointer_type = isSgPointerType(field_type->stripType(SgType::STRIP_MODIFIER_TYPE | SgType::STRIP_TYPEDEF_TYPE));
+  if (pointer_type == nullptr) {
+    return nullptr;
+  }
+  SgClassType * class_type = isSgClassType(pointer_type->get_base_type()->stripType(SgType::STRIP_MODIFIER_TYPE | SgType::STRIP_TYPEDEF_TYPE));
+  if (class_type == nullptr) {
+    return nullptr;
+  }
+  SgClassDeclaration * class_decl = isSgClassDeclaration(class_type->get_declaration());
+  ROSE_ASSERT(class_decl != nullptr);
+  SgClassSymbol * class_symbol = isSgClassSymbol(class_decl->get_symbol_from_symbol_table());
+  ROSE_ASSERT(class_symbol != nullptr);
+  // The closure-object and field operands are not used in the result; they are not attached anywhere.
+  SageInterface::deleteAST(operands[0]);
+  SageInterface::deleteAST(operands[1]);
+  operands.clear();
+  return SageBuilder::buildThisExp_nfi(class_symbol);
+}
+
 SgExpression * convert_expression__enk_operation(an_expr_node_ptr e) {
 #if DEBUG__convert_expression__
   printf ("  Enter convert_expression__enk_operation():\n");
@@ -520,7 +555,9 @@ SgExpression * convert_expression__enk_operation(an_expr_node_ptr e) {
                          printf ("case eok_dot_field: operands[1] = %s \n",operands[1]->class_name().c_str());
                          printf ("case eok_dot_field: operands[0].has_address_of = %s \n",operands[0].has_address_of ? "true" : "false");
 #endif
-                         result = SageBuilder::buildDotExp_nfi(operands[0], operands[1]);
+                         result = convert_captured_this_selection(e, operands);
+                         if (result == nullptr)
+                              result = SageBuilder::buildDotExp_nfi(operands[0], operands[1]);
                          break;
                        }
 
@@ -544,7 +581,9 @@ SgExpression * convert_expression__enk_operation(an_expr_node_ptr e) {
                          printf ("Calling buildArrorExp() \n");
 #endif
                          OPCOUNT(== 2);
-                         result = SageBuilder::buildArrowExp_nfi(operands[0], operands[1]);
+                         result = convert_captured_this_selection(e, operands);
+                         if (result == nullptr)
+                              result = SageBuilder::buildArrowExp_nfi(operands[0], operands[1]);
                          break;
                        }
 
