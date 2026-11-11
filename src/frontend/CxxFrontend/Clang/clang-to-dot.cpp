@@ -3,7 +3,6 @@
 
 #include "sage3basic.h"
 #include "clang-to-dot-private.hpp"
-
 #include "rose_config.h"
 
 #if 0
@@ -214,7 +213,7 @@ int clang_to_dot_main(int argc, char ** argv)
           }
     }
 
-    // FIXME should be handle by Clang ?
+ // FIXME should be handle by Clang ?
     define_list.push_back("__I__=_Complex_I");
 
     unsigned cnt = define_list.size() + inc_dirs_list.size() + inc_list.size();
@@ -255,17 +254,24 @@ int clang_to_dot_main(int argc, char ** argv)
 
   // 2 - Create a compiler instance
 
+    // (10/30/2026) lin32: Clang 21 installs the invocation through CompilerInstance's constructor, not setInvocation().
+    // (10/30/2026) lin32: DiagnosticOptions is no longer intrusive-refcounted; use invocation-owned options by reference.
+    auto invocation_shptr = std::make_shared<clang::CompilerInvocation>();
+    clang::CompilerInvocation * invocation = invocation_shptr.get();
+#if CLANG_VERSION_MAJOR >= 21
+    clang::CompilerInstance * compiler_instance = new clang::CompilerInstance(invocation_shptr);
+    clang::TextDiagnosticPrinter * diag_printer = new clang::TextDiagnosticPrinter(llvm::errs(), invocation->getDiagnosticOpts());
+#else
     clang::CompilerInstance * compiler_instance = new clang::CompilerInstance();
-
     llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts = new clang::DiagnosticOptions();
     clang::TextDiagnosticPrinter * diag_printer = new clang::TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
+#endif
     compiler_instance->createDiagnostics(diag_printer, true);
-
-    clang::CompilerInvocation * invocation = new clang::CompilerInvocation();
-    std::shared_ptr<clang::CompilerInvocation> invocation_shptr(std::move(invocation));
     llvm::ArrayRef<const char *> argsArrayRef(args, &(args[cnt]));
     clang::CompilerInvocation::CreateFromArgs(*invocation, argsArrayRef, compiler_instance->getDiagnostics());
+#if CLANG_VERSION_MAJOR < 21
     compiler_instance->setInvocation(invocation_shptr);
+#endif
 
     clang::LangOptions & lang_opts = compiler_instance->getLangOpts();
 
@@ -293,16 +299,28 @@ int clang_to_dot_main(int argc, char ** argv)
             ROSE_ABORT();
     }
 
+    // (10/30/2026) lin32: Clang 21 takes TargetOptions by reference; invocation ownership keeps it alive with TargetInfo.
+#if CLANG_VERSION_MAJOR >= 21
+    clang::TargetOptions & target_options = invocation->getTargetOpts();
+    target_options.Triple = llvm::sys::getDefaultTargetTriple();
+    clang::TargetInfo * target_info = clang::TargetInfo::CreateTargetInfo(compiler_instance->getDiagnostics(), target_options);
+#else
     clang::TargetOptions target_options;
     target_options.Triple = llvm::sys::getDefaultTargetTriple();
     std::shared_ptr<clang::TargetOptions> targetOption_shptr = std::make_shared<clang::TargetOptions>(target_options);
     clang::TargetInfo * target_info = clang::TargetInfo::CreateTargetInfo(compiler_instance->getDiagnostics(), targetOption_shptr);
+#endif
     compiler_instance->setTarget(target_info);
 
     compiler_instance->createFileManager();
+    // (10/30/2026) lin32: Clang 22 createSourceManager() uses the instance's FileManager without an argument.
+#if CLANG_VERSION_MAJOR >= 22
+    compiler_instance->createSourceManager();
+#else
     compiler_instance->createSourceManager(compiler_instance->getFileManager());
+#endif
 
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
     llvm::Expected<clang::FileEntryRef> ret  = compiler_instance->getFileManager().getFileRef(input_file);
     if (!ret) { // Check if there was an error
       llvm::Error err = ret.takeError();
@@ -524,7 +542,7 @@ void ClangToDotPreprocessorRecord::InclusionDirective(clang::SourceLocation Hash
     unsigned ls = p_source_manager->getSpellingLineNumber(HashLoc, &inv_begin_line);
     unsigned cs = p_source_manager->getSpellingColumnNumber(HashLoc, &inv_begin_col);
 
-    std::string file = p_source_manager->getFileEntryForID(p_source_manager->getFileID(HashLoc))->getName().str();
+    std::string file = RoseClangCompat::getFileName(*p_source_manager, p_source_manager->getFileID(HashLoc));
 
     logger[INFO] << "    In file  : " << file << "\n";
     logger[INFO] << "    From     : " << ls << ":" << cs << "\n";
@@ -750,7 +768,31 @@ void ClangToDotTranslator::VisitTemplateArgument(const clang::TemplateArgument &
     }
 }
 
-void ClangToDotTranslator::VisitNestedNameSpecifier(clang::NestedNameSpecifier * nested_name_specifier, ClangToDotTranslator::NodeDescriptor & node_desc, std::string prefix) {
+void ClangToDotTranslator::VisitNestedNameSpecifier(RoseClangCompat::NestedNameSpecifier nested_name_specifier, ClangToDotTranslator::NodeDescriptor & node_desc, std::string prefix) {
+    // (10/30/2026) lin32: Clang 22 uses value qualifiers and scoped kinds; namespace prefixes come from NamespaceAndPrefix.
+#if CLANG_VERSION_MAJOR >= 22
+    switch (nested_name_specifier.getKind()) {
+        case clang::NestedNameSpecifier::Kind::Null:
+            return;
+        case clang::NestedNameSpecifier::Kind::Global:
+            node_desc.attributes.push_back(std::pair<std::string, std::string>(prefix, "global (::)"));
+            break;
+        case clang::NestedNameSpecifier::Kind::Namespace: {
+            VisitNestedNameSpecifier(nested_name_specifier.getAsNamespaceAndPrefix().Prefix, node_desc, prefix + " prefix");
+            if (clang::NamespaceDecl *decl = RoseClangCompat::getAsNamespace(nested_name_specifier))
+                node_desc.successors.push_back(std::pair<std::string, std::string>(prefix + " namespace", Traverse(decl)));
+            else if (clang::NamespaceAliasDecl *decl = RoseClangCompat::getAsNamespaceAlias(nested_name_specifier))
+                node_desc.successors.push_back(std::pair<std::string, std::string>(prefix + " namespace_alias", Traverse(decl)));
+            break;
+        }
+        case clang::NestedNameSpecifier::Kind::Type:
+            node_desc.successors.push_back(std::pair<std::string, std::string>(prefix + " type_specifier", Traverse(nested_name_specifier.getAsType())));
+            break;
+        case clang::NestedNameSpecifier::Kind::MicrosoftSuper:
+            node_desc.successors.push_back(std::pair<std::string, std::string>(prefix + " microsoft_super", Traverse(nested_name_specifier.getAsMicrosoftSuper())));
+            break;
+    }
+#else
     if (nested_name_specifier == NULL) return;
 
     ClangToDotTranslator::VisitNestedNameSpecifier(nested_name_specifier->getPrefix(), node_desc, prefix + " prefix");
@@ -776,15 +818,19 @@ void ClangToDotTranslator::VisitNestedNameSpecifier(clang::NestedNameSpecifier *
                 std::pair<std::string, std::string>(prefix + " type_specifier", Traverse(nested_name_specifier->getAsType()))
             );
             break;
+        // (10/30/2026) lin32: Clang 21 removed the separate TypeSpecWithTemplate qualifier kind.
+#if CLANG_VERSION_MAJOR < 21
         case clang::NestedNameSpecifier::TypeSpecWithTemplate:
             node_desc.successors.push_back(
                 std::pair<std::string, std::string>(prefix + " type_specifier_with_template", Traverse(nested_name_specifier->getAsType()))
             );
             break;
+#endif
         case clang::NestedNameSpecifier::Global:
             node_desc.attributes.push_back(std::pair<std::string, std::string>(prefix, "global (::)"));
             break;
     }
+#endif
 }
 
 void ClangToDotTranslator::VisitTemplateName(const clang::TemplateName & template_name, ClangToDotTranslator::NodeDescriptor & node_desc, std::string prefix) {
@@ -804,7 +850,7 @@ void ClangToDotTranslator::VisitTemplateName(const clang::TemplateName & templat
         }
         case clang::TemplateName::QualifiedTemplate:
             oss << " qualified_template";
-#if (__clang__)  && (__clang_major__ > 14)
+#if CLANG_VERSION_MAJOR > 14
             VisitNestedNameSpecifier(template_name.getAsQualifiedTemplateName()->getQualifier(), node_desc, oss.str() + "nested_name_specifier");
             node_desc.successors.push_back(
                 std::pair<std::string, std::string>(oss.str() + "declaration", Traverse(template_name.getAsQualifiedTemplateName()->getUnderlyingTemplate().getAsTemplateDecl()))

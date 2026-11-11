@@ -3,6 +3,7 @@
 # define _CLANG_FRONTEND_PRIVATE_HPP_
 
 #include "clang-frontend.hpp"
+#include "clang-compat.hpp"
 
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTContext.h"
@@ -64,7 +65,8 @@
 
 #include "llvm/Config/llvm-config.h"
 
-#if (__clang__)  && (__clang_major__ >= 18)
+// (10/30/2026) lin32: LLVM header selection must use LLVM_VERSION_MAJOR, independently of the host compiler.
+#if LLVM_VERSION_MAJOR >= 18
 #include "llvm/TargetParser/Host.h"
 #else
 #include "llvm/Support/Host.h"
@@ -483,7 +485,7 @@ class ClangToSageTranslator : public clang::ASTConsumer {
                  // virtual bool VisitObjCCStringLiteral
                  // virtual bool VisitObjCSubscriptRefexpr
                     virtual bool VisitOffsetOfExpr(clang::OffsetOfExpr * offset_of_expr, SgNode ** node);
-                    virtual bool VisitOMPArraySectionExpr(clang::OMPArraySectionExpr * omp_array_section_expr, SgNode ** node);
+                    virtual bool VisitOMPArraySectionExpr(RoseClangCompat::ArraySectionExpr * omp_array_section_expr, SgNode ** node);
                     virtual bool VisitOpaqueValueExpr(clang::OpaqueValueExpr * opaque_value_expr, SgNode ** node);
                     virtual bool VisitOverloadExpr(clang::OverloadExpr * overload_expr, SgNode ** node);
                         virtual bool VisitUnresolvedLookupExpr(clang::UnresolvedLookupExpr * unresolved_lookup_expr, SgNode ** node);
@@ -501,7 +503,10 @@ class ClangToSageTranslator : public clang::ASTConsumer {
                     virtual bool VisitSubstNonTypeTemplateParmExpr(clang::SubstNonTypeTemplateParmExpr * subst_non_type_template_parm_expr, SgNode ** node);
                     virtual bool VisitSubstNonTypeTemplateParmPackExpr(clang::SubstNonTypeTemplateParmPackExpr * subst_non_type_template_parm_pack_expr, SgNode ** node);
                     virtual bool VisitTypeTraitExpr(clang::TypeTraitExpr * type_trait, SgNode ** node);
+// (10/30/2026) lin32: TypoExpr was removed in Clang 21; do not declare visitors for a missing AST class.
+#if CLANG_VERSION_MAJOR < 21
                     virtual bool VisitTypoExpr(clang::TypoExpr * typo_expr, SgNode ** node);
+#endif
                     virtual bool VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr * unary_expr_or_type_trait_expr, SgNode ** node);
                     virtual bool VisitUnaryOperator(clang::UnaryOperator * unary_operator, SgNode ** node);
                     virtual bool VisitVAArgExpr(clang::VAArgExpr * va_arg_expr, SgNode ** node);
@@ -565,10 +570,16 @@ class ClangToSageTranslator : public clang::ASTConsumer {
             virtual bool VisitTypeOfType(clang::TypeOfType * type_of_type, SgNode ** node);
             virtual bool VisitTypeWithKeyword(clang::TypeWithKeyword * type_with_keyword, SgNode ** node);
               virtual bool VisitDependentNameType(clang::DependentNameType * dependent_name_type, SgNode ** node);
+// (10/30/2026) lin32: Clang 22 removed ElaboratedType and merged dependent specializations into TemplateSpecializationType.
+#if CLANG_VERSION_MAJOR < 22
               virtual bool VisitDependentTemplateSpecializationType(clang::DependentTemplateSpecializationType * dependent_template_specialization_type, SgNode ** node);
               virtual bool VisitElaboratedType(clang::ElaboratedType * elaborated_type, SgNode ** node);
+#endif
             virtual bool VisitUnaryTransformType(clang::UnaryTransformType * unary_transform_type, SgNode ** node);
+// (10/30/2026) lin32: Clang 21 folded DependentUnaryTransformType into UnaryTransformType.
+#if CLANG_VERSION_MAJOR < 21
                 virtual bool VisitDependentUnaryTransformType(clang::DependentUnaryTransformType * dependent_unary_transform_type, SgNode ** node);
+#endif
             virtual bool VisitUnresolvedUsingType(clang::UnresolvedUsingType * unresolved_using_type, SgNode ** node);
             virtual bool VisitVectorType(clang::VectorType * vector_type, SgNode ** node);
                 virtual bool VisitExtVectorType(clang::ExtVectorType * ext_vector_type, SgNode ** node);
@@ -643,4 +654,3 @@ class PreprocessorInserter : public AstTopDownProcessing<NextPreprocessorToInser
 };
 
 #endif /* _CLANG_FRONTEND_PRIVATE_HPP_ */
-

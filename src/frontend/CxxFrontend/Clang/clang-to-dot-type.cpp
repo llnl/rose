@@ -144,12 +144,15 @@ std::string ClangToDotTranslator::Traverse(const clang::Type * type)
         case clang::Type::DependentName:
             ret_status = VisitDependentNameType((clang::DependentNameType *)type, node_desc);
             break;
+        // (10/30/2026) lin32: Clang 22 removed ElaboratedType and merged dependent specializations into TemplateSpecializationType.
+#if CLANG_VERSION_MAJOR < 22
         case clang::Type::DependentTemplateSpecialization:
             ret_status = VisitDependentTemplateSpecializationType((clang::DependentTemplateSpecializationType *)type, node_desc);
             break;
         case clang::Type::Elaborated:
             ret_status = VisitElaboratedType((clang::ElaboratedType *)type, node_desc);
             break;
+#endif
         case clang::Type::UnaryTransform:
             ret_status = VisitUnaryTransformType((clang::UnaryTransformType *)type, node_desc);
             break;
@@ -219,7 +222,7 @@ bool ClangToDotTranslator::VisitType(clang::Type * type, NodeDescriptor & node_d
 #endif
 
      node_desc.kind_hierarchy.push_back("Type");
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
      switch (type->getLinkage())
         {
           case clang::Linkage::Invalid:
@@ -837,6 +840,11 @@ bool ClangToDotTranslator::VisitBuiltinType(clang::BuiltinType * builtin_type, N
         case clang::BuiltinType::UnknownAny:
             node_desc.attributes.push_back(std::pair<std::string, std::string>("type", "UnknownAny"));
             break; 
+        // (10/30/2026) lin32: New Clang releases add many builtin kinds; preserve their names without an exhaustive switch.
+        default:
+            node_desc.attributes.push_back(std::pair<std::string, std::string>(
+                "type", builtin_type->getName(p_compiler_instance->getASTContext().getPrintingPolicy()).str()));
+            break;
     }
 
 
@@ -1259,6 +1267,25 @@ bool ClangToDotTranslator::VisitInjectedClassNameType(clang::InjectedClassNameTy
 
     ROSE_ASSERT(FAIL_FIXME == 0); // FIXME 
 
+#if CLANG_VERSION_MAJOR >= 22
+    // (10/30/2026) lin32: Clang 22 moved injected specialization types to primary/partial template declarations.
+    // (10/30/2026) lin32: Retrieve their canonical specialization to preserve both existing DOT successor labels.
+    clang::CXXRecordDecl *decl = injected_class_name_type->getDecl();
+    const clang::ASTContext &context = decl->getASTContext();
+    clang::QualType injectedType;
+    if (auto *partial = llvm::dyn_cast<clang::ClassTemplatePartialSpecializationDecl>(decl))
+        injectedType = partial->getCanonicalInjectedSpecializationType(context);
+    else if (clang::ClassTemplateDecl *classTemplate = decl->getDescribedClassTemplate())
+        injectedType = classTemplate->getCanonicalInjectedSpecializationType(context);
+    ROSE_ASSERT(!injectedType.isNull());
+
+    node_desc.successors.push_back(
+        std::pair<std::string, std::string>("injected_specialization_type", Traverse(injectedType.getTypePtr()))
+    );
+    node_desc.successors.push_back(
+        std::pair<std::string, std::string>("injected_template_specialization_type", Traverse(injectedType.getTypePtr()))
+    );
+#else
     node_desc.successors.push_back(
         std::pair<std::string, std::string>("injected_specialization_type", Traverse(injected_class_name_type->getInjectedSpecializationType().getTypePtr()))
     );
@@ -1266,6 +1293,7 @@ bool ClangToDotTranslator::VisitInjectedClassNameType(clang::InjectedClassNameTy
     node_desc.successors.push_back(
         std::pair<std::string, std::string>("injected_template_specialization_type", Traverse(injected_class_name_type->getInjectedTST()))
     );
+#endif
 
     node_desc.successors.push_back(
         std::pair<std::string, std::string>("declaration", Traverse(injected_class_name_type->getDecl()))
@@ -1593,7 +1621,7 @@ bool ClangToDotTranslator::VisitSubstTemplateTypeParmType(clang::SubstTemplateTy
 
     ROSE_ASSERT(FAIL_FIXME == 0); // FIXME 
 
-#if (__clang__)  && (__clang_major__ > 15)
+#if CLANG_VERSION_MAJOR > 15
      node_desc.successors.push_back(
         std::pair<std::string, std::string>("replacement_decl", Traverse(subst_template_type_parm_type->getAssociatedDecl())) );
 
@@ -2004,7 +2032,7 @@ bool ClangToDotTranslator::VisitTypeWithKeyword(clang::TypeWithKeyword * type_wi
 
     ROSE_ASSERT(FAIL_FIXME == 0); // FIXME
 
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
     switch (type_with_keyword->getKeyword()) {
         case clang::ElaboratedTypeKeyword::Struct:
             node_desc.attributes.push_back(std::pair<std::string, std::string>("elaborated_type_keyword", "struct"));
@@ -2085,6 +2113,8 @@ bool ClangToDotTranslator::VisitDependentNameType(clang::DependentNameType * dep
 }
 #endif
 
+// (10/30/2026) lin32: Retain the old DOT visitors only where the pre-Clang-22 AST classes still exist.
+#if CLANG_VERSION_MAJOR < 22
 #if 0
 bool ClangToDotTranslator::VisitDependentTemplateSpecializationType(clang::DependentTemplateSpecializationType * ependent_template_specialization_type, SgNode ** node) {
 #if DEBUG_VISIT_TYPE
@@ -2147,6 +2177,8 @@ bool ClangToDotTranslator::VisitElaboratedType(clang::ElaboratedType * elaborate
 }
 #endif
 
+#endif // CLANG_VERSION_MAJOR < 22
+
 #if 0
 bool ClangToDotTranslator::VisitUnaryTransformType(clang::UnaryTransformType * unary_transform_type, SgNode ** node) {
 #if DEBUG_VISIT_TYPE
@@ -2173,6 +2205,8 @@ bool ClangToDotTranslator::VisitUnaryTransformType(clang::UnaryTransformType * u
 }
 #endif
 
+// (10/30/2026) lin32: Clang 21 represents dependent unary transforms with UnaryTransformType instead.
+#if CLANG_VERSION_MAJOR < 21
 #if 0
 bool ClangToDotTranslator::VisitDependentUnaryTransformType(clang::DependentUnaryTransformType * dependent_unary_transform_type, SgNode ** node) {
 #if DEBUG_VISIT_TYPE
@@ -2198,6 +2232,8 @@ bool ClangToDotTranslator::VisitDependentUnaryTransformType(clang::DependentUnar
     return VisitUnaryTransformType(dependent_unary_transform_type, node_desc) && res;
 }
 #endif
+
+#endif // CLANG_VERSION_MAJOR < 21
 
 #if 0
 bool ClangToDotTranslator::VisitUnresolvedUsingType(clang::UnresolvedUsingType * unresolved_using_type, SgNode ** node) {

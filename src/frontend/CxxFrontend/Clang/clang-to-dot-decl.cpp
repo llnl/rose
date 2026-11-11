@@ -825,7 +825,12 @@ bool ClangToDotTranslator::VisitNamespaceDecl(clang::NamespaceDecl * namespace_d
 
      node_desc.kind_hierarchy.push_back("NamespaceDecl");
 
+    // (10/30/2026) lin32: Clang 19 replaced getOriginalNamespace(); the canonical declaration is still the first namespace.
+#if CLANG_VERSION_MAJOR >= 19
+    node_desc.successors.push_back(std::pair<std::string, std::string>("original_namespace", Traverse(namespace_decl->getCanonicalDecl())));
+#else
     node_desc.successors.push_back(std::pair<std::string, std::string>("original_namespace", Traverse(namespace_decl->getOriginalNamespace())));
+#endif
 
  // DQ (11/28/2020): this function no longer exists in Clang 10.
  // node_desc.successors.push_back(std::pair<std::string, std::string>("next_namespace", Traverse(namespace_decl->getNextNamespace())));
@@ -1124,7 +1129,14 @@ bool ClangToDotTranslator::VisitTypeDecl(clang::TypeDecl * type_decl, NodeDescri
 
   // Code copied from Tristan's dot file generator.
      node_desc.kind_hierarchy.push_back("TypeDecl");
+#if CLANG_VERSION_MAJOR >= 22
+     // (10/30/2026) lin32: Clang 22 creates tag/typedef types lazily; ASTContext replaces direct getTypeForDecl() access.
+     clang::QualType type = type_decl->getASTContext().getTypeDeclType(
+         clang::ElaboratedTypeKeyword::None, std::nullopt, type_decl);
+     node_desc.successors.push_back(std::pair<std::string, std::string>("type_for_decl", Traverse(type.getTypePtr())));
+#else
      node_desc.successors.push_back(std::pair<std::string, std::string>("type_for_decl", Traverse(type_decl->getTypeForDecl())));
+#endif
 
      ROSE_ASSERT(FAIL_FIXME == 0); // FIXME
 
@@ -1815,9 +1827,14 @@ bool ClangToDotTranslator::VisitTemplateTypeParmDecl(clang::TemplateTypeParmDecl
 
      node_desc.kind_hierarchy.push_back("TemplateTypeParmDecl");
 
+    // (10/30/2026) lin32: Clang 19 returns TemplateArgumentLoc; unwrap its type argument before DOT traversal.
     if (template_type_parm_decl->hasDefaultArgument())
         node_desc.successors.push_back(
+#if CLANG_VERSION_MAJOR >= 19
+            std::pair<std::string, std::string>("default_argument", Traverse(template_type_parm_decl->getDefaultArgument().getArgument().getAsType().getTypePtr()))
+#else
             std::pair<std::string, std::string>("default_argument", Traverse(template_type_parm_decl->getDefaultArgument().getTypePtr()))
+#endif
         );
 
     ROSE_ASSERT(FAIL_TODO == 0); // TODO
@@ -2924,8 +2941,13 @@ bool ClangToDotTranslator::VisitNonTypeTemplateParmDecl(clang::NonTypeTemplatePa
 
      node_desc.kind_hierarchy.push_back("NonTypeTemplateParmDecl");
 
+    // (10/30/2026) lin32: Clang 19 returns TemplateArgumentLoc; unwrap its expression argument before DOT traversal.
     if (non_type_template_param_decl->hasDefaultArgument())
+#if CLANG_VERSION_MAJOR >= 19
+        node_desc.successors.push_back(std::pair<std::string, std::string>("default_argument", Traverse(non_type_template_param_decl->getDefaultArgument().getArgument().getAsExpr())));
+#else
         node_desc.successors.push_back(std::pair<std::string, std::string>("default_argument", Traverse(non_type_template_param_decl->getDefaultArgument())));
+#endif
 
     ROSE_ASSERT(FAIL_TODO == 0); // TODO
 

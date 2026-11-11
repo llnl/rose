@@ -13,8 +13,14 @@ add_definitions(${LLVM_DEFINITIONS})
 set(CLANG_LIBRARIES
   clangFrontendTool clangStaticAnalyzerFrontend clangStaticAnalyzerCheckers
   clangStaticAnalyzerCore clangIndex clangFrontend clangCodeGen
-  clangARCMigrate clangRewrite clangSerialization clangDriver
+  clangRewrite clangSerialization clangDriver
   clangParse clangSema clangAnalysis clangAST clangBasic clangEdit clangLex)
+
+# (10/30/2026) lin32: Clang 21 removed ARC migration; older Clang builds can also disable CLANG_ENABLE_ARCMT.
+# (10/30/2026) lin32: Link the library only when the installed pre-21 Clang exports its CMake target.
+if(CLANG_VERSION_MAJOR LESS 21 AND TARGET clangARCMigrate)
+  list(APPEND CLANG_LIBRARIES clangARCMigrate)
+endif()
 
 if(${CLANG_VERSION_MAJOR} GREATER_EQUAL 15)
   list(APPEND CLANG_LIBRARIES clangSupport)

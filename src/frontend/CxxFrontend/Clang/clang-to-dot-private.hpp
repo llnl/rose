@@ -3,6 +3,7 @@
 # define _CLANG_TO_DOT_FRONTEND_PRIVATE_HPP_
 
 #include "clang-frontend.hpp"
+#include "clang-compat.hpp"
 
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTContext.h"
@@ -64,7 +65,8 @@
 
 #include "llvm/Config/llvm-config.h"
 
-#if (__clang__)  && (__clang_major__ >= 18)
+// (10/30/2026) lin32: LLVM header selection must use LLVM_VERSION_MAJOR, independently of the host compiler.
+#if LLVM_VERSION_MAJOR >= 18
 #include "llvm/TargetParser/Host.h"
 #else
 #include "llvm/Support/Host.h"
@@ -191,7 +193,7 @@ class ClangToDotTranslator : public clang::ASTConsumer
     protected:
         void VisitTemplateArgument(const clang::TemplateArgument & template_argument, NodeDescriptor & node_desc, std::string prefix);
         void VisitTemplateName(const clang::TemplateName & template_name, NodeDescriptor & node_desc, std::string prefix);
-        void VisitNestedNameSpecifier(clang::NestedNameSpecifier * nested_name_specifier, NodeDescriptor & node_desc, std::string prefix);
+        void VisitNestedNameSpecifier(RoseClangCompat::NestedNameSpecifier nested_name_specifier, NodeDescriptor & node_desc, std::string prefix);
 
           ClangToDotPreprocessorRecord   * p_sage_preprocessor_recorder;
 
@@ -555,7 +557,7 @@ class ClangToDotTranslator : public clang::ASTConsumer
        // virtual bool VisitObjCCStringLiteral
        // virtual bool VisitObjCSubscriptRefexpr
           virtual bool VisitOffsetOfExpr(clang::OffsetOfExpr * offset_of_expr, NodeDescriptor & node_desc);
-          virtual bool VisitOMPArraySectionExpr(clang::OMPArraySectionExpr * omp_array_section_expr, NodeDescriptor & node_desc);
+          virtual bool VisitOMPArraySectionExpr(RoseClangCompat::ArraySectionExpr * omp_array_section_expr, NodeDescriptor & node_desc);
           virtual bool VisitOpaqueValueExpr(clang::OpaqueValueExpr * opaque_value_expr, NodeDescriptor & node_desc);
           virtual bool VisitOverloadExpr(clang::OverloadExpr * overload_expr, NodeDescriptor & node_desc);
           virtual bool VisitUnresolvedLookupExpr(clang::UnresolvedLookupExpr * unresolved_lookup_expr, NodeDescriptor & node_desc);
@@ -573,7 +575,10 @@ class ClangToDotTranslator : public clang::ASTConsumer
           virtual bool VisitSubstNonTypeTemplateParmExpr(clang::SubstNonTypeTemplateParmExpr * subst_non_type_template_parm_expr, NodeDescriptor & node_desc);
           virtual bool VisitSubstNonTypeTemplateParmPackExpr(clang::SubstNonTypeTemplateParmPackExpr * subst_non_type_template_parm_pack_expr, NodeDescriptor & node_desc);
           virtual bool VisitTypeTraitExpr(clang::TypeTraitExpr * type_trait, NodeDescriptor & node_desc);
+// (10/30/2026) lin32: TypoExpr was removed in Clang 21; do not declare visitors for a missing AST class.
+#if CLANG_VERSION_MAJOR < 21
           virtual bool VisitTypoExpr(clang::TypoExpr * typo_expr, NodeDescriptor & node_desc);
+#endif
           virtual bool VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr * unary_expr_or_type_trait_expr, NodeDescriptor & node_desc);
           virtual bool VisitUnaryOperator(clang::UnaryOperator * unary_operator, NodeDescriptor & node_desc);
           virtual bool VisitVAArgExpr(clang::VAArgExpr * va_arg_expr, NodeDescriptor & node_desc);
@@ -636,10 +641,16 @@ class ClangToDotTranslator : public clang::ASTConsumer
           virtual bool VisitTypeOfType(clang::TypeOfType * type_of_type, NodeDescriptor & node_desc);
           virtual bool VisitTypeWithKeyword(clang::TypeWithKeyword * type_with_keyword, NodeDescriptor & node_desc);
           virtual bool VisitDependentNameType(clang::DependentNameType * dependent_name_type, NodeDescriptor & node_desc);
+// (10/30/2026) lin32: Clang 22 removed ElaboratedType and merged dependent specializations into TemplateSpecializationType.
+#if CLANG_VERSION_MAJOR < 22
           virtual bool VisitDependentTemplateSpecializationType(clang::DependentTemplateSpecializationType * dependent_template_specialization_type, NodeDescriptor & node_desc);
           virtual bool VisitElaboratedType(clang::ElaboratedType * elaborated_type, NodeDescriptor & node_desc);
+#endif
           virtual bool VisitUnaryTransformType(clang::UnaryTransformType * unary_transform_type, NodeDescriptor & node_desc);
+// (10/30/2026) lin32: Clang 21 folded DependentUnaryTransformType into UnaryTransformType.
+#if CLANG_VERSION_MAJOR < 21
           virtual bool VisitDependentUnaryTransformType(clang::DependentUnaryTransformType * dependent_unary_transform_type, NodeDescriptor & node_desc);
+#endif
           virtual bool VisitUnresolvedUsingType(clang::UnresolvedUsingType * unresolved_using_type, NodeDescriptor & node_desc);
           virtual bool VisitVectorType(clang::VectorType * vector_type, NodeDescriptor & node_desc);
           virtual bool VisitExtVectorType(clang::ExtVectorType * ext_vector_type, NodeDescriptor & node_desc);
@@ -714,4 +725,3 @@ class ClangToDotPreprocessorInserter : public AstTopDownProcessing<ClangToDotNex
    };
 
 #endif /* _CLANG_TO_DOT_FRONTEND_PRIVATE_HPP_ */
-

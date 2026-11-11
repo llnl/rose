@@ -550,8 +550,8 @@ SgNode * ClangToSageTranslator::Traverse(clang::Stmt * stmt) {
             ret_status = VisitOffsetOfExpr((clang::OffsetOfExpr *)stmt, &result);
             ROSE_ASSERT(result != NULL);
             break;
-        case clang::Stmt::OMPArraySectionExprClass:
-            ret_status = VisitOMPArraySectionExpr((clang::OMPArraySectionExpr *)stmt, &result);
+        case RoseClangCompat::ArraySectionExprClass:
+            ret_status = VisitOMPArraySectionExpr((RoseClangCompat::ArraySectionExpr *)stmt, &result);
             ROSE_ASSERT(result != NULL);
             break;
         case clang::Stmt::OpaqueValueExprClass:
@@ -614,10 +614,13 @@ SgNode * ClangToSageTranslator::Traverse(clang::Stmt * stmt) {
             ret_status = VisitTypeTraitExpr((clang::TypeTraitExpr *)stmt, &result);
             ROSE_ASSERT(result != NULL);
             break;
+        // (10/30/2026) lin32: Clang 21 removed TypoExpr and its statement kind; exclude the old dispatch case.
+#if CLANG_VERSION_MAJOR < 21
         case clang::Stmt::TypoExprClass:
             ret_status = VisitTypoExpr((clang::TypoExpr *)stmt, &result);
             ROSE_ASSERT(result != NULL);
             break;
+#endif
         case clang::Stmt::UnaryExprOrTypeTraitExprClass:
             ret_status = VisitUnaryExprOrTypeTraitExpr((clang::UnaryExprOrTypeTraitExpr *)stmt, &result);
             ROSE_ASSERT(result != NULL);
@@ -710,8 +713,13 @@ bool ClangToSageTranslator::VisitGCCAsmStmt(clang::GCCAsmStmt * gcc_asm_stmt, Sg
     unsigned asmNumOutput = gcc_asm_stmt->getNumOutputs(); 
     unsigned asmClobber = gcc_asm_stmt->getNumClobbers(); 
 
+    // (10/30/2026) lin32: Clang 21 GCCAsmStmt::getAsmString() returns a std::string, matching file-scope assembly.
+#if CLANG_VERSION_MAJOR >= 21
+    std::string AsmStringRef = gcc_asm_stmt->getAsmString();
+#else
     clang::StringLiteral* AsmStringLiteral = gcc_asm_stmt->getAsmString();
     llvm::StringRef AsmStringRef = AsmStringLiteral->getString();
+#endif
 
     std::cout << "input op:" << asmNumInput << " output op: " << asmNumOutput<< "\n";
 #if DEBUG_VISIT_STMT
@@ -2855,15 +2863,18 @@ bool ClangToSageTranslator::VisitDeclRefExpr(clang::DeclRefExpr * decl_ref_expr,
     SgSymbol* sym = NULL;
 
 
-    clang::NestedNameSpecifier* qualifier = NULL;
-
     if(decl_ref_expr->hasQualifier())
     {
-      qualifier = decl_ref_expr->getQualifier();
+      // (10/30/2026) lin32: Adapt Clang 22's value qualifier while preserving namespace, alias, record and global lookup.
+      RoseClangCompat::NestedNameSpecifier qualifier = decl_ref_expr->getQualifier();
+#if CLANG_VERSION_MAJOR >= 22
+      qualifier.dump();
+#else
       qualifier->dump();
-      clang::NamespaceDecl * namespaceDecl = qualifier->getAsNamespace(); 
-      clang::NamespaceAliasDecl * namespaceAliasDecl = qualifier->getAsNamespaceAlias(); 
-      clang::CXXRecordDecl  * cxxRecordDecl = qualifier->getAsRecordDecl(); 
+#endif
+      clang::NamespaceDecl * namespaceDecl = RoseClangCompat::getAsNamespace(qualifier);
+      clang::NamespaceAliasDecl * namespaceAliasDecl = RoseClangCompat::getAsNamespaceAlias(qualifier);
+      clang::CXXRecordDecl  * cxxRecordDecl = RoseClangCompat::getAsRecordDecl(qualifier);
       if(namespaceDecl != nullptr)
       {
         SgNamespaceDeclarationStatement* namespaceeDeclStmt = isSgNamespaceDeclarationStatement(Traverse(namespaceDecl));
@@ -2898,7 +2909,7 @@ bool ClangToSageTranslator::VisitDeclRefExpr(clang::DeclRefExpr * decl_ref_expr,
       else
       {
         // This should be the case when namespace is empty (e.g. ::X).
-        if(qualifier->getKind() == clang::NestedNameSpecifier::Global)
+        if(RoseClangCompat::isGlobal(qualifier))
         {
           SgGlobal* globalScope = SageInterface::getGlobalScope(SageBuilder::topScopeStack());
           std::string declName = decl_ref_expr->getDecl()->getNameAsString();
@@ -3071,7 +3082,7 @@ bool ClangToSageTranslator::VisitDesignatedInitExpr(clang::DesignatedInitExpr * 
         SgExpression * expr = NULL;
         clang::DesignatedInitExpr::Designator * D = designated_init_expr->getDesignator(it-1);
         if (D->isFieldDesignator()) {
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
             SgSymbol * symbol = GetSymbolFromSymbolTable(D->getFieldDecl());
 #else
             SgSymbol * symbol = GetSymbolFromSymbolTable(D->getField());
@@ -3614,7 +3625,7 @@ bool ClangToSageTranslator::VisitOffsetOfExpr(clang::OffsetOfExpr * offset_of_ex
     return VisitExpr(offset_of_expr, node) && res;
 }
 
-bool ClangToSageTranslator::VisitOMPArraySectionExpr(clang::OMPArraySectionExpr * omp_array_section_expr, SgNode ** node) {
+bool ClangToSageTranslator::VisitOMPArraySectionExpr(RoseClangCompat::ArraySectionExpr * omp_array_section_expr, SgNode ** node) {
 #if DEBUG_VISIT_STMT
     logger[DEBUG] << "ClangToSageTranslator::VisitOMPArraySectionExpr" << "\n";
 #endif
@@ -3736,7 +3747,8 @@ bool ClangToSageTranslator::VisitPredefinedExpr(clang::PredefinedExpr * predefin
     SgName name;
 
  // (01/29/2020) Pei-Hung: change to getIndentKind.  And this list is incomplete for Clang 9   
-#if (__clang__)  && (__clang_major__ >= 18)
+    // (10/30/2026) lin32: Explicitly reject unsupported predefined identifiers instead of continuing with an empty name.
+#if CLANG_VERSION_MAJOR >= 18
     switch (predefined_expr->getIdentKind()) {
         case clang::PredefinedIdentKind::Func:
             name = "__func__";
@@ -3748,6 +3760,7 @@ bool ClangToSageTranslator::VisitPredefinedExpr(clang::PredefinedExpr * predefin
             name = "__PRETTY_FUNCTION__";
             break;
         case clang::PredefinedIdentKind::PrettyFunctionNoVirtual:
+        default:
             ROSE_ABORT();
     }
 #else
@@ -3762,6 +3775,7 @@ bool ClangToSageTranslator::VisitPredefinedExpr(clang::PredefinedExpr * predefin
             name = "__PRETTY_FUNCTION__";
             break;
         case clang::PredefinedExpr::PrettyFunctionNoVirtual:
+        default:
             ROSE_ABORT();
     }
 #endif
@@ -3993,6 +4007,8 @@ bool ClangToSageTranslator::VisitTypeTraitExpr(clang::TypeTraitExpr * type_trait
 }
 
 
+// (10/30/2026) lin32: Match the declaration/dispatch guards for TypoExpr, which was removed in Clang 21.
+#if CLANG_VERSION_MAJOR < 21
 bool ClangToSageTranslator::VisitTypoExpr(clang::TypoExpr * typo_expr, SgNode ** node) {
 #if DEBUG_VISIT_STMT
     logger[DEBUG] << "ClangToSageTranslator::VisitTypoExpr" << "\n";
@@ -4003,6 +4019,8 @@ bool ClangToSageTranslator::VisitTypoExpr(clang::TypoExpr * typo_expr, SgNode **
 
     return VisitExpr(typo_expr, node) && res;
 }
+
+#endif
 
 bool ClangToSageTranslator::VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr * unary_expr_or_type_trait_expr, SgNode ** node) {
 #if DEBUG_VISIT_STMT
@@ -4041,24 +4059,24 @@ bool ClangToSageTranslator::VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrType
                bool isembedded = false;
                bool iscompleteDefined = false;
 
-               while((isa<clang::ElaboratedType>(argumentType)) || (isa<clang::PointerType>(argumentType)) || (isa<clang::ArrayType>(argumentType)))
+               while((RoseClangCompat::isElaboratedType(argumentType)) || (llvm::isa<clang::PointerType>(argumentType)) || (llvm::isa<clang::ArrayType>(argumentType)))
                {
-                  if(isa<clang::ElaboratedType>(argumentType))
+                  if(RoseClangCompat::isElaboratedType(argumentType))
                   {
-                    argumentQualType = ((clang::ElaboratedType *)argumentType)->getNamedType();
+                    argumentQualType = RoseClangCompat::getNamedType(argumentQualType);
                   }
-                  else if(isa<clang::PointerType>(argumentType))
+                  else if(llvm::isa<clang::PointerType>(argumentType))
                   {
                     argumentQualType = ((clang::PointerType *)argumentType)->getPointeeType();
                   }
-                  else if(isa<clang::ArrayType>(argumentType))
+                  else if(llvm::isa<clang::ArrayType>(argumentType))
                   {
                     argumentQualType = ((clang::ArrayType *)argumentType)->getElementType();
                   }
                   argumentType = argumentQualType.getTypePtr();
                }
 
-               if(isa<clang::RecordType>(argumentType))
+               if(llvm::isa<clang::RecordType>(argumentType))
                {
                   clang::RecordType* argumentRecordType = (clang::RecordType*)argumentType;
                   clang::RecordDecl* recordDeclaration = argumentRecordType->getDecl();

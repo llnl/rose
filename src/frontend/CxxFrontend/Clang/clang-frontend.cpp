@@ -7,7 +7,6 @@
 #include "rose_config.h"
 
 #include "clang-to-dot.hpp"
-
 extern bool roseInstallPrefix(std::string&);
 
 // DQ (11/28/2020): Use this for testing the DOT graph generator.
@@ -241,14 +240,19 @@ int clang_main(int argc, char ** argv, SgSourceFile& sageFile) {
 
   // 2 - Create a compiler instance
 
+    // (10/30/2026) lin32: Clang 21 installs the invocation through CompilerInstance's constructor, not setInvocation().
+    // (10/30/2026) lin32: DiagnosticOptions is no longer intrusive-refcounted; use invocation-owned options by reference.
+    auto invocation_shptr = std::make_shared<clang::CompilerInvocation>();
+    clang::CompilerInvocation * invocation = invocation_shptr.get();
+#if CLANG_VERSION_MAJOR >= 21
+    clang::CompilerInstance * compiler_instance = new clang::CompilerInstance(invocation_shptr);
+    clang::TextDiagnosticPrinter * diag_printer = new clang::TextDiagnosticPrinter(llvm::errs(), invocation->getDiagnosticOpts());
+#else
     clang::CompilerInstance * compiler_instance = new clang::CompilerInstance();
-
     llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts = new clang::DiagnosticOptions();
     clang::TextDiagnosticPrinter * diag_printer = new clang::TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
+#endif
     compiler_instance->createDiagnostics(diag_printer, true);
-
-    clang::CompilerInvocation * invocation = new clang::CompilerInvocation();
-    std::shared_ptr<clang::CompilerInvocation> invocation_shptr(std::move(invocation));
 
 //    clang::LangOptions & lang_opts = compiler_instance->getLangOpts();
 
@@ -286,23 +290,37 @@ int clang_main(int argc, char ** argv, SgSourceFile& sageFile) {
         default:
             ROSE_ABORT();
     }
-    args[i] = new char[languageArg.size()];
+    // (10/30/2026) lin32: Reserve space for the terminating NUL copied by strcpy when assembling Clang arguments.
+    args[i] = new char[languageArg.size() + 1];
     strcpy(&(args[cnt-1][0]), languageArg.c_str());
     llvm::ArrayRef<const char *> argsArrayRef(args, &(args[cnt]));
     clang::CompilerInvocation::CreateFromArgs(*invocation, argsArrayRef, compiler_instance->getDiagnostics());
+#if CLANG_VERSION_MAJOR < 21
     compiler_instance->setInvocation(invocation_shptr);
+#endif
 
-
+    // (10/30/2026) lin32: Clang 21 takes TargetOptions by reference; invocation ownership keeps it alive with TargetInfo.
+#if CLANG_VERSION_MAJOR >= 21
+    clang::TargetOptions & target_options = invocation->getTargetOpts();
+    target_options.Triple = llvm::sys::getDefaultTargetTriple();
+    clang::TargetInfo * target_info = clang::TargetInfo::CreateTargetInfo(compiler_instance->getDiagnostics(), target_options);
+#else
     clang::TargetOptions target_options;
     target_options.Triple = llvm::sys::getDefaultTargetTriple();
     std::shared_ptr<clang::TargetOptions> targetOption_shptr = std::make_shared<clang::TargetOptions>(target_options);
     clang::TargetInfo * target_info = clang::TargetInfo::CreateTargetInfo(compiler_instance->getDiagnostics(), targetOption_shptr);
+#endif
     compiler_instance->setTarget(target_info);
 
     compiler_instance->createFileManager();
+    // (10/30/2026) lin32: Clang 22 createSourceManager() uses the instance's FileManager without an argument.
+#if CLANG_VERSION_MAJOR >= 22
+    compiler_instance->createSourceManager();
+#else
     compiler_instance->createSourceManager(compiler_instance->getFileManager());
+#endif
 
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
     llvm::Expected<clang::FileEntryRef> ret  = compiler_instance->getFileManager().getFileRef(input_file);
     if (!ret) { // Check if there was an error
       llvm::Error err = ret.takeError();
@@ -514,7 +532,7 @@ void ClangToSageTranslator::applySourceRange(SgNode * node, clang::SourceRange s
 
                if (p_compiler_instance->getSourceManager().getFileEntryForID(file_begin) != NULL) 
                   {
-                    std::string file = p_compiler_instance->getSourceManager().getFileEntryForID(file_begin)->getName().str();
+                    std::string file = RoseClangCompat::getFileName(p_compiler_instance->getSourceManager(), file_begin);
 
                  // start_fi = new Sg_File_Info(file, ls, cs);
                  // end_fi   = new Sg_File_Info(file, le, ce);
@@ -733,7 +751,7 @@ void SagePreprocessorRecord::InclusionDirective(clang::SourceLocation HashLoc, c
     unsigned ls = p_source_manager->getSpellingLineNumber(HashLoc, &inv_begin_line);
     unsigned cs = p_source_manager->getSpellingColumnNumber(HashLoc, &inv_begin_col);
 
-    std::string file = p_source_manager->getFileEntryForID(p_source_manager->getFileID(HashLoc))->getName().str();
+    std::string file = RoseClangCompat::getFileName(*p_source_manager, p_source_manager->getFileID(HashLoc));
 
     logger[INFO] << "    In file  : " << file << "\n";
     logger[INFO] << "    From     : " << ls << ":" << cs << "\n";
@@ -852,4 +870,3 @@ bool SagePreprocessorRecord::pop() {
     p_preprocessor_record_list.erase(p_preprocessor_record_list.begin());
     return !p_preprocessor_record_list.empty();
 }
-

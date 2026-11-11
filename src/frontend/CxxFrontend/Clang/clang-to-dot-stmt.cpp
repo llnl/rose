@@ -437,8 +437,8 @@ std::string ClangToDotTranslator::Traverse(clang::Stmt * stmt)
         case clang::Stmt::OffsetOfExprClass:
             ret_status = VisitOffsetOfExpr((clang::OffsetOfExpr *)stmt, node_desc);
             break;
-        case clang::Stmt::OMPArraySectionExprClass:
-            ret_status = VisitOMPArraySectionExpr((clang::OMPArraySectionExpr *)stmt, node_desc);
+        case RoseClangCompat::ArraySectionExprClass:
+            ret_status = VisitOMPArraySectionExpr((RoseClangCompat::ArraySectionExpr *)stmt, node_desc);
             break;
         case clang::Stmt::OpaqueValueExprClass:
             ret_status = VisitOpaqueValueExpr((clang::OpaqueValueExpr *)stmt, node_desc);
@@ -485,9 +485,12 @@ std::string ClangToDotTranslator::Traverse(clang::Stmt * stmt)
         case clang::Stmt::TypeTraitExprClass:
             ret_status = VisitTypeTraitExpr((clang::TypeTraitExpr *)stmt, node_desc);
             break;
+        // (10/30/2026) lin32: Clang 21 removed TypoExpr and its statement kind; exclude the old DOT dispatch case.
+#if CLANG_VERSION_MAJOR < 21
         case clang::Stmt::TypoExprClass:
             ret_status = VisitTypoExpr((clang::TypoExpr *)stmt, node_desc);
             break;
+#endif
         case clang::Stmt::UnaryExprOrTypeTraitExprClass:
             ret_status = VisitUnaryExprOrTypeTraitExpr((clang::UnaryExprOrTypeTraitExpr *)stmt, node_desc);
             break;
@@ -3978,7 +3981,7 @@ bool ClangToDotTranslator::VisitCharacterLiteral(clang::CharacterLiteral * chara
 
      node_desc.kind_hierarchy.push_back("CharacterLiteral");
 
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
     switch (character_literal->getKind()) {
         case clang::CharacterLiteralKind::Ascii:
             node_desc.attributes.push_back(std::pair<std::string, std::string>("kind", "Ascii"));
@@ -5118,7 +5121,7 @@ bool ClangToDotTranslator::VisitDesignatedInitExpr(clang::DesignatedInitExpr * d
           if (it->isFieldDesignator()) 
              {
                oss << " field";
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
                node_desc.successors.push_back(std::pair<std::string, std::string>(oss.str(), Traverse(it->getFieldDecl())));
 #else
                node_desc.successors.push_back(std::pair<std::string, std::string>(oss.str(), Traverse(it->getField())));
@@ -5961,7 +5964,7 @@ bool ClangToDotTranslator::VisitOffsetOfExpr(clang::OffsetOfExpr * offset_of_exp
 #endif
 
 #if 0
-bool ClangToDotTranslator::VisitOMPArraySectionExpr(clang::OMPArraySectionExpr * omp_array_section_expr, SgNode ** node) {
+bool ClangToDotTranslator::VisitOMPArraySectionExpr(RoseClangCompat::ArraySectionExpr * omp_array_section_expr, SgNode ** node) {
 #if DEBUG_VISIT_STMT
     logger[DEBUG] << "ClangToDotTranslator::VisitOMPArraySectionExpr" << "\n";
 #endif
@@ -5972,7 +5975,7 @@ bool ClangToDotTranslator::VisitOMPArraySectionExpr(clang::OMPArraySectionExpr *
     return VisitExpr(omp_array_section_expr, node) && res;
 }
 #else
-bool ClangToDotTranslator::VisitOMPArraySectionExpr(clang::OMPArraySectionExpr * omp_array_section_expr, NodeDescriptor & node_desc) {
+bool ClangToDotTranslator::VisitOMPArraySectionExpr(RoseClangCompat::ArraySectionExpr * omp_array_section_expr, NodeDescriptor & node_desc) {
 #if DEBUG_VISIT_STMT
     logger[DEBUG] << "ClangToDotTranslator::VisitOMPArraySectionExpr" << "\n";
 #endif
@@ -6336,7 +6339,7 @@ bool ClangToDotTranslator::VisitPredefinedExpr(clang::PredefinedExpr * predefine
 
   // DQ (11/28/2020): Change of function name in Clang 10.
   // switch (predefined_expr->getIdentType()) 
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
      switch (predefined_expr->getIdentKind()) 
         {
           case clang::PredefinedIdentKind::Func:
@@ -6729,6 +6732,8 @@ bool ClangToDotTranslator::VisitTypeTraitExpr(clang::TypeTraitExpr * type_trait,
 }
 #endif
 
+// (10/30/2026) lin32: Match the declaration/dispatch guards for TypoExpr, which was removed in Clang 21.
+#if CLANG_VERSION_MAJOR < 21
 #if 0
 bool ClangToDotTranslator::VisitTypoExpr(clang::TypoExpr * typo_expr, SgNode ** node) {
 #if DEBUG_VISIT_STMT
@@ -6754,6 +6759,8 @@ bool ClangToDotTranslator::VisitTypoExpr(clang::TypoExpr * typo_expr, NodeDescri
     return VisitExpr(typo_expr, node_desc) && res;
 }
 #endif
+
+#endif // CLANG_VERSION_MAJOR < 21
 
 #if 0
 bool ClangToDotTranslator::VisitUnaryExprOrTypeTraitExpr(clang::UnaryExprOrTypeTraitExpr * unary_expr_or_type_trait_expr, SgNode ** node) {

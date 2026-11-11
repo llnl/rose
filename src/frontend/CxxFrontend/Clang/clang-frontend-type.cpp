@@ -215,6 +215,8 @@ SgNode * ClangToSageTranslator::Traverse(const clang::Type * type) {
             ret_status = VisitDependentNameType((clang::DependentNameType *)type, &result);
             ROSE_ASSERT(result != NULL);
             break;
+        // (10/30/2026) lin32: Clang 22 removed ElaboratedType and merged dependent specializations into TemplateSpecializationType.
+#if CLANG_VERSION_MAJOR < 22
         case clang::Type::DependentTemplateSpecialization:
             ret_status = VisitDependentTemplateSpecializationType((clang::DependentTemplateSpecializationType *)type, &result);
             ROSE_ASSERT(result != NULL);
@@ -223,6 +225,7 @@ SgNode * ClangToSageTranslator::Traverse(const clang::Type * type) {
             ret_status = VisitElaboratedType((clang::ElaboratedType *)type, &result);
             ROSE_ASSERT(result != NULL);
             break;
+#endif
         case clang::Type::UnaryTransform:
             ret_status = VisitUnaryTransformType((clang::UnaryTransformType *)type, &result);
             ROSE_ASSERT(result != NULL);
@@ -367,7 +370,7 @@ bool ClangToSageTranslator::VisitIncompleteArrayType(clang::IncompleteArrayType 
 
     // TODO clang::ArrayType::ArraySizeModifier
 
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
     clang::ArraySizeModifier sizeModifier = incomplete_array_type->getSizeModifier();
 
     if(sizeModifier == clang::ArraySizeModifier::Star)
@@ -757,7 +760,15 @@ bool ClangToSageTranslator::VisitMemberPointerType(clang::MemberPointerType * me
 #endif
     bool res = true;
 
-    SgType* classType = isSgClassType(Traverse(member_pointer_type->getClass()));
+    // (10/30/2026) lin32: Clang 21 replaced getClass() with a qualifier; Clang 22 changed that qualifier to a value type.
+#if CLANG_VERSION_MAJOR >= 22
+    const clang::Type* memberClassType = member_pointer_type->getQualifier().getAsType();
+#elif CLANG_VERSION_MAJOR >= 21
+    const clang::Type* memberClassType = member_pointer_type->getQualifier()->getAsType();
+#else
+    const clang::Type* memberClassType = member_pointer_type->getClass();
+#endif
+    SgType* classType = isSgClassType(Traverse(memberClassType));
     ROSE_ASSERT(classType);   
 
     SgType* baseType = buildTypeFromQualifiedType(member_pointer_type->getPointeeType());
@@ -936,13 +947,34 @@ bool ClangToSageTranslator::VisitRecordType(clang::RecordType * record_type, SgN
     logger[DEBUG] << "ClangToSageTranslator::VisitRecordType" << "\n";
 #endif
 
-    SgSymbol * sym = GetSymbolFromSymbolTable(record_type->getDecl());
+    clang::RecordDecl *record_decl = record_type->getDecl();
+    auto translatedClassDecl = [&](clang::RecordDecl *decl) -> SgClassDeclaration* {
+        if (decl == nullptr)
+            return nullptr;
+        auto it = p_decl_translation_map.find(decl);
+        return it == p_decl_translation_map.end() ? nullptr : isSgClassDeclaration(it->second);
+    };
 
-    SgClassSymbol * class_sym = isSgClassSymbol(sym);
+    // A name-only symbol lookup can select a nearer class with the same name
+    // (e.g., a local `A` when this RecordType refers to `::A`). Prefer the
+    // exact Clang declaration identity whenever it has already been visited.
+    SgClassDeclaration *sg_decl = translatedClassDecl(record_decl);
+    if (sg_decl == nullptr)
+        sg_decl = translatedClassDecl(llvm::dyn_cast<clang::RecordDecl>(record_decl->getCanonicalDecl()));
+    if (sg_decl == nullptr)
+        sg_decl = translatedClassDecl(record_decl->getDefinition());
 
-    if (class_sym == NULL) {
+    SgClassSymbol *class_sym = isSgClassSymbol(GetSymbolFromSymbolTable(record_decl));
+    // Capture this before Traverse populates sg_decl. Definitions first
+    // encountered through a type must still be emitted in sizeof operands.
+    const bool firstSeenInType = sg_decl == nullptr && class_sym == nullptr;
+
+    if (sg_decl != nullptr) {
+        *node = sg_decl->get_type();
+    }
+    else if (class_sym == NULL) {
         SgNode * tmp_decl = Traverse(record_type->getDecl());
-        SgClassDeclaration * sg_decl = isSgClassDeclaration(tmp_decl);
+        sg_decl = isSgClassDeclaration(tmp_decl);
 
         ROSE_ASSERT(sg_decl != NULL);
 
@@ -953,7 +985,7 @@ bool ClangToSageTranslator::VisitRecordType(clang::RecordType * record_type, SgN
     }
 
     if (isSgClassType(*node) != NULL) {
-        if (class_sym == NULL) {
+        if (firstSeenInType) {
             p_class_type_decl_first_see_in_type.insert(std::pair<SgClassType *, bool>(isSgClassType(*node), true));
             isSgNamedType(*node)->set_autonomous_declaration(true);
         }
@@ -1051,7 +1083,7 @@ bool ClangToSageTranslator::VisitTypeOfType(clang::TypeOfType * type_of_type, Sg
 #endif
     bool res = true;
 
-#if (__clang__)  && (__clang_major__ > 15)
+#if CLANG_VERSION_MAJOR > 15
     SgType* underlyinigType = buildTypeFromQualifiedType(type_of_type->getUnmodifiedType());
 #else
     SgType* underlyinigType = buildTypeFromQualifiedType(type_of_type->getUnderlyingType());
@@ -1088,6 +1120,8 @@ bool ClangToSageTranslator::VisitDependentNameType(clang::DependentNameType * de
     return VisitTypeWithKeyword(dependent_name_type, node) && res;
 }
 
+// (10/30/2026) lin32: Retain the old visitors only where the pre-Clang-22 AST classes still exist.
+#if CLANG_VERSION_MAJOR < 22
 bool ClangToSageTranslator::VisitDependentTemplateSpecializationType(clang::DependentTemplateSpecializationType * ependent_template_specialization_type, SgNode ** node) {
 #if DEBUG_VISIT_TYPE
     logger[DEBUG] << "ClangToSageTranslator::DependentTemplateSpecializationType" << "\n";
@@ -1120,6 +1154,8 @@ bool ClangToSageTranslator::VisitElaboratedType(clang::ElaboratedType * elaborat
     return VisitTypeWithKeyword(elaborated_type, node);
 }
 
+#endif
+
 bool ClangToSageTranslator::VisitUnaryTransformType(clang::UnaryTransformType * unary_transform_type, SgNode ** node) {
 #if DEBUG_VISIT_TYPE
     logger[DEBUG] << "ClangToSageTranslator::UnaryTransformType" << "\n";
@@ -1131,6 +1167,8 @@ bool ClangToSageTranslator::VisitUnaryTransformType(clang::UnaryTransformType * 
     return VisitType(unary_transform_type, node) && res;
 }
 
+// (10/30/2026) lin32: Clang 21 represents dependent unary transforms with UnaryTransformType instead.
+#if CLANG_VERSION_MAJOR < 21
 bool ClangToSageTranslator::VisitDependentUnaryTransformType(clang::DependentUnaryTransformType * dependent_unary_transform_type, SgNode ** node) {
 #if DEBUG_VISIT_TYPE
     logger[DEBUG] << "ClangToSageTranslator::DependentUnaryTransformType" << "\n";
@@ -1141,6 +1179,8 @@ bool ClangToSageTranslator::VisitDependentUnaryTransformType(clang::DependentUna
 
     return VisitUnaryTransformType(dependent_unary_transform_type, node) && res;
 }
+
+#endif
 
 bool ClangToSageTranslator::VisitUnresolvedUsingType(clang::UnresolvedUsingType * unresolved_using_type, SgNode ** node) {
 #if DEBUG_VISIT_TYPE

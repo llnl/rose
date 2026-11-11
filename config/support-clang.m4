@@ -29,7 +29,10 @@ if test "x$CONFIG_HAS_ROSE_ENABLE_CLANG_FRONTEND" = "xyes"; then
          if test -z "$CLANG_LDFLAGS"; then
              AC_MSG_CHECKING([for Clang version])
              CLANG_VERSION_MAJOR=`${srcdir}/config/getClangMajorVersionNumber.sh`
-             if test $CLANG_VERSION_MAJOR -ge 18; then
+             if test $CLANG_VERSION_MAJOR -ge 21; then
+                 llvm_ldflags="`$LLVM_CONFIG --ldflags` -lclangCrossTU -lclangTooling -lclangFrontendTool -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers -lclangStaticAnalyzerCore -lclangIndex -lclangFrontend -lclangCodeGen  -lclangRewrite -lclangSerialization -lclangDriver -lclangOptions -lclangParse -lclangSema -lclangAnalysisLifetimeSafety -lclangAnalysis -lclangAST -lclangLex -lclangEdit -lclangLex -lclangSupport -lclangASTMatchers -lclangAPINotes -lclangBasic "
+                 llvm_ldflags+="`$LLVM_CONFIG --libs all ` "
+             elif test $CLANG_VERSION_MAJOR -ge 18; then
                  llvm_ldflags="`$LLVM_CONFIG --ldflags` -lclangCrossTU -lclangTooling -lclangFrontendTool -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers -lclangStaticAnalyzerCore -lclangIndex -lclangFrontend -lclangCodeGen  -lclangARCMigrate -lclangRewrite -lclangSerialization -lclangDriver -lclangParse -lclangSema -lclangAnalysis -lclangAST -lclangLex -lclangEdit -lclangLex -lclangSupport -lclangASTMatchers -lclangAPINotes -lclangBasic "
                  llvm_ldflags+="`$LLVM_CONFIG --libs all ` "
              elif test $CLANG_VERSION_MAJOR -ge 16; then

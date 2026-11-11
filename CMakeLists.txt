@@ -763,6 +763,19 @@ if(ENABLE_CLANG_FRONTEND)
   endif()
   find_package(LLVM REQUIRED)
   find_package(Clang REQUIRED)
+  # The embedded frontend creates CompilerInvocation directly and therefore
+  # does not receive the Clang driver's builtin-header search path.
+  execute_process(
+    COMMAND "${LLVM_TOOLS_BINARY_DIR}/clang" -print-resource-dir
+    OUTPUT_VARIABLE ROSE_CLANG_RESOURCE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE ROSE_CLANG_RESOURCE_DIR_RESULT)
+  if(ROSE_CLANG_RESOURCE_DIR_RESULT EQUAL 0 AND NOT ROSE_CLANG_RESOURCE_DIR STREQUAL "")
+    set(ROSE_CLANG_RESOURCE_INCLUDE_DIR "${ROSE_CLANG_RESOURCE_DIR}/include")
+    message(STATUS "Using Clang resource headers: ${ROSE_CLANG_RESOURCE_INCLUDE_DIR}")
+  else()
+    message(WARNING "Unable to determine the Clang resource directory from ${LLVM_TOOLS_BINARY_DIR}/clang")
+  endif()
   # find_package may stomp on CLANG_VERSION_MAJOR, so it must be after. At the moment, the package
   # sets CLANG_VERSION_MAJOR to 0, but they may correct it in the future, which would make the
   # script unnecessary
@@ -1738,6 +1751,9 @@ if(ENABLE_C)
       string(STRIP "${C_include_dir}" C_include_dir)
       set(C_INCLUDE_STRING "${C_INCLUDE_STRING}, \"${C_include_dir}\"")
     endforeach()
+    if(ROSE_CLANG_RESOURCE_INCLUDE_DIR)
+      set(C_INCLUDE_STRING "${C_INCLUDE_STRING}, \"${ROSE_CLANG_RESOURCE_INCLUDE_DIR}\"")
+    endif()
     set(C_INCLUDE_STRING "${C_INCLUDE_STRING}, \"/usr/include\"")
 
     # find CXX includes and put them in this order: directory includes, compiler header includes, then /usr/include
@@ -1754,6 +1770,9 @@ if(ENABLE_C)
       string(STRIP "${CXX_include_dir}" CXX_include_dir)
       set(CXX_INCLUDE_STRING "${CXX_INCLUDE_STRING}, \"${CXX_include_dir}\"")
     endforeach()
+    if(ROSE_CLANG_RESOURCE_INCLUDE_DIR)
+      set(CXX_INCLUDE_STRING "${CXX_INCLUDE_STRING}, \"${ROSE_CLANG_RESOURCE_INCLUDE_DIR}\"")
+    endif()
     set(CXX_INCLUDE_STRING "${CXX_INCLUDE_STRING}, \"/usr/include\"")
 
     # In the Autools build system, ROSE stores compiler specific headers in two distinct locations:

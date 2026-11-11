@@ -1,5 +1,6 @@
 #include "sage3basic.h"
 #include "clang-frontend-private.hpp"
+#include "clang/Lex/Lexer.h"
 
 using namespace Sawyer::Message;
 SgSymbol * ClangToSageTranslator::GetSymbolFromSymbolTable(clang::NamedDecl * decl) {
@@ -100,11 +101,11 @@ SgSymbol * ClangToSageTranslator::GetSymbolFromSymbolTable(clang::NamedDecl * de
 
             const clang::Type* fieldType = fieldQualType.getTypePtr();
 
-            while((llvm::isa<clang::ElaboratedType>(fieldType)) || (llvm::isa<clang::ArrayType>(fieldType)))
+            while((RoseClangCompat::isElaboratedType(fieldType)) || (llvm::isa<clang::ArrayType>(fieldType)))
             {
-               if(llvm::isa<clang::ElaboratedType>(fieldType))
+               if(RoseClangCompat::isElaboratedType(fieldType))
                {
-                 fieldQualType = ((clang::ElaboratedType *)fieldType)->getNamedType();
+                 fieldQualType = RoseClangCompat::getNamedType(fieldQualType);
                }
                else if(llvm::isa<clang::ArrayType>(fieldType))
                {
@@ -669,8 +670,13 @@ bool ClangToSageTranslator::VisitFileScopeAsmDecl(clang::FileScopeAsmDecl * file
 #endif
     bool res = true;
 
+    // (10/30/2026) lin32: Clang 21 getAsmString() returns an owned std::string instead of a StringLiteral AST node.
+#if CLANG_VERSION_MAJOR >= 21
+    std::string AsmStringRef = file_scope_asm_decl->getAsmString();
+#else
     clang::StringLiteral* AsmStringLiteral = file_scope_asm_decl->getAsmString();
     llvm::StringRef AsmStringRef = AsmStringLiteral->getString();
+#endif
 
 #if DEBUG_VISIT_DECL
     logger[DEBUG] << "AsmStringRef:" << static_cast<std::string>(AsmStringRef) << "\n";
@@ -711,9 +717,14 @@ bool ClangToSageTranslator::VisitFriendDecl(clang::FriendDecl * friend_decl, SgN
        clang::QualType friendQualType = type_source_info->getType(); 
        const clang::Type* friendType = friendQualType.getTypePtr();
        // Pei-Hung: currently looking for ElaboratedType and RecordType
-       if(llvm::isa<clang::ElaboratedType>(friendType))
+       // (10/30/2026) lin32: Clang 22 friend types can be RecordType directly because ElaboratedType was removed.
+       if(RoseClangCompat::isElaboratedType(friendType)
+#if CLANG_VERSION_MAJOR >= 22
+          || llvm::isa<clang::RecordType>(friendType)
+#endif
+         )
        {
-          friendQualType = ((clang::ElaboratedType *)friendType)->getNamedType();
+          friendQualType = RoseClangCompat::getNamedType(friendQualType);
           friendType =  friendQualType.getTypePtr();
           if(llvm::isa<clang::RecordType>(friendType))
           {
@@ -730,7 +741,7 @@ bool ClangToSageTranslator::VisitFriendDecl(clang::FriendDecl * friend_decl, SgN
              }
 
              // get type of class
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
              SgClassDeclaration::class_types type_of_class;
              switch (recordDecl->getTagKind()) {
                  case clang::TagTypeKind::Struct:
@@ -866,7 +877,7 @@ bool ClangToSageTranslator::VisitNamespaceDecl(clang::NamespaceDecl * namespace_
     logger[DEBUG] << "isAnonymousNamespace " << namespace_decl->isAnonymousNamespace() << "\n";
     logger[DEBUG] << "isInline " << namespace_decl->isInline() << "\n";
 //    logger[DEBUG] << "isNested " << namespace_decl->isNested() << "\n";
-    logger[DEBUG] << "isOriginalNamespace " << namespace_decl->isOriginalNamespace() << "\n";
+    logger[DEBUG] << "isFirstDecl " << namespace_decl->isFirstDecl() << "\n";
     logger[DEBUG] << "isAnonymousNamespace " << namespace_decl->isAnonymousNamespace() << "\n";
 #endif
     bool res = true;
@@ -986,10 +997,23 @@ bool ClangToSageTranslator::VisitClassTemplateDecl(clang::ClassTemplateDecl * cl
     // Need to get the equivalent string from Clang, through the print() function.
 
     std::string templateString;
-    llvm::raw_string_ostream Steram(templateString);
-    class_template_decl->print(Steram);
-    Steram.flush();
-    // Clang's template string doesn't include the ending ; symbol.  
+    bool invalidSourceRange = false;
+    llvm::StringRef sourceText = clang::Lexer::getSourceText(
+        clang::CharSourceRange::getTokenRange(class_template_decl->getSourceRange()),
+        class_template_decl->getASTContext().getSourceManager(),
+        class_template_decl->getASTContext().getLangOpts(),
+        &invalidSourceRange);
+    if (!invalidSourceRange && !sourceText.empty() && sourceText.find('#') == llvm::StringRef::npos) {
+        // Clang's printer omits record definitions embedded in field
+        // declarators. Preserve the original tokens when they do not span
+        // preprocessing directives.
+        templateString = sourceText.str();
+    } else {
+        llvm::raw_string_ostream stream(templateString);
+        class_template_decl->print(stream);
+        stream.flush();
+    }
+    // Clang's template string doesn't include the ending ; symbol.
     if(class_template_decl->isThisDeclarationADefinition())
     {
        templateString += ';';
@@ -1068,7 +1092,7 @@ bool ClangToSageTranslator::VisitTagDecl(clang::TagDecl * tag_decl, SgNode ** no
     logger[DEBUG] << "isBeingDefined() " << tag_decl->isBeingDefined() << "\n";
     logger[DEBUG] << "isEmbeddedInDeclarator() " << tag_decl->isEmbeddedInDeclarator() << "\n";
     logger[DEBUG] << "isFreeStanding() " << tag_decl->isFreeStanding() << "\n";
-    logger[DEBUG] << "mayHaveOutOfDateDef() " << tag_decl->mayHaveOutOfDateDef() << "\n";
+//    logger[DEBUG] << "mayHaveOutOfDateDef() " << tag_decl->mayHaveOutOfDateDef() << "\n";
     logger[DEBUG] << "isDependentType() " << tag_decl->isDependentType() << "\n";
     logger[DEBUG] << "isThisDeclarationADemotedDefinition() " << tag_decl->isThisDeclarationADemotedDefinition() << "\n";
     logger[DEBUG] << "isStruct () " << tag_decl->isStruct () << "\n";
@@ -1088,7 +1112,7 @@ bool ClangToSageTranslator::VisitTagDecl(clang::TagDecl * tag_decl, SgNode ** no
 
     SgClassDeclaration* sg_class_decl = NULL; 
     SgClassDefinition* sg_class_def = NULL;
-    if(sg_class_decl = isSgClassDeclaration(*node))
+    if((sg_class_decl = isSgClassDeclaration(*node)))
     {
        sg_class_def = isSgClassDefinition(sg_class_decl->get_definition());
        if(sg_class_def)
@@ -1230,7 +1254,6 @@ bool ClangToSageTranslator::VisitRecordDecl(clang::RecordDecl * record_decl, SgN
     logger[DEBUG] << "canPassInRegisters() " << record_decl->canPassInRegisters() << "\n";
     logger[DEBUG] << "isParamDestroyedInCallee() " << record_decl->isParamDestroyedInCallee() << "\n";
     logger[DEBUG] << "isRandomized() " << record_decl->isRandomized() << "\n";
-    logger[DEBUG] << "isInjectedClassName() " << record_decl->isInjectedClassName() << "\n";
     logger[DEBUG] << "isLambda() " << record_decl->isLambda() << "\n";
     logger[DEBUG] << "isCapturedRecord() " << record_decl->isCapturedRecord() << "\n";
     logger[DEBUG] << "isOrContainsUnion() " << record_decl->isOrContainsUnion() << "\n";
@@ -1269,7 +1292,7 @@ bool ClangToSageTranslator::VisitRecordDecl(clang::RecordDecl * record_decl, SgN
     //SgClassDeclaration * sg_def_class_decl = sg_prev_class_decl == NULL ? NULL : isSgClassDeclaration(sg_prev_class_decl->get_definingDeclaration());
     SgClassSymbol * sg_defining_sym = NULL;
     // Pei-Hung (07/25/24) The case that a CXXRecordDecl has its definition inside a namespace.
-    if(isa<clang::CXXRecordDecl>(record_decl) && ((clang::CXXRecordDecl*)record_decl)->hasDefinition())
+    if(llvm::isa<clang::CXXRecordDecl>(record_decl) && ((clang::CXXRecordDecl*)record_decl)->hasDefinition())
     {
       sg_defining_sym = NULL;
     }
@@ -1315,7 +1338,7 @@ bool ClangToSageTranslator::VisitRecordDecl(clang::RecordDecl * record_decl, SgN
 
   // Type of class
 
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
     SgClassDeclaration::class_types type_of_class;
     switch (record_decl->getTagKind()) {
         case clang::TagTypeKind::Struct:
@@ -1415,7 +1438,7 @@ bool ClangToSageTranslator::VisitRecordDecl(clang::RecordDecl * record_decl, SgN
           sg_first_class_decl->set_definingDeclaration(sg_def_class_decl);
         }
         clang::RecordDecl* currentRecordDecl = record_decl;
-        while(currentRecordDecl = currentRecordDecl->getPreviousDecl())
+        while((currentRecordDecl = currentRecordDecl->getPreviousDecl()))
         {
           logger[DEBUG] << "PrevDecl: " << currentRecordDecl << "\n";
           //currentRecordDecl = record_decl->getPreviousDecl();
@@ -1474,8 +1497,8 @@ bool ClangToSageTranslator::VisitRecordDecl(clang::RecordDecl * record_decl, SgN
             if (staticMember == NULL || !staticMember->isStaticDataMember()) continue;
             const clang::Type * memberType = staticMember->getType().getTypePtr();
             while (true) {
-                if (const clang::ElaboratedType * elaboratedType = llvm::dyn_cast<clang::ElaboratedType>(memberType)) {
-                    memberType = elaboratedType->getNamedType().getTypePtr();
+                if (RoseClangCompat::isElaboratedType(memberType)) {
+                    memberType = RoseClangCompat::getNamedType(clang::QualType(memberType, 0)).getTypePtr();
                 } else if (const clang::ArrayType * arrayType = llvm::dyn_cast<clang::ArrayType>(memberType)) {
                     memberType = arrayType->getElementType().getTypePtr();
                 } else {
@@ -1551,6 +1574,7 @@ bool ClangToSageTranslator::VisitCXXRecordDecl(clang::CXXRecordDecl * cxx_record
       logger[DEBUG] << "hasTrivialDefaultConstructor() " << cxx_record_decl->hasTrivialDefaultConstructor() << "\n";
       logger[DEBUG] << "hasNonTrivialDefaultConstructor() " << cxx_record_decl->hasNonTrivialDefaultConstructor() << "\n";
       logger[DEBUG] << "isAnonymousStructOrUnion() " << cxx_record_decl->isAnonymousStructOrUnion() << "\n";
+      logger[DEBUG] << "isInjectedClassName() " << cxx_record_decl->isInjectedClassName() << "\n";
     }
     // to be filled up for full list
 #endif
@@ -1792,13 +1816,13 @@ bool ClangToSageTranslator::VisitTypedefDecl(clang::TypedefDecl * typedef_decl, 
     bool isDefinitionaRequired = false; 
 
     // Adding check for EaboratedType and PointerType to retrieve base EnumType
-    while((llvm::isa<clang::ElaboratedType>(underlyingType)) || (llvm::isa<clang::PointerType>(underlyingType)) || (llvm::isa<clang::ArrayType>(underlyingType)))
+    while((RoseClangCompat::isElaboratedType(underlyingType)) || (llvm::isa<clang::PointerType>(underlyingType)) || (llvm::isa<clang::ArrayType>(underlyingType)))
     {
-       if(llvm::isa<clang::ElaboratedType>(underlyingType))
+       if(RoseClangCompat::isElaboratedType(underlyingType))
        {
          hasElaboratedType = true;
-         underlyingQualType = ((clang::ElaboratedType *)underlyingType)->getNamedType();
-         clang::TagDecl* ownedTagDecl = ((clang::ElaboratedType *)underlyingType)->getOwnedTagDecl();
+         underlyingQualType = RoseClangCompat::getNamedType(underlyingQualType);
+         clang::TagDecl* ownedTagDecl = RoseClangCompat::getOwnedTagDecl(underlyingType);
          if(ownedTagDecl != nullptr)
          {
 #if DEBUG_VISIT_DECL
@@ -1817,6 +1841,13 @@ bool ClangToSageTranslator::VisitTypedefDecl(clang::TypedefDecl * typedef_decl, 
        }
        underlyingType = underlyingQualType.getTypePtr();
     }
+
+#if CLANG_VERSION_MAJOR >= 22
+    // (10/30/2026) lin32: Clang 22 moved ownership to TagType; distinguish owned definitions from existing tag references.
+    hasElaboratedType = llvm::isa<clang::TagType>(underlyingType);
+    if (clang::TagDecl *ownedTagDecl = RoseClangCompat::getOwnedTagDecl(underlyingType))
+        isOwnedTagDeclADefinition = ownedTagDecl->isThisDeclarationADefinition();
+#endif
 
     if(llvm::isa<clang::EnumType>(underlyingType))
     {
@@ -2059,7 +2090,12 @@ bool ClangToSageTranslator::VisitFieldDecl(clang::FieldDecl * field_decl, SgNode
     SgName name(field_decl->getNameAsString());
 
     clang::RecordDecl* enclosingRecordDecl = field_decl->getParent();
+    // (10/30/2026) lin32: Clang 22 deletes TagDecl::getTypeForDecl(); retrieve its lazy canonical type through ASTContext.
+#if CLANG_VERSION_MAJOR >= 22
+    const clang::Type* encolsingRecordDeclType = enclosingRecordDecl->getASTContext().getCanonicalTagType(enclosingRecordDecl).getTypePtr();
+#else
     const clang::Type* encolsingRecordDeclType = enclosingRecordDecl->getTypeForDecl();
+#endif
 
     clang::QualType fieldQualType = field_decl->getType();
 
@@ -2076,17 +2112,17 @@ bool ClangToSageTranslator::VisitFieldDecl(clang::FieldDecl * field_decl, SgNode
     bool isOwnedTagDeclADefinition = false;
     // checking is definition should be setup in ROSE AST
     bool isDefinitionaRequired = false; 
-    bool isAnonymousStructOrUnion = false;
+    bool isAnonymousStructOrUnion = field_decl->isAnonymousStructOrUnion();
 
     // Adding check for EaboratedType and PointerType to retrieve base EnumType
     // Removing PointerType here before finding a better implementation to handle pointer
-    while((llvm::isa<clang::ElaboratedType>(fieldType)) || (llvm::isa<clang::PointerType>(fieldType)) || (llvm::isa<clang::ArrayType>(fieldType)))
+    while((RoseClangCompat::isElaboratedType(fieldType)) || (llvm::isa<clang::PointerType>(fieldType)) || (llvm::isa<clang::ArrayType>(fieldType)))
     {
-       if(llvm::isa<clang::ElaboratedType>(fieldType))
+       if(RoseClangCompat::isElaboratedType(fieldType))
        {
          hasElaboratedType = true;
-         fieldQualType = ((clang::ElaboratedType *)fieldType)->getNamedType();
-         clang::TagDecl* ownedTagDecl = ((clang::ElaboratedType *)fieldType)->getOwnedTagDecl();
+         fieldQualType = RoseClangCompat::getNamedType(fieldQualType);
+         clang::TagDecl* ownedTagDecl = RoseClangCompat::getOwnedTagDecl(fieldType);
          if(ownedTagDecl != nullptr)
          {
             logger[DEBUG] << "ClangToSageTranslator::VisitFieldDecl ownedTagDecl " << ownedTagDecl->isThisDeclarationADefinition() << "\n";
@@ -2106,6 +2142,17 @@ bool ClangToSageTranslator::VisitFieldDecl(clang::FieldDecl * field_decl, SgNode
 
 #if DEBUG_VISIT_DECL
     logger[DEBUG] << "fieldType: " << fieldType << " enclosingRecordDeclType: " << encolsingRecordDeclType <<  "\n";
+#endif
+
+    // (10/30/2026) lin32: Read Clang 22 tag ownership after unwrapping pointers/arrays to avoid duplicate field definitions.
+#if CLANG_VERSION_MAJOR >= 22
+    hasElaboratedType = llvm::isa<clang::TagType>(fieldType);
+    if (clang::TagDecl *ownedTagDecl = RoseClangCompat::getOwnedTagDecl(fieldType))
+        isOwnedTagDeclADefinition = ownedTagDecl->isThisDeclarationADefinition();
+#if DEBUG_VISIT_DECL
+    logger[DEBUG] << "hasElaboratedType:" <<hasElaboratedType <<  "\n";
+    logger[DEBUG] << "isOwnedTagDeclADefinition " << isOwnedTagDeclADefinition << "\n";
+#endif
 #endif
 
     if(llvm::isa<clang::EnumType>(fieldType))
@@ -2134,7 +2181,16 @@ bool ClangToSageTranslator::VisitFieldDecl(clang::FieldDecl * field_decl, SgNode
       isDefinitionaRequired = iscompleteDefined;
     }
 
-    isAnonymousStructOrUnion = field_decl->isAnonymousStructOrUnion();
+    // An anonymous struct/union member is itself the definition to attach to
+    // its FieldDecl. Clang 22 represents the type as a TagType but may not
+    // expose an owned TagDecl, so the ownership-based test above would
+    // otherwise leave this field without a corresponding Sage node.
+    if (isAnonymousStructOrUnion && iscompleteDefined)
+      isDefinitionaRequired = true;
+
+#if DEBUG_VISIT_DECL
+    logger[DEBUG] << "isDefinitionaRequired " << isDefinitionaRequired << "\n";
+#endif
 
     SgType * sg_fieldType = buildTypeFromQualifiedType(fieldQualType);
     SgType * type = buildTypeFromQualifiedType(field_decl->getType());
@@ -2784,13 +2840,13 @@ bool ClangToSageTranslator::VisitVarDecl(clang::VarDecl * var_decl, SgNode ** no
 
     // Adding check for EaboratedType and PointerType to retrieve base EnumType
     //while((varType->getTypeClass() == clang::Type::Elaborated) || (varType->getTypeClass() == clang::Type::Pointer) || (varType->getTypeClass() == clang::Type::Array))
-    while((llvm::isa<clang::ElaboratedType>(varType)) || (llvm::isa<clang::PointerType>(varType)) || (llvm::isa<clang::ArrayType>(varType)))
+    while((RoseClangCompat::isElaboratedType(varType)) || (llvm::isa<clang::PointerType>(varType)) || (llvm::isa<clang::ArrayType>(varType)))
     {
-       if(llvm::isa<clang::ElaboratedType>(varType))
+       if(RoseClangCompat::isElaboratedType(varType))
        {
          hasElaboratedType = true;
-         varQualType = ((clang::ElaboratedType *)varType)->getNamedType();
-         clang::TagDecl* ownedTagDecl = ((clang::ElaboratedType *)varType)->getOwnedTagDecl();
+         varQualType = RoseClangCompat::getNamedType(varQualType);
+         clang::TagDecl* ownedTagDecl = RoseClangCompat::getOwnedTagDecl(varType);
          if(ownedTagDecl != nullptr)
          {
 #if DEBUG_VISIT_DECL
@@ -2809,6 +2865,13 @@ bool ClangToSageTranslator::VisitVarDecl(clang::VarDecl * var_decl, SgNode ** no
        }
        varType = varQualType.getTypePtr();
     }
+
+    // (10/30/2026) lin32: Read Clang 22 tag ownership after unwrapping pointers/arrays to preserve inline variable definitions.
+#if CLANG_VERSION_MAJOR >= 22
+    hasElaboratedType = llvm::isa<clang::TagType>(varType);
+    if (clang::TagDecl *ownedTagDecl = RoseClangCompat::getOwnedTagDecl(varType))
+        isOwnedTagDeclADefinition = ownedTagDecl->isThisDeclarationADefinition();
+#endif
 
     if(llvm::isa<clang::EnumType>(varType))
     {
@@ -2879,8 +2942,8 @@ bool ClangToSageTranslator::VisitVarDecl(clang::VarDecl * var_decl, SgNode ** no
     // uninitialized declaration instead of unparsing `T array[N] = T()`.
     const clang::Type * arrayElementType = var_decl->getType().getTypePtr();
     while (true) {
-        if (const clang::ElaboratedType * elaboratedType = llvm::dyn_cast<clang::ElaboratedType>(arrayElementType)) {
-            arrayElementType = elaboratedType->getNamedType().getTypePtr();
+        if (RoseClangCompat::isElaboratedType(arrayElementType)) {
+            arrayElementType = RoseClangCompat::getNamedType(clang::QualType(arrayElementType, 0)).getTypePtr();
         } else if (const clang::ArrayType * arrayType = llvm::dyn_cast<clang::ArrayType>(arrayElementType)) {
             arrayElementType = arrayType->getElementType().getTypePtr();
         } else {
@@ -3286,9 +3349,9 @@ bool ClangToSageTranslator::VisitStaticAssertDecl(clang::StaticAssertDecl * prag
         logger[WARN] << "Runtime error: tmp_condition != NULL && condition == NULL" << "\n";
         res = false;
     } else {
-#if (__clang__)  && (__clang_major__ >= 18)
+#if CLANG_VERSION_MAJOR >= 18
       clang::Expr* Message = pragma_static_assert_decl->getMessage();
-      if (const auto *SL = dyn_cast<clang::StringLiteral>(Message)) {
+      if (const auto *SL = llvm::dyn_cast<clang::StringLiteral>(Message)) {
          assert(SL->isUnevaluated() && "expected an unevaluated string");
          *node = SageBuilder::buildStaticAssertionDeclaration(condition, SL->getString().str());
       }
