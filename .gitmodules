@@ -1,4 +1,4 @@
 [submodule "edg_compiler"]
 	path = src/frontend/CxxFrontend/EDG/edg_compiler
 	url = https://github.com/llnl/edg-compiler.git
-	branch = rose/7.0-cmake-lib-mac
+	branch = contrib/rose-7.0

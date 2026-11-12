@@ -165,33 +165,18 @@ RHEL9-Main:
 RHEL9-Min:
     extends: .develop-base
 
-RHEL8-Main:
+RHEL8-CMake:
     extends: .develop-base
     tags:
         - workpool:large:rhel9
 
-RHEL8-CMake:
-    extends: .develop-base
-
-WINE:
-    extends: .develop-base
-
 WINE-CMake:
-    extends: .develop-base
-
-Jovial:
     extends: .develop-base
 
 Jovial-CMake:
     extends: .develop-base
 
-Ada:
-    extends: .develop-base
-
 Ada-CMake:
-    extends: .develop-base
-
-Libadalang:
     extends: .develop-base
 
 Libadalang-CMake:
@@ -208,16 +193,6 @@ Language-Test:
                 - fortran
     script:
         - ./$TEST_DIRECTORY/develop_launcher.sh $CI_JOB_NAME $LANGUAGE
-
-Clang:
-    extends: .develop-base
-    parallel:
-        matrix:
-            - VERSION: 
-                - old
-                - new
-    script:
-        - ./$TEST_DIRECTORY/develop_launcher.sh $CI_JOB_NAME $VERSION
 
 Clang-CMake:
     extends: .develop-base

@@ -1381,7 +1381,7 @@ if(HAVE_LIBDL)
 endif()
 
 # Check compilers and version numbers. The module is located in src/cmake/modules.
-if(ENABLE_C)
+if(ENABLE_C OR ENABLE_FORTRAN)
   include(roseChooseBackendCompiler)
   include(roseGenerateBackendCompilerSpecificHeaders)
   install(DIRECTORY ${CMAKE_BINARY_DIR}/include-staging/ DESTINATION include/edg)
