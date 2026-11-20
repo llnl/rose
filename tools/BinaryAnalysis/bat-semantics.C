@@ -228,7 +228,8 @@ main(int argc, char *argv[]) {
                 ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), instructions.front()->get_address()));
 
                 size_t nSteps = 0;
-                const size_t maxSteps = 100000;
+                const size_t maxSteps = 1000;
+                auto nextBranch = IS::BaseSemantics::Dispatcher::BranchStatus::FALL_THROUGH;
 
                 while (!methodState->isTerminated()) {
                     ASSERT_require2(++nSteps <= maxSteps, "JVM execution exceeded instruction step limit");
@@ -243,7 +244,19 @@ main(int argc, char *argv[]) {
                     ASSERT_not_null(pcValue);
 
                     auto concretePc = pcValue->toUnsigned();
-                    ASSERT_require2(concretePc, "PC requires path splitting");
+
+                    if (cpu->branchingStatus() == IS::BaseSemantics::Dispatcher::BranchStatus::BOTH) {
+                        // Alternate between target and fall through addresses
+                        if (nextBranch == IS::BaseSemantics::Dispatcher::BranchStatus::FALL_THROUGH) {
+                            concretePc = cpu->branchFallThrough();
+                            nextBranch = IS::BaseSemantics::Dispatcher::BranchStatus::TAKEN; // TAKEN==!FALL_THROUGH here
+                        }
+                        else {
+                            concretePc = cpu->branchTarget();
+                            nextBranch = IS::BaseSemantics::Dispatcher::BranchStatus::FALL_THROUGH;
+                        }
+                        ASSERT_require2(concretePc, "PC requires path splitting");
+                    }
 
                     const Address pc = static_cast<Address>(*concretePc);
 
@@ -256,6 +269,7 @@ main(int argc, char *argv[]) {
                     std::cerr << partitioner->unparse(insn) << "\n";
                     printAst(std::cout, insn, "");
 
+                    // Branches, invokes, returns, switches, etc. can overwrite PC.
                     cpu->processInstruction(insn);
 
                     std::cerr << *methodState;

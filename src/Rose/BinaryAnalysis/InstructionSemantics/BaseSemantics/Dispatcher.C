@@ -92,7 +92,44 @@ Dispatcher::protoval() const {
 
 SgAsmInstruction*
 Dispatcher::currentInstruction() const {
-    return operators() ? operators()->currentInstruction() : NULL;
+    return operators() ? operators()->currentInstruction() : nullptr;
+}
+
+Dispatcher::BranchStatus
+Dispatcher::branchingStatus() const {
+    return branchStatus_;
+}
+
+Sawyer::Optional<Address>
+Dispatcher::branchTarget() const {
+    return branchTarget_;
+}
+
+Sawyer::Optional<Address>
+Dispatcher::branchFallThrough() const {
+    return branchFallThrough_;
+}
+
+void
+Dispatcher::branchTarget(Address va) {
+    branchTarget_ = va;
+}
+
+void
+Dispatcher::branchFallThrough(Address va) {
+    branchFallThrough_ = va;
+}
+
+void
+Dispatcher::branchingStatus(BranchStatus status) {
+    branchStatus_ = status;
+}
+
+void
+Dispatcher::clearBranchingStatus() {
+    branchTarget_ = Sawyer::Nothing();
+    branchFallThrough_ = Sawyer::Nothing();
+    branchStatus_ = BranchStatus::NONE;
 }
 
 uint32_t
@@ -306,6 +343,9 @@ Dispatcher::processCommon() {
 
 void
 Dispatcher::processInstruction(SgAsmInstruction *insn) {
+    // This is a new instruction so reset/clear the branching status.
+    clearBranchingStatus();
+
     operators()->startInstruction(insn);
     BOOST_SCOPE_EXIT(this_) {
         this_->operators()->currentInstruction(nullptr);

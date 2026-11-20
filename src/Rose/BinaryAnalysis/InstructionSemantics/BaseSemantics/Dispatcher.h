@@ -50,16 +50,42 @@ public:
     /** Shared-ownership pointer. */
     using Ptr = DispatcherPtr;
 
+    // Execution status of a branch instruction.
+    enum class BranchStatus {
+        NONE,
+        TAKEN,
+        FALL_THROUGH,
+        BOTH
+    };
+
+    // Status of the current branch instruction and optional target and fall-through addresses.
+    BranchStatus branchingStatus() const;
+    Sawyer::Optional<Address> branchTarget() const;
+    Sawyer::Optional<Address> branchFallThrough() const;
+
+    // Set branch target and fall-through addresses.
+    void branchTarget(Address);
+    void branchFallThrough(Address);
+
+    void branchingStatus(BranchStatus status); /**< Reset the status of the current branch instruction. */
+
 private:
     Architecture::BaseConstPtr architecture_; // Required architecture
     RiscOperatorsPtr operators_;
     uint32_t nextObjectId_ = 1; // next unique object identifier
+    BranchStatus branchStatus_ = BranchStatus::NONE; // execution status of the current branch instruction
+    Sawyer::Optional<Address> branchTarget_;
+    Sawyer::Optional<Address> branchFallThrough_;
 
 protected:
     /** The ByteCode class repository maintained by the Engine. */
     ByteCode::ClassRepository::Ptr classes_;
 
-    bool autoResetInstructionPointer_ = true;           /**< Reset instruction pointer register for each instruction. */
+    /**< Reset instruction pointer register for each instruction. */
+    bool autoResetInstructionPointer_ = true;
+
+    /**< Reset branching status including the target and fall through addresses. */
+    void clearBranchingStatus();
 
     // Dispatchers keep a table of all the kinds of instructions they can handle.  The lookup key is typically some sort of
     // instruction identifier, such as from SgAsmX86Instruction::get_kind(), and comes from the iprocKey() virtual method.

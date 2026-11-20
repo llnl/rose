@@ -28,6 +28,9 @@
 
 #define MOVE_ON 1
 
+// Policy for multiple semantic paths
+const bool allowPathSplitting = true;
+
 using namespace Rose::BinaryAnalysis::InstructionSemantics::BaseSemantics;
 using namespace Sawyer::Message::Common;
 
@@ -40,6 +43,9 @@ namespace InstructionSemantics {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace Jvm {
+
+using IteStatus = BaseSemantics::RiscOperators::IteStatus;
+using BranchStatus = BaseSemantics::Dispatcher::BranchStatus;
 
 // An intermediate class that reduces the amount of typing in all that follows.  Its `process` method does some up-front checking,
 // dynamic casting, and pointer dereferencing and then calls the `p` method that does the real work.
@@ -204,9 +210,6 @@ namespace JvmSemantics {
 
     void methodReturn(Ops ops, I insn);
     void methodReturn(Ops ops, I insn, SValue::Ptr value);
-
-    void branch_ifnonnull(Ops ops, I insn, Args args);
-    void branch_ifnull(Ops ops, I insn, Args args);
 
     // Runtime-exception hooks. These are intended to be executable checks in the
     // concrete JVM semantics state, not documentation-only comments. A symbolic
@@ -521,6 +524,10 @@ namespace JvmSemantics {
         const std::string descriptor = DispatcherJvm::methodDescriptor(pool, index);
         const MethodDescriptor methodDesc = DescriptorParser::parseMethodDescriptor(descriptor);
 
+        const bool hasReceiver = invocationKind == InvocationKind::Special ||
+                                 invocationKind == InvocationKind::Virtual ||
+                                 invocationKind == InvocationKind::Interface;
+
         ByteCode::Method::Ptr calleeMethod;
 
         switch (invocationKind) {
@@ -564,10 +571,19 @@ namespace JvmSemantics {
             ops->writeRegister(pcReg, ops->number_(pcReg.nBits(), calleeMethod->address()));
         }
         else {
-            // External/system/unresolved call: summarize.
+            // Pop explicit arguments first.
+            for (size_t i = 0; i < methodDesc.arguments.size(); ++i) {
+                ops->popOperand();
+            }
+
+            // Pop receiver for non-static instance calls.
+            if (hasReceiver) {
+                ops->popOperand();
+            }
+
+            // External/system/unresolved call: synthesize return value if non-void.
             if (!methodDesc.returnType.isVoid()) {
                 auto result = DispatcherJvm::syntheticValue(state->protoval(), methodDesc.returnType);
-
                 ASSERT_not_null(result);
                 ops->pushOperand(result);
             }
@@ -946,12 +962,45 @@ namespace JvmSemantics {
         auto fallThrough = ops->readRegister(pcReg);
         ASSERT_not_null(fallThrough);
 
-        auto targetAddr = JvmSemantics::branchTargetAddress(insn, displacement);
+        const auto targetAddr = JvmSemantics::branchTargetAddress(insn, displacement);
+
         auto target = ops->number_(pcReg.nBits(), targetAddr);
         ASSERT_not_null(target);
+
         ASSERT_require(target->nBits() == fallThrough->nBits());
 
-        auto nextPc = ops->ite(cond, target, fallThrough);
+        auto status = BaseSemantics::RiscOperators::IteStatus::NEITHER;
+
+        SValuePtr nextPc = ops->iteWithStatus(cond, target, fallThrough, status/*out*/);
+
+        d->branchTarget(targetAddr);
+        if (const auto fallThroughAddrOpt = fallThrough->toUnsigned()) {
+            d->branchFallThrough(*fallThroughAddrOpt);
+        }
+
+        // Set branching status
+        switch (status) {
+          case IteStatus::A:
+              d->branchingStatus(BranchStatus::TAKEN);
+              break;
+          case IteStatus::B:
+              d->branchingStatus(BranchStatus::FALL_THROUGH);
+              break;
+          case IteStatus::BOTH:
+              d->branchingStatus(BranchStatus::BOTH);
+              break;
+          case IteStatus::NEITHER:
+              d->branchingStatus(BranchStatus::NONE);
+              break;
+        }
+
+        // If both paths are feasible and path splitting is disabled, continue along the fall-through path.
+        if (status == BaseSemantics::RiscOperators::IteStatus::BOTH && !allowPathSplitting) {
+            ops->comment("path splitting disabled; taking fall-through path");
+            nextPc = fallThrough;
+            d->branchingStatus(BranchStatus::FALL_THROUGH);
+        }
+
         ops->writeRegister(pcReg, nextPc);
     }
 
@@ -1009,7 +1058,38 @@ namespace JvmSemantics {
         ASSERT_not_null(target);
         ASSERT_require(target->nBits() == fallThrough->nBits());
 
-        auto nextPc = ops->ite(condition, target, fallThrough);
+        auto status = BaseSemantics::RiscOperators::IteStatus::NEITHER;
+
+        SValuePtr nextPc = ops->iteWithStatus(condition, target, fallThrough, status/*out*/);
+
+        d->branchTarget(targetAddr);
+        if (const auto fallThroughAddrOpt = fallThrough->toUnsigned()) {
+            d->branchFallThrough(*fallThroughAddrOpt);
+        }
+
+        // Set branching status
+        switch (status) {
+          case IteStatus::A:
+              d->branchingStatus(BranchStatus::TAKEN);
+              break;
+          case IteStatus::B:
+              d->branchingStatus(BranchStatus::FALL_THROUGH);
+              break;
+          case IteStatus::BOTH:
+              d->branchingStatus(BranchStatus::BOTH);
+              break;
+          case IteStatus::NEITHER:
+              d->branchingStatus(BranchStatus::NONE);
+              break;
+        }
+
+        // If both paths are feasible and path splitting is disabled, continue along the fall-through path.
+        if (status == IteStatus::BOTH && !allowPathSplitting) {
+            ops->comment("path splitting disabled; taking fall-through path");
+            nextPc = fallThrough;
+            d->branchingStatus(BranchStatus::FALL_THROUGH);
+        }
+
         ops->writeRegister(pcReg, nextPc);
     }
 
@@ -1669,8 +1749,7 @@ struct IP_checkcast: P {
         ASSERT_require(ref->kind() == ValueKind::ObjectReference ||
                        ref->kind() == ValueKind::ArrayReference);
 
-        // null can be cast to any reference type.
-        if (ref->symbolName() == "null") {
+        if (ref->nullness() == Nullness::DefinitelyNull) {
             ops->pushOperand(ref);
             return;
         }
@@ -1694,26 +1773,26 @@ struct IP_checkcast: P {
             return;
         }
 
-        if (sourceDescriptor.size() >= 2 &&
-            sourceDescriptor.front() == 'L' &&
-            sourceDescriptor.back() == ';') {
+        auto repo = d->classRepository();
+        ASSERT_not_null(repo);
 
-            auto repo = d->classRepository();
-            ASSERT_not_null(repo);
+        const std::string sourceClassName = sourceDescriptor.substr(1, sourceDescriptor.size() - 2);
 
-            const std::string sourceClassName = sourceDescriptor.substr(1, sourceDescriptor.size() - 2);
+        auto sourceClass = repo->findClass(sourceClassName);
+        auto targetClass = repo->findClass(targetClassName);
 
-            auto sourceClass = repo->findClass(sourceClassName);
-            auto targetClass = repo->findClass(targetClassName);
+        if (!sourceClass || !targetClass) {
+            ops->pushOperand(ref);
+            return;
+        }
 
-            if (sourceClass && targetClass && repo->isAssignableTo(sourceClass, targetClass)) {
-                ops->pushOperand(ref);
-                return;
-            }
+        if (repo->isAssignableTo(sourceClass, targetClass)) {
+            ops->pushOperand(ref);
+            return;
         }
 
         // TODO: model java/lang/ClassCastException.
-        //   - decide how to resolve an unsuccessful or unresolved cast represented.
+        ops->pushOperand(ref);
     }
 };
 
@@ -4839,15 +4918,16 @@ struct IP_putfield: P {
         ASSERT_require(fieldValue->kind() == descType.kind);
         ASSERT_require(objectRef->kind() == ValueKind::ObjectReference);
 
-        if (descType.isReference()) {
-            ASSERT_require(fieldValue->kind() == ValueKind::ObjectReference ||
-                           fieldValue->kind() == ValueKind::ArrayReference);
-        }
-
         auto state = ops->currentState();
         const std::string key = JS::instanceFieldIdentity(ops, index, objectRef);
 
-        state->putField(key, fieldValue);
+        if (descType.isReference()) {
+            auto storedValue = fieldValue->copy();
+            storedValue->typeDescriptor(fieldDesc);
+            state->putField(key, storedValue);
+        } else {
+            state->putField(key, fieldValue);
+        }
     }
 };
 
@@ -5482,7 +5562,9 @@ DispatcherJvm::resolveMethod(SgAsmJvmConstantPool *pool, size_t index) {
 ByteCode::Method::Ptr
 DispatcherJvm::resolveRuntimeMethod(SgAsmJvmConstantPool *pool, size_t index,
                                     const BaseSemantics::SValue::Ptr &receiver) {
-    ByteCode::Method::Ptr method;
+    ASSERT_not_null(pool);
+    ASSERT_not_null(receiver);
+
     const std::string receiverDescriptor = receiver->typeDescriptor();
 
     ASSERT_require(receiverDescriptor.size() >= 2);
@@ -5494,23 +5576,32 @@ DispatcherJvm::resolveRuntimeMethod(SgAsmJvmConstantPool *pool, size_t index,
     auto entry = pool->get_entry(index);
     ASSERT_not_null(entry);
 
-    ASSERT_require(entry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_InterfaceMethodref);
+    const auto tag = entry->get_tag();
+    ASSERT_require(tag == SgAsmJvmConstantPoolEntry::CONSTANT_Methodref ||
+                   tag == SgAsmJvmConstantPoolEntry::CONSTANT_InterfaceMethodref);
 
-    auto nameAndTypeIndex = entry->get_name_and_type_index();
+    const auto nameAndTypeIndex = entry->get_name_and_type_index();
     auto nameAndTypeEntry = pool->get_entry(nameAndTypeIndex);
+    ASSERT_not_null(nameAndTypeEntry);
+
     ASSERT_require(nameAndTypeEntry->get_tag() == SgAsmJvmConstantPoolEntry::CONSTANT_NameAndType);
 
-    std::string methodName = pool->get_utf8_string(nameAndTypeEntry->get_name_index());
-    std::string descriptor = pool->get_utf8_string(nameAndTypeEntry->get_descriptor_index());
+    const std::string methodName = pool->get_utf8_string(nameAndTypeEntry->get_name_index());
+    const std::string descriptor = pool->get_utf8_string(nameAndTypeEntry->get_descriptor_index());
 
     auto cls = classes_->findClass(receiverClassName);
+    if (!cls) {
+        return {};
+    }
 
-    if (cls) {
-        method = cls->findMethod(methodName, descriptor);
-        // Make sure the method has instructions, otherwise return null
-        if (method && method->instructions()->get_instructions().empty()) {
-            method = {};
-        }
+    auto method = cls->findMethod(methodName, descriptor);
+    if (!method) {
+        return {};
+    }
+
+    // A method without bytecode cannot be executed directly.
+    if (method->instructions()->get_instructions().empty()) {
+        return {};
     }
 
     return method;
