@@ -1,5 +1,5 @@
 variables:
-    TEST_SCRIPTS_BRANCH: "simon29/test-edg"
+    TEST_SCRIPTS_BRANCH: "master"
     TEST_DIRECTORY: "testing-scripts"
     GIT_STRATEGY: clone
     PIPE_LOCK: "false"
@@ -205,11 +205,6 @@ Clang-CMake:
         - ./$TEST_DIRECTORY/develop_launcher.sh $CI_JOB_NAME $VERSION
 
 Mac:
-    extends: .develop-base
-    tags:
-        - workpool:mac
-
-CMake-Mac:
     extends: .develop-base
     tags:
         - workpool:mac

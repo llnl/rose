@@ -32,6 +32,9 @@ do_timing=
 # do_header_file_dependence_checking=yes
 do_header_file_dependence_checking=no
 
+# This flag makes sure the user knows autoconf is deprecated
+acknowledge_deprecation=no
+
 while [[ "$#" -gt 0 ]]; do
     arg="$1"; shift
     case "$arg" in
@@ -56,12 +59,23 @@ while [[ "$#" -gt 0 ]]; do
         --allow-header-file-dependence-checking)
             do_header_file_dependence_checking=yes
             ;;
+        --deprecated)
+            acknowledge_deprecation=yes
+            ;;
         *)
             echo "$0: unrecognized argument: $arg" >&2
             exit 1
             ;;
     esac
 done
+
+#Quit out if "--deprecated" was not passed
+if [ "$acknowledge_deprecation" = "no" ]; then
+    echo "Warning: the autoconf build system is deprecated, and does not work with EDG 7.0." >&2
+    echo "Please use CMake to build ROSE instead." >&2
+    echo "Pass --deprecated to this script to ignore this warning and continue anyway." >&2
+    exit 1
+fi
 
 # If there's no autoconf-filter.pl script in this source tree, then we're building in some project external to ROSE, and
 # the "--srcpath" must be specified (or obtained from a config file).
